@@ -13,32 +13,13 @@ import matplotlib.ticker as mticker
 import mne
 import numpy as np
 import torch  # noqa
-import torch  # noqa
-import torch  # noqa
 import torch.nn.functional as F  # noqa
-import torch.nn.functional as F  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
-import torch.optim as optim  # noqa
 import torch.optim as optim  # noqa
 from mne import Epochs, pick_types
 from mne.datasets import eegbci
 from mne.io import concatenate_raws, read_raw_edf
 from torch import nn, Tensor  # noqa
-from torch import nn, Tensor  # noqa
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader  # noqa
-from torch.utils.data import Dataset, DataLoader  # noqa
-from torch.utils.data import Dataset, DataLoader  # noqa
-from torch.utils.data import RandomSampler  # noqa
-from torch.utils.data import RandomSampler  # noqa
-from torch.utils.data import RandomSampler  # noqa
-from torch.utils.data import SequentialSampler  # noqa
-from torch.utils.data import SequentialSampler  # noqa
-from torch.utils.data import SequentialSampler  # noqa
-from torch.utils.data import Subset  # noqa
-from torch.utils.data import Subset  # noqa
-from torch.utils.data import Subset  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
@@ -56,11 +37,14 @@ def combine_dims(a, i=0, n=1):
     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
 
 
-TRIALS_PER_SUBJECT = 84
+# TRIALS_PER_SUBJECT = 84
 CHANNELS = 64
 SAMPLES = 1281
 
 # see https://physionet.org/content/eegmmidb/1.0.0/
+excluded_subjects = [88, 92, 100, 104]
+ALL_SUBJECTS = [i for i in range(1, 110) if i not in excluded_subjects]
+
 runs_rest = [1]  # Baseline, eyes open
 runs_t1 = [3, 7, 11]  # Task 1 (open and close left or right fist)
 runs_t2 = [4, 8, 12]  # Task 2 (imagine opening and closing left or right fist)
@@ -71,7 +55,7 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes):
+    def __init__(self, subjects, n_classes, device):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -79,25 +63,30 @@ class TrialsDataset(Dataset):
         self.loaded_subject_labels = None
         self.n_classes = n_classes
         self.runs = []
-
-        if (self.n_classes == 3):
+        self.device = device
+        if (self.n_classes == 4):
+            self.runs = runs_rest + runs_t2 + runs_t4
+            self.trials_per_subject = 168
+        elif (self.n_classes == 3):
             self.runs = runs_rest + runs_t2
+            self.trials_per_subject = 84
         elif (self.n_classes == 2):
             self.runs = runs_t2
+            self.trials_per_subject = 0
 
     # Length of Dataset (84 Trials per Subject)
     def __len__(self):
-        return len(self.subjects) * TRIALS_PER_SUBJECT
+        return len(self.subjects) * self.trials_per_subject
 
     # Determines corresponding Subject of trial and loads subject's data+labels
     # Uses buffer for last loaded subject
     # event: event idx (trial)
     # returns trial data(X) and trial label(y)
     def load_trial(self, trial):
-        local_trial_idx = trial % TRIALS_PER_SUBJECT
+        local_trial_idx = trial % self.trials_per_subject
 
         # determine required subject for trial
-        subject = self.subjects[int(trial / TRIALS_PER_SUBJECT)]
+        subject = self.subjects[int(trial / self.trials_per_subject)]
 
         # If Subject in current buffer, skip MNE Loading
         if self.loaded_subject == subject:
@@ -117,12 +106,8 @@ class TrialsDataset(Dataset):
     # Returns a single trial
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
-        X = torch.as_tensor(X[None, ...])
+        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float)
         return X, y
-
-
-excluded_subjects = [88, 92, 100, 104]
-ALL_SUBJECTS = [i for i in range(1, 110) if i not in excluded_subjects]
 
 
 # Loads single Subject from mne
@@ -149,6 +134,7 @@ def mne_load_subject(subject, runs):
 # Training
 # see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
 def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
+    net.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(net.parameters(), lr=lr['start'])
@@ -158,12 +144,12 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
     for epoch in range(epochs):
         print(f"## Epoch {epoch} ")
         running_loss = 0.0
+        # Wrap in tqdm for Progressbar
+        pbar = tqdm(data_loader)
         # Training in batches from the DataLoader
-        for i, data in enumerate(data_loader):
-            inputs, labels = data
+        for idx_batch, (inputs, labels) in enumerate(pbar):
             # Convert to correct types + put on GPU
-            inputs, labels = inputs.float().to(device), labels.long().to(device)
-
+            inputs, labels = inputs, labels.long().to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
 
@@ -174,11 +160,14 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
             optimizer.step()
 
             running_loss += loss.item()
+            pbar.set_description(
+                desc=f"Batch {idx_batch} avg. loss: {running_loss / (idx_batch + 1):.4f}")
+        pbar.close()
         lr_scheduler.step()
         # Loss of entire epoch / amount of batches
         loss_values.append(running_loss / len(data_loader))
-        print('[%3d] loss: %f' %
-              (epoch + 1, running_loss))
+        print('[%3d] Total loss: %f' %
+              (epoch, running_loss))
     print("Training finished ######")
 
     return loss_values
@@ -189,9 +178,10 @@ def test(net, data_loader, device=torch.device("cpu")):
     total = 0.0
     correct = 0.0
     with torch.no_grad():
+        net.eval()
         for data in data_loader:
             inputs, labels = data
-            inputs, labels = Tensor(inputs.float()).to(device), Tensor(labels.float()).to(device)
+            inputs, labels = inputs, labels.float()
             outputs = net(inputs)
             _, predicted = torch.max(outputs.data.cpu(), 1)
             # For BCELOSS:
@@ -215,30 +205,45 @@ def subjects_without_excluded(subjects):
 # Plots data with Matplot
 # data: either 1d or 2d datasets
 # labels: if 2d data, provide labels for legend
-# save_path: if plot should be saved, declare save location
-def matplot(data, title='', xlabel='', ylabel='', labels=[], save_path=None):
-    plt.figure()
+# save_path: if plot + data array should be saved, declare save location
+def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, box_plot=False):
+    fig, ax = plt.subplots()
     plt.title(title)
     plt.xlabel(xlabel)
     plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(1))
     plt.ylabel(ylabel)
-    plt.grid()
+    if max_y is not None:
+        plt.ylim(top=max_y)
+    # Avoid X-Labels overlapping
+    if data.shape[-1] > 30:
+        multiple = 5 if data.shape[-1] % 5 == 0 else 4
+        plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(multiple))
+        plt.xticks(rotation=90)
+    # Plot multiple lines
     if data.ndim == 2:
         for i in range(len(data)):
             plt.plot(data[i], label=labels[i] if len(labels) >= i else "")
             plt.legend()
+        plt.grid()
     else:
-        plt.plot(data, label=labels[0] if len(labels) > 0 else "")
+        if box_plot:
+            ax.bar(np.arange(len(data)), data, 0.35, )
+            ax.axhline(np.average(data), color='red', linestyle='--')
+        else:
+            plt.plot(data, label=labels[0] if len(labels) > 0 else "")
+            plt.grid()
     if save_path is not None:
         fig = plt.gcf()
         fig.savefig(f"{save_path}/{title}.png")
+        np.save(f"{save_path}/{title}.npy", data)
+    # fig.tight_layout()
     plt.show()
 
 
 # Saves config + results.txt in dir_results
-def save_results(str_conf, accuracies, epoch_losses, elapsed, dir_results):
+def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results):
     str_elapsed = str(elapsed)
-    file_result = open(f"{dir_results}/results.txt", "w+")
+    file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str_elapsed}\n")
     file_result.write(f"Accuracies of Splits:\n")
@@ -270,10 +275,10 @@ def create_results_folders(datetime, platform="PC"):
     return results
 
 
-def get_str_config(config):
+def config_str(config, n_class=None):
     return f"""#### Config ####
 CUDA: {config['cuda']}
-Number of classes: {config['n_classes']}
+Number of classes: {config['n_classes'] if n_class is None else n_class}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
@@ -281,58 +286,7 @@ Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr
 ###############\n"""
 
 
-################################################### NOT USED ######################################################
-class ConcatDataset(_ConcatDataset):
-    """
-    Same as torch.utils.data.dataset.ConcatDataset, but exposes an extra
-    method for querying the group structure (index if dataset
-    each sample comes from)
-    """
-
-    def get_groups(self):
-        """Return the group index of each sample
-
-        Returns
-        -------
-        groups : array of int, shape (n_samples,)
-            The group indices.
-        """
-        groups = [k * np.ones(len(d)) for k, d in enumerate(self.datasets)]
-        return np.concatenate(groups)
-
-
-class EpochsDataset(Dataset):
-    """Class to expose an MNE Epochs object as PyTorch dataset
-
-    Parameters
-    ----------
-    epochs_data : 3d array, shape (n_epochs, n_channels, n_times)
-        The epochs data.
-    epochs_labels : array of int, shape (n_epochs,)
-        The epochs labels.
-    transform : callable | None
-        The function to eventually apply to each epoch
-        for preprocessing (e.g. scaling). Defaults to None.
-    """
-
-    def __init__(self, epochs_data, epochs_labels, transform=None):
-        assert len(epochs_data) == len(epochs_labels)
-        self.epochs_data = epochs_data
-        self.epochs_labels = epochs_labels
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.epochs_labels)
-
-    def __getitem__(self, idx):
-        X, y = self.epochs_data[idx], self.epochs_labels[idx]
-        if self.transform is not None:
-            X = self.transform(X)
-        X = torch.as_tensor(X[None, ...])
-        print("X", X.shape)
-        print("y", y.shape)
-        return X, y
-
+########################### NOT USED ######################################################
 
 def _do_train(model, loader, optimizer, criterion, device):
     # training loop
@@ -386,70 +340,4 @@ def _validate(model, loader, criterion, device):
     print("---  Accuracy : %s" % accuracy.item(), "\n")
     return np.mean(val_loss)
 
-
-def train_old(model, loader_train, loader_valid, optimizer, n_epochs, patience,
-              device):
-    """Training function
-
-    Parameters
-    ----------
-    model : instance of nn.Module
-        The model.
-    loader_train : instance of Sampler
-        The generator of EEG samples the model has to train on.
-        It contains n_train samples
-    loader_valid : instance of Sampler
-        The generator of EEG samples the model has to validate on.
-        It contains n_val samples. The validation samples are used to
-        monitor the training process and to perform early stopping
-    optimizer : instance of optimizer
-        The optimizer to use for training.
-    n_epochs : int
-        The maximum of epochs to run.
-    patience : int
-        The patience parameter, i.e. how long to wait for the
-        validation error to go down.
-    device : str | instance of torch.device
-        The device to train the model on.
-
-    Returns
-    -------
-    best_model : instance of nn.Module
-        The model that lead to the best prediction on the validation
-        dataset.
-    """
-    # put model on cuda if not already
-    device = torch.device(device)
-    # model.to(device)
-
-    # define criterion
-    criterion = F.nll_loss
-
-    best_val_loss = + np.infty
-    best_model = copy.deepcopy(model)
-    waiting = 0
-
-    for epoch in range(n_epochs):
-        print("\nStarting epoch {} / {}".format(epoch + 1, n_epochs))
-        _do_train(model, loader_train, optimizer, criterion, device)
-        val_loss = _validate(model, loader_valid, criterion, device)
-
-        # model saving
-        if np.mean(val_loss) < best_val_loss:
-            print("\nbest val loss {:.4f} -> {:.4f}".format(
-                best_val_loss, np.mean(val_loss)))
-            best_val_loss = np.mean(val_loss)
-            best_model = copy.deepcopy(model)
-            waiting = 0
-        else:
-            print("Waiting += 1")
-            waiting += 1
-
-        # model early stopping
-        if waiting >= patience:
-            print("Stop training at epoch {}".format(epoch + 1))
-            print("Best val loss : {:.4f}".format(best_val_loss))
-            break
-
-    return best_model
 #######

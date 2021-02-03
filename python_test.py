@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from sklearn.model_selection import GroupKFold
 
-from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject
+from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject, matplot, runs_t1, runs_t4, runs_t2, runs_rest
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -70,6 +70,7 @@ except OSError as err:
     pass
 time = datetime.now()
 
+
 def save_as_numpy(subject, n_classes, X, y):
     path = f"{path_numpy}/classes_{n_classes}"
     try:
@@ -83,7 +84,7 @@ def load_from_numpy(subject, n_classes):
     data = np.load(f"{path_numpy}/classes_{n_classes}/S{subject:03d}.npz")
     return data['X'], data['y']
 
-print("MNE")
+
 mne.set_log_level('WARNING')
 # time = datetime.now()
 # X, y = mne_load_subject(1, [1, 3, 7, 11])
@@ -101,3 +102,39 @@ mne.set_log_level('WARNING')
 # for i in ALL_SUBJECTS:
 #     X,y=mne_load_subject(i,[1,3,7,11])
 #     print(f"Subject {i}",X.shape,y.shape)
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+
+# labels = ['G1', 'G2', 'G3', 'G4', 'G5']
+# men_means = [20, 34, 30, 35, 27]
+#
+# x = np.arange(len(labels))  # the label locations
+# width = 0.35  # the width of the bars
+#
+# fig, ax = plt.subplots()
+# rects1 = ax.bar(x , men_means, width, label='Men')
+#
+# # Add some text for labels, title and custom x-axis tick labels, etc.
+# ax.set_ylabel('Scores')
+# ax.set_title('Scores by group and gender')
+# #ax.set_xticks(x)
+# #ax.set_xticklabels(labels)
+# ax.legend()
+# fig.tight_layout()
+#
+# plt.show()
+
+# save data in file numpy
+# data = np.random.random((5, 64))
+# labels = [f"Splits {i}" for i in range(5)]
+# title = "Test"
+# matplot(data, title, "Splits Iteration", "Avg. Accuracy in %",labels, save_path='./')
+# data_loaded= np.load(f'./{title}.npy')
+# print(data_loaded.shape)
+# print(data_loaded)
+
+for i in ALL_SUBJECTS:
+    X,y=mne_load_subject(i,runs_rest + runs_t2+ runs_t4)
+    print(f"Subject {i}",X.shape,y.shape)

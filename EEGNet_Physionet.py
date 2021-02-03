@@ -12,18 +12,16 @@ import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader  # noqa
-from torch.utils.data import RandomSampler  # noqa
-from torch.utils.data import SequentialSampler  # noqa
-from torch.utils.data import Subset  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
 from EEGNet_pytorch import EEGNet
 from common import TrialsDataset, ALL_SUBJECTS, \
-    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, get_str_config  # noqa
+    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str  # noqa
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
 
 
-def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES):
+def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
+               num_workers=0):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
 
     mne.set_log_level('WARNING')
@@ -36,8 +34,8 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         dev = "cpu"
     device = torch.device(dev)
 
-    print(get_str_config(config))
     start = datetime.now()
+    print(config_str(config))
     dir_results = create_results_folders(start, PLATFORM)
 
     # Group labels (subjects in same group need same group label)
@@ -48,9 +46,11 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
 
     # Split Data into training + test  (84 Subjects Training, 21 Testing)
     cv = GroupKFold(n_splits=splits)
-    cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
 
-    for i, n_classes in enumerate(n_classes):
+    for i, n_class in enumerate(n_classes):
+        cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
+        start = datetime.now()
+        print(f"######### {n_class}Class-Classification")
         accuracies = np.zeros((splits))
         epoch_losses = np.zeros((splits, num_epochs))
         # Training of the different splits (5)
@@ -62,17 +62,17 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
             subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
             print_subjects_ranges(subjects_train, subjects_test)
 
-            ds_train, ds_test = TrialsDataset(subjects_train, n_classes), TrialsDataset(
-                subjects_test, n_classes)
+            ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), TrialsDataset(
+                subjects_test, n_class, device)
             # Sample the trials in sequential order
             sampler_train, sampler_test = SequentialSampler(ds_train), SequentialSampler(ds_test)
 
-            loader_train, loader_test = DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=cuda,
-                                                   num_workers=0), \
-                                        DataLoader(ds_test, BATCH_SIZE, sampler=sampler_test, pin_memory=cuda,
-                                                   num_workers=0)
+            loader_train, loader_test = DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False,
+                                                   num_workers=num_workers), \
+                                        DataLoader(ds_test, BATCH_SIZE, sampler=sampler_test, pin_memory=False,
+                                                   num_workers=num_workers)
 
-            model = EEGNet(n_classes)
+            model = EEGNet(n_class)
             model.to(device)
 
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
@@ -80,14 +80,17 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         # Statistics
         print("Accuracies: ", accuracies)
         print("Avg. Accuracy: ", (sum(accuracies) / len(accuracies)))
-        matplot(accuracies, "Accuracies", "Splits Iteration", "Accuracy in %", save_path=dir_results)
-        matplot(epoch_losses, 'Losses over epochs', 'Epoch', 'loss / batchsize',
-                labels=[f"Splits {i}" for i in range(1, splits + 1)], save_path=dir_results)
-        time = datetime.now()
-        elapsed = time - start
+        matplot(accuracies, f"{n_class}class-Accuracies", "Splits Iteration", "Accuracy in %", save_path=dir_results,
+                box_plot=True, max_y=100.0)
+        matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch', f'loss per batch (size = {batch_size})',
+                labels=[f"Splits {i}" for i in range(splits)], save_path=dir_results)
+        elapsed = datetime.now() - start
+        print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}/results.txt
-        save_results(get_str_config(config), accuracies, epoch_losses, elapsed, dir_results)
+        save_results(config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results)
 
 
 run_eegnet()
-run_eegnet(num_epochs=4, lr=dict(start=0.001, milestones=[], gamma=1))
+# run_eegnet(num_epochs=20, lr=dict(start=1e-3, milestones=[], gamma=1))
+# run_eegnet(num_epochs=60)
+# run_eegnet(num_epochs=60, lr=dict(start=1e-3, milestones=[], gamma=1))

@@ -2,16 +2,13 @@ import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader  # noqa
-from torch.utils.data import RandomSampler  # noqa
-from torch.utils.data import SequentialSampler  # noqa
-from torch.utils.data import Subset  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
 
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
 class EEGNet(nn.Module):
-    def __init__(self,n_classes):
+    def __init__(self, n_classes):
         super(EEGNet, self).__init__()
         # self.T = 160
 
@@ -61,8 +58,9 @@ class EEGNet(nn.Module):
         # FC Layer
         x = x.view(-1, 2 * 4 * 80)
         # Original: x = F.sigmoid(self.fc1(x))
-        x = torch.sigmoid(self.fc1(x))
-        # return F.softmax(x,dim=1)
+        # For BCELoss:
+        # x = torch.sigmoid(self.fc1(x))
+        x = self.fc1(x)
         return x
 
 # Evaluate function returns values of different criteria like accuracy, precision etc.
