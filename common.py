@@ -145,7 +145,7 @@ def load_n_classes_tasks(subject, n_classes):
 # Merges runs from different tasks + correcting labels for n_class classification
 def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
     global map_label
-    all_data = np.zeros((0, SAMPLES, CHANNELS))
+    all_data = np.zeros((0, SAMPLES, CHANNELS),dtype=np.float32)
     all_labels = np.zeros((0), dtype=np.int)
     for i, task in enumerate(tasks):
         data, labels = mne_load_subject(subject, runs[task])
@@ -406,5 +406,62 @@ def _validate(model, loader, criterion, device):
     accuracy = accuracy / len(loader.dataset)
     print("---  Accuracy : %s" % accuracy.item(), "\n")
     return np.mean(val_loss)
+
+
+class PreloadedTrialsDataset(Dataset):
+
+    def __init__(self, subjects, n_classes, device):
+        self.subjects = subjects
+        # Buffers for last loaded Subject data+labels
+        self.loaded_subject = -1
+        self.loaded_subject_data = None
+        self.loaded_subject_labels = None
+        self.n_classes = n_classes
+        self.runs = []
+        self.device = device
+        # TODO run 0 has no Epochs?
+        if (self.n_classes > 3):
+            self.trials_per_subject = 147
+        elif (self.n_classes == 3):
+            self.trials_per_subject = 84
+        elif (self.n_classes == 2):
+            self.trials_per_subject = 42
+
+    # Length of Dataset (84 Trials per Subject)
+    def __len__(self):
+        return len(self.subjects) * self.trials_per_subject
+
+    # Determines corresponding Subject of trial and loads subject's data+labels
+    # Uses buffer for last loaded subject
+    # event: event idx (trial)
+    # returns trial data(X) and trial label(y)
+    def load_trial(self, trial):
+        local_trial_idx = trial % self.trials_per_subject
+
+        # determine required subject for trial
+        subject = self.subjects[int(trial / self.trials_per_subject)]
+
+        # If Subject in current buffer, skip MNE Loading
+        if self.loaded_subject == subject:
+            return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
+
+        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes)
+        # mne_load_subject(subject, self.runs)
+        self.loaded_subject = subject
+        self.loaded_subject_data = subject_data
+        # BCELoss excepts one-hot encoded, Cross Entropy not
+        # labels (0,1,2) to categorical/one-hot encoded: 0 = [1 0 0], 1 =[0 1 0],...
+        # self.loaded_subject_labels = np.eye(self.n_classes, dtype='uint8')[subject_labels]
+        self.loaded_subject_labels = subject_labels
+        # Return single trial from all Subject's Trials
+        X, y = self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
+        return X, y
+
+    # Returns a single trial
+    def __getitem__(self, trial):
+        X, y = self.load_trial(trial)
+        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float)
+        return X, y
+
 
 #######

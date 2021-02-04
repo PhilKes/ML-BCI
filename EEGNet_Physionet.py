@@ -16,10 +16,14 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 
 from EEGNet_pytorch import EEGNet
 from common import TrialsDataset, ALL_SUBJECTS, \
-    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str  # noqa
+    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str, SAMPLES, \
+    CHANNELS, load_n_classes_tasks, PreloadedTrialsDataset  # noqa
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
 
 #TODO Test num_workers
+from python_test import load_subjects_numpy
+
+
 def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
                num_workers=0):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
@@ -47,7 +51,9 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
     # Split Data into training + test  (84 Subjects Training, 21 Testing)
     cv = GroupKFold(n_splits=splits)
 
+
     for i, n_class in enumerate(n_classes):
+
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
@@ -64,6 +70,10 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
 
             ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), TrialsDataset(
                 subjects_test, n_class, device)
+            # ds_train, ds_test = PreloadedTrialsDataset(subjects_train, n_class, device), PreloadedTrialsDataset(
+            #     subjects_test, n_class, device)
+
+
             # Sample the trials in sequential order
             # TODO Random Sampler?
             sampler_train, sampler_test = SequentialSampler(ds_train), SequentialSampler(ds_test)
@@ -89,7 +99,6 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}/results.txt
         save_results(config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results)
-
 
 run_eegnet()
 # run_eegnet(num_epochs=20, lr=dict(start=1e-3, milestones=[], gamma=1))

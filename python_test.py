@@ -145,12 +145,30 @@ import numpy as np
 # squarer = lambda label: label+2 if label != 0 else label
 # map_label = np.vectorize(squarer)
 # print(map_label(x))
-time = datetime.now()
+# time = datetime.now()
 X, y = load_n_classes_tasks(1, 4)
 print(str(datetime.now()-time))
-print("X:", X.shape, "y:", y.shape)
-print(y)
+print("X:", X, "y:", y.shape)
 # rest_indices = np.where(y == 0)
 # print(rest_indices)
 # X, y = np.delete(X, rest_indices, axis=0), np.delete(y, rest_indices)
 # print("X:", X.shape, "y:", y.shape)
+def save_subjects_numpy():
+    n_class= 3
+    all_data = np.zeros((0, 1281, 64),dtype=np.float32)
+    all_labels = np.zeros((0))
+    for subject in ALL_SUBJECTS[:int(len(ALL_SUBJECTS)/2)]:
+        data, labels = load_n_classes_tasks(subject, n_class)
+        all_data, all_labels = np.concatenate((all_data, data)), np.concatenate((all_labels, labels))
+    print("all_data",all_data.shape,"all_labels",all_labels.shape)
+    np.savez('test.npz',X=all_data,y=all_labels)
+def load_subjects_numpy():
+    data = np.load('test.npz')
+    return data['X'],data['y']
+
+#save_subjects_numpy()
+#X,y=load_subjects_numpy()
+
+# print("X:",X.shape,"y:",y.shape)
+# while True:
+#     pass
