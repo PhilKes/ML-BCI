@@ -6,7 +6,8 @@ import torch
 import numpy as np
 from sklearn.model_selection import GroupKFold
 
-from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject, matplot, runs_t1, runs_t4, runs_t2, runs_rest
+from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject, matplot, runs_t1, runs_t4, runs_t2, runs_rest, \
+    load_task_runs, load_n_classes_tasks
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -135,6 +136,21 @@ import numpy as np
 # print(data_loaded.shape)
 # print(data_loaded)
 
-for i in ALL_SUBJECTS:
-    X,y=mne_load_subject(i,runs_rest + runs_t2+ runs_t4)
-    print(f"Subject {i}",X.shape,y.shape)
+# for i in ALL_SUBJECTS:
+#     X,y=mne_load_subject(i, runs_rest)
+#     print(f"Subject {i}",X.shape,y.shape)
+#     print("y",y)
+
+# x=np.asarray([0, 1, 0, 2, 0, 1])
+# squarer = lambda label: label+2 if label != 0 else label
+# map_label = np.vectorize(squarer)
+# print(map_label(x))
+time = datetime.now()
+X, y = load_n_classes_tasks(1, 4)
+print(str(datetime.now()-time))
+print("X:", X.shape, "y:", y.shape)
+print(y)
+# rest_indices = np.where(y == 0)
+# print(rest_indices)
+# X, y = np.delete(X, rest_indices, axis=0), np.delete(y, rest_indices)
+# print("X:", X.shape, "y:", y.shape)

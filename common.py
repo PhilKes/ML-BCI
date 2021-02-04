@@ -6,6 +6,7 @@
 import copy
 import functools
 import os
+import sys
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -51,6 +52,8 @@ runs_t2 = [4, 8, 12]  # Task 2 (imagine opening and closing left or right fist)
 runs_t3 = [5, 9, 13]  # Task 3 (open and close both fists or both feet)
 runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both feet)
 
+runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
+
 
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
@@ -64,15 +67,13 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        if (self.n_classes == 4):
-            self.runs = runs_rest + runs_t2 + runs_t4
-            self.trials_per_subject = 168
+        # TODO run 0 has no Epochs?
+        if (self.n_classes > 3):
+            self.trials_per_subject = 147
         elif (self.n_classes == 3):
-            self.runs = runs_rest + runs_t2
             self.trials_per_subject = 84
         elif (self.n_classes == 2):
-            self.runs = runs_t2
-            self.trials_per_subject = 0
+            self.trials_per_subject = 42
 
     # Length of Dataset (84 Trials per Subject)
     def __len__(self):
@@ -92,7 +93,8 @@ class TrialsDataset(Dataset):
         if self.loaded_subject == subject:
             return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
 
-        subject_data, subject_labels = mne_load_subject(subject, self.runs)
+        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes)
+        # mne_load_subject(subject, self.runs)
         self.loaded_subject = subject
         self.loaded_subject_data = subject_data
         # BCELoss excepts one-hot encoded, Cross Entropy not
@@ -110,11 +112,68 @@ class TrialsDataset(Dataset):
         return X, y
 
 
+# If multiple tasks are used (4classes classification)
+# labels need to be adjusted because different events from
+# different tasks have the same numbers
+inc_label = lambda label: label + 2 if label != 0 else label
+increase_label = np.vectorize(inc_label)
+# Both fists("1") gets removed, both feet("2") becomes the new "1"
+map_feet_to_fists = lambda label: label - 1 if label == 2 else label
+map_labels = np.vectorize(map_feet_to_fists)
+
+
+# Finds indices of label-value occurences in y and
+# deletes them from X,y
+def remove_label_occurences(X, y, label):
+    rest_indices = np.where(y == label)
+    return np.delete(X, rest_indices, axis=0), np.delete(y, rest_indices)
+
+
+# Loads corresponding tasks of n_classes Classification
+def load_n_classes_tasks(subject, n_classes):
+    tasks = []
+    if (n_classes == 4):
+        tasks = [2, 4]
+    elif (n_classes == 3):
+        tasks = [2]
+    elif (n_classes == 2):
+        tasks = [2]
+    return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
+                          exclude_bothfists=(n_classes == 4))
+
+
+# Merges runs from different tasks + correcting labels for n_class classification
+def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
+    global map_label
+    all_data = np.zeros((0, SAMPLES, CHANNELS))
+    all_labels = np.zeros((0), dtype=np.int)
+    for i, task in enumerate(tasks):
+        data, labels = mne_load_subject(subject, runs[task])
+        # for 2class classification exclude Rest events("0")
+        # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
+        if exclude_rest:
+            data, labels = remove_label_occurences(data, labels, 0)
+            labels = labels - 1
+        # for 4class classification exclude both fists event("1")
+        if exclude_bothfists & (task == 4):
+            data, labels = remove_label_occurences(data, labels, 1)
+            labels = map_labels(labels)
+
+        for n in range(i):
+            labels = increase_label(labels)
+        all_data = np.concatenate((all_data, data))
+        all_labels = np.concatenate((all_labels, labels))
+    return all_data, all_labels
+
+
 # Loads single Subject from mne
 # returns EEG data (X) and corresponding Labels (y)
 def mne_load_subject(subject, runs):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
+    # for 4 Class: need to map to 0,1,2,3
+    # split reading in run lists (runs_t1,runs_t2,...)
+    # give unique labels
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
@@ -145,7 +204,7 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
         print(f"## Epoch {epoch} ")
         running_loss = 0.0
         # Wrap in tqdm for Progressbar
-        pbar = tqdm(data_loader)
+        pbar = tqdm(data_loader, file=sys.stdout)
         # Training in batches from the DataLoader
         for idx_batch, (inputs, labels) in enumerate(pbar):
             # Convert to correct types + put on GPU
@@ -160,8 +219,8 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
             optimizer.step()
 
             running_loss += loss.item()
-            pbar.set_description(
-                desc=f"Batch {idx_batch} avg. loss: {running_loss / (idx_batch + 1):.4f}")
+            # pbar.set_description(
+            #     desc=f"Batch {idx_batch} avg. loss: {running_loss / (idx_batch + 1):.4f}")
         pbar.close()
         lr_scheduler.step()
         # Loss of entire epoch / amount of batches
@@ -275,10 +334,18 @@ def create_results_folders(datetime, platform="PC"):
     return results
 
 
+str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]
+
+
+def get_str_n_classes(n_classes):
+    return f'Classes: {[str_n_classes[i] for i in n_classes]}'
+
+
 def config_str(config, n_class=None):
     return f"""#### Config ####
 CUDA: {config['cuda']}
-Number of classes: {config['n_classes'] if n_class is None else n_class}
+Nr. of classes: {config['n_classes'] if n_class is None else n_class}
+{get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}

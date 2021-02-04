@@ -19,7 +19,7 @@ from common import TrialsDataset, ALL_SUBJECTS, \
     print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str  # noqa
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
 
-
+#TODO Test num_workers
 def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
                num_workers=0):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
@@ -65,6 +65,7 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
             ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), TrialsDataset(
                 subjects_test, n_class, device)
             # Sample the trials in sequential order
+            # TODO Random Sampler?
             sampler_train, sampler_test = SequentialSampler(ds_train), SequentialSampler(ds_test)
 
             loader_train, loader_test = DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False,
@@ -80,7 +81,7 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         # Statistics
         print("Accuracies: ", accuracies)
         print("Avg. Accuracy: ", (sum(accuracies) / len(accuracies)))
-        matplot(accuracies, f"{n_class}class-Accuracies", "Splits Iteration", "Accuracy in %", save_path=dir_results,
+        matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %", save_path=dir_results,
                 box_plot=True, max_y=100.0)
         matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch', f'loss per batch (size = {batch_size})',
                 labels=[f"Splits {i}" for i in range(splits)], save_path=dir_results)
