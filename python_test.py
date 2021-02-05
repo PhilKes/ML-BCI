@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.model_selection import GroupKFold
 
 from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject, matplot, runs_t1, runs_t4, runs_t2, runs_rest, \
-    load_task_runs, load_n_classes_tasks
+    load_task_runs, load_n_classes_tasks, plot_numpy
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -62,28 +62,28 @@ print(F"Current Device:\t{torch.cuda.get_device_name(0)}\t(Device {torch.cuda.cu
 # x= np.asarray([0.234,0.2543,0.537,0.264])
 # matplot(x,"Test","Epochs","Accuracy")
 
-path_numpy = "./datasets/numpy"
-data = np.random.random((84, 1281, 64))
-print("Data: ", data.shape)
-try:
-    os.mkdir(path_numpy)
-except OSError as err:
-    pass
-time = datetime.now()
+# path_numpy = "./datasets/numpy"
+# data = np.random.random((84, 1281, 64))
+# print("Data: ", data.shape)
+# try:
+#     os.mkdir(path_numpy)
+# except OSError as err:
+#     pass
+# time = datetime.now()
 
 
-def save_as_numpy(subject, n_classes, X, y):
-    path = f"{path_numpy}/classes_{n_classes}"
-    try:
-        os.mkdir(path)
-    except OSError as err:
-        pass
-    np.savez(f"{path}/S{subject:03d}.npz", X=X, y=y)
-
-
-def load_from_numpy(subject, n_classes):
-    data = np.load(f"{path_numpy}/classes_{n_classes}/S{subject:03d}.npz")
-    return data['X'], data['y']
+# def save_as_numpy(subject, n_classes, X, y):
+#     path = f"{path_numpy}/classes_{n_classes}"
+#     try:
+#         os.mkdir(path)
+#     except OSError as err:
+#         pass
+#     np.savez(f"{path}/S{subject:03d}.npz", X=X, y=y)
+#
+#
+# def load_from_numpy(subject, n_classes):
+#     data = np.load(f"{path_numpy}/classes_{n_classes}/S{subject:03d}.npz")
+#     return data['X'], data['y']
 
 
 mne.set_log_level('WARNING')
@@ -146,25 +146,25 @@ import numpy as np
 # map_label = np.vectorize(squarer)
 # print(map_label(x))
 # time = datetime.now()
-X, y = load_n_classes_tasks(1, 4)
-print(str(datetime.now()-time))
-print("X:", X, "y:", y.shape)
+# X, y = load_n_classes_tasks(1, 4)
+# print(str(datetime.now()-time))
+# print("X:", X, "y:", y.shape)
 # rest_indices = np.where(y == 0)
 # print(rest_indices)
 # X, y = np.delete(X, rest_indices, axis=0), np.delete(y, rest_indices)
 # print("X:", X.shape, "y:", y.shape)
-def save_subjects_numpy():
-    n_class= 3
-    all_data = np.zeros((0, 1281, 64),dtype=np.float32)
-    all_labels = np.zeros((0))
-    for subject in ALL_SUBJECTS[:int(len(ALL_SUBJECTS)/2)]:
-        data, labels = load_n_classes_tasks(subject, n_class)
-        all_data, all_labels = np.concatenate((all_data, data)), np.concatenate((all_labels, labels))
-    print("all_data",all_data.shape,"all_labels",all_labels.shape)
-    np.savez('test.npz',X=all_data,y=all_labels)
-def load_subjects_numpy():
-    data = np.load('test.npz')
-    return data['X'],data['y']
+# def save_subjects_numpy():
+#     n_class= 3
+#     all_data = np.zeros((0, 1281, 64),dtype=np.float32)
+#     all_labels = np.zeros((0))
+#     for subject in ALL_SUBJECTS[:int(len(ALL_SUBJECTS)/2)]:
+#         data, labels = load_n_classes_tasks(subject, n_class)
+#         all_data, all_labels = np.concatenate((all_data, data)), np.concatenate((all_labels, labels))
+#     print("all_data",all_data.shape,"all_labels",all_labels.shape)
+#     np.savez('test.npz',X=all_data,y=all_labels)
+# def load_subjects_numpy():
+#     data = np.load('test.npz')
+#     return data['X'],data['y']
 
 #save_subjects_numpy()
 #X,y=load_subjects_numpy()
@@ -172,3 +172,6 @@ def load_subjects_numpy():
 # print("X:",X.shape,"y:",y.shape)
 # while True:
 #     pass
+
+data=plot_numpy('./results/2021-02-04 16_34_35-PC/4class-Losses over epochs.npy','Losses over epochs','loss per batch (size = 16)',True)
+print(data[2])

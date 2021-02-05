@@ -12,6 +12,7 @@ import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
+from torch.autograd import profiler
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
 from EEGNet_pytorch import EEGNet
@@ -19,10 +20,6 @@ from common import TrialsDataset, ALL_SUBJECTS, \
     print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str, SAMPLES, \
     CHANNELS, load_n_classes_tasks, PreloadedTrialsDataset  # noqa
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
-
-#TODO Test num_workers
-from python_test import load_subjects_numpy
-
 
 def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
                num_workers=0):
@@ -85,9 +82,19 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
 
             model = EEGNet(n_class)
             model.to(device)
-
+            # with profiler.profile(profile_memory=True) as prof:
+            #     with profiler.record_function("model_inference"):
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
             accuracies[split] = test(model, loader_test, device)
+            # print("PROFILING:")
+            # print(prof.key_averages().table(
+            #     sort_by="cpu_time_total",
+            #     row_limit=10
+            # ))
+            # print(prof.key_averages().table(
+            #     sort_by="cpu_memory_usage",
+            #     row_limit=10
+            # ))
         # Statistics
         print("Accuracies: ", accuracies)
         print("Avg. Accuracy: ", (sum(accuracies) / len(accuracies)))

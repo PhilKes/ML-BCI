@@ -145,7 +145,7 @@ def load_n_classes_tasks(subject, n_classes):
 # Merges runs from different tasks + correcting labels for n_class classification
 def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
     global map_label
-    all_data = np.zeros((0, SAMPLES, CHANNELS),dtype=np.float32)
+    all_data = np.zeros((0, SAMPLES, CHANNELS))
     all_labels = np.zeros((0), dtype=np.int)
     for i, task in enumerate(tasks):
         data, labels = mne_load_subject(subject, runs[task])
@@ -352,6 +352,18 @@ Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
 ###############\n"""
 
+# Matplot from numpy file
+# if save = True save plot as .png
+def plot_numpy(np_file_path, xlabel, ylabel, save):
+    data = np.load(np_file_path)
+    labels =[]
+    if data.ndim > 1:
+        labels = [f"Run {i}" for i in range(data.shape[0])]
+    filename = os.path.splitext(os.path.basename(np_file_path))[0]
+    save_path = os.path.dirname(np_file_path) if save else None
+    matplot(data, filename, xlabel, ylabel,labels=labels, save_path=save_path)
+    return data
+
 
 ########################### NOT USED ######################################################
 
@@ -462,6 +474,5 @@ class PreloadedTrialsDataset(Dataset):
         X, y = self.load_trial(trial)
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float)
         return X, y
-
 
 #######
