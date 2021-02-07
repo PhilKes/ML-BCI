@@ -14,13 +14,18 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.autograd import profiler
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
+from torchvision import transforms
 
 from EEGNet_pytorch import EEGNet
 from common import TrialsDataset, ALL_SUBJECTS, \
-    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str, SAMPLES, \
-    CHANNELS, load_n_classes_tasks, PreloadedTrialsDataset  # noqa
+    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str, \
+    CHANNELS, load_n_classes_tasks  # noqa
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
 
+
+# Runs EEGNet Training + Testing
+# Cross Validation with 5 Splits (á 21 Subjects' Data)
+# Can run 2/3/4-Class Classifications
 def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
                num_workers=0):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
@@ -48,7 +53,6 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
     # Split Data into training + test  (84 Subjects Training, 21 Testing)
     cv = GroupKFold(n_splits=splits)
 
-
     for i, n_class in enumerate(n_classes):
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
@@ -58,18 +62,17 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         epoch_losses = np.zeros((splits, num_epochs))
         # Training of the different splits (5)
         for split in range(splits):
-            print(f"############ RUN {split + 1} ############")
+            print(f"############ RUN {split} ############")
             # Next Splits Combination of Train/Test Datasets
             subjects_train_idxs, subjects_test_idxs = next(cv_split)
             subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
             subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
             print_subjects_ranges(subjects_train, subjects_test)
 
-            ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), TrialsDataset(
-                subjects_test, n_class, device)
+            ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), \
+                                TrialsDataset(subjects_test, n_class, device)
             # ds_train, ds_test = PreloadedTrialsDataset(subjects_train, n_class, device), PreloadedTrialsDataset(
             #     subjects_test, n_class, device)
-
 
             # Sample the trials in sequential order
             # TODO Random Sampler?
@@ -98,15 +101,19 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         # Statistics
         print("Accuracies: ", accuracies)
         print("Avg. Accuracy: ", (sum(accuracies) / len(accuracies)))
-        matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %", save_path=dir_results,
+        matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
+                save_path=dir_results,
                 box_plot=True, max_y=100.0)
-        matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch', f'loss per batch (size = {batch_size})',
-                labels=[f"Splits {i}" for i in range(splits)], save_path=dir_results)
+        matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch',
+                f'loss per batch (size = {batch_size})',
+                labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
         elapsed = datetime.now() - start
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}/results.txt
         save_results(config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results)
 
+
+# torch.autograd.set_detect_anomaly(True)
 run_eegnet()
 # run_eegnet(num_epochs=20, lr=dict(start=1e-3, milestones=[], gamma=1))
 # run_eegnet(num_epochs=60)

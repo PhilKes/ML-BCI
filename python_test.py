@@ -1,3 +1,4 @@
+import math
 import os
 from datetime import datetime
 
@@ -5,9 +6,12 @@ import mne
 import torch
 import numpy as np
 from sklearn.model_selection import GroupKFold
+from torch import tensor
+from torch.utils.data import DataLoader, SequentialSampler
+from torchvision import transforms
 
 from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject, matplot, runs_t1, runs_t4, runs_t2, runs_rest, \
-    load_task_runs, load_n_classes_tasks, plot_numpy
+    load_task_runs, load_n_classes_tasks, plot_numpy, TrialsDataset
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -91,41 +95,6 @@ mne.set_log_level('WARNING')
 # X, y = mne_load_subject(1, [1, 3, 7, 11])
 # print(f"Load: {str(datetime.now() - time)}")
 # print("X Shape: ", X.shape)
-#
-# print("NUMPY")
-# time = datetime.now()
-# save_as_numpy(1, 3, X,y)
-# print(f"Save: {str(datetime.now() - time)}")
-# time= datetime.now()
-# X,y= load_from_numpy(1,3)
-# print(f"Load: {str(datetime.now() - time)}")
-
-# for i in ALL_SUBJECTS:
-#     X,y=mne_load_subject(i,[1,3,7,11])
-#     print(f"Subject {i}",X.shape,y.shape)
-
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-
-# labels = ['G1', 'G2', 'G3', 'G4', 'G5']
-# men_means = [20, 34, 30, 35, 27]
-#
-# x = np.arange(len(labels))  # the label locations
-# width = 0.35  # the width of the bars
-#
-# fig, ax = plt.subplots()
-# rects1 = ax.bar(x , men_means, width, label='Men')
-#
-# # Add some text for labels, title and custom x-axis tick labels, etc.
-# ax.set_ylabel('Scores')
-# ax.set_title('Scores by group and gender')
-# #ax.set_xticks(x)
-# #ax.set_xticklabels(labels)
-# ax.legend()
-# fig.tight_layout()
-#
-# plt.show()
 
 # save data in file numpy
 # data = np.random.random((5, 64))
@@ -136,14 +105,6 @@ import numpy as np
 # print(data_loaded.shape)
 # print(data_loaded)
 
-# for i in ALL_SUBJECTS:
-#     X,y=mne_load_subject(i, runs_rest)
-#     print(f"Subject {i}",X.shape,y.shape)
-#     print("y",y)
-
-# x=np.asarray([0, 1, 0, 2, 0, 1])
-# squarer = lambda label: label+2 if label != 0 else label
-# map_label = np.vectorize(squarer)
 # print(map_label(x))
 # time = datetime.now()
 # X, y = load_n_classes_tasks(1, 4)
@@ -166,12 +127,84 @@ import numpy as np
 #     data = np.load('test.npz')
 #     return data['X'],data['y']
 
-#save_subjects_numpy()
-#X,y=load_subjects_numpy()
+# save_subjects_numpy()
+# X,y=load_subjects_numpy()
 
 # print("X:",X.shape,"y:",y.shape)
 # while True:
 #     pass
 
-data=plot_numpy('./results/2021-02-04 16_34_35-PC/4class-Losses over epochs.npy','Losses over epochs','loss per batch (size = 16)',True)
-print(data[2])
+# data=plot_numpy('./results/2021-02-04 16_34_35-PC/4class-Losses over epochs.npy','Losses over epochs','loss per batch (size = 16)',True)
+# print(data[2])
+# for i in range(22,43):
+#     X,y = load_n_classes_tasks(i,4)
+#     print("X",X)
+#     print("y",y.shape)
+#     print("")
+dev = None
+if torch.cuda.is_available():
+    dev = "cuda:0"
+else:
+    dev = "cpu"
+device = torch.device("cpu")
+scale = lambda x: x * 10000
+ds_train = TrialsDataset(ALL_SUBJECTS, 4, device)
+loader_train = DataLoader(ds_train, 32, sampler=SequentialSampler(ds_train), pin_memory=False, )
+
+
+# data, labels = next(iter(loader_train))
+# print(data.shape, labels.shape)
+# print("mean", data.mean(), "std", data.std())
+
+def print_data(loader):
+    for data, labels in loader:
+        if not torch.any(data.isfinite()):
+            print("Not finite data", data)
+        if torch.any(data.isnan()):
+            print("Nan found ")
+        if torch.any(data.isinf()):
+            print("Nan found ")
+
+
+def get_mean_std(loader):
+    # var[X] = E[X**2] - E[X]**2
+    channels_sum, channels_square_sum, num_batches = 0, 0, 0
+    for data, _ in loader:
+        # print("data", data.shape)
+        # [Batch_size,1,Samples,Channels]
+        # data.shape = [32,1,1281,64]
+
+        channels_sum += torch.mean(data, dim=[0, 1, 2, 3])
+        channels_square_sum += torch.mean(data ** 2, dim=[0, 1, 2, 3])
+        num_batches += 1
+    mean = channels_sum / num_batches
+    std = (channels_square_sum / num_batches - mean ** 2) ** 0.5
+    return mean, std
+
+
+# print_data(loader_train)
+
+# mean, std = get_mean_std(loader_train)
+# print("mean", mean.shape, "std", std.shape)
+# print("mean", mean, "std", std)
+def check_bad_data(subjects, n_classes):
+    min, max = math.inf, -math.inf
+    for idx,i in enumerate(subjects):
+        data, labels = load_n_classes_tasks(i, n_classes)
+        if np.isneginf(data).any():
+            print("negative infinite data")
+        if np.isnan(data).any():
+            print("Nan found ")
+        if np.isinf(data).any():
+            print("Not finite data")
+        print(f"{i:3d}"," X", data.shape, "y", labels.shape)
+        loc_min= data.min()
+        loc_max= data.max()
+        if(loc_min < min):
+            min=loc_min
+        if(loc_max > max):
+            max=loc_max
+    print("Min", min, "Max", max)
+
+
+check_bad_data(ALL_SUBJECTS, 4)
