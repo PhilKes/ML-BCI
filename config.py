@@ -19,11 +19,10 @@ LR = dict(
 )
 
 # Training Settings
-EPOCHS = 100
+EPOCHS = 50
 BATCH_SIZE = 16
 SPLITS = 5
-# only 3-class classifciation for now
-N_CLASSES = [3,4]
+N_CLASSES = [3, 4]
 # 2 sec before + 4 sec event + 2 sec after
 EEG_TMIN = -2
 EEG_TMAX = 6

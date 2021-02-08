@@ -207,4 +207,8 @@ def check_bad_data(subjects, n_classes):
     print("Min", min, "Max", max)
 
 
-check_bad_data(ALL_SUBJECTS, 4)
+#check_bad_data(ALL_SUBJECTS, 4)
+#data,labels=mne_load_subject(1,4,{'T0':1,'T2':2})
+data,labels=load_n_classes_tasks(1,4)
+print(labels,labels.shape)
+print(data.shape)

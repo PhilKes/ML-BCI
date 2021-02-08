@@ -111,7 +111,7 @@ class TrialsDataset(Dataset):
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
         X = torch.as_tensor(X[None, ...], device=self.device)
-        #X = self.transform(X)
+        # X = self.transform(X)
         return X, y
 
 
@@ -140,9 +140,12 @@ def load_n_classes_tasks(subject, n_classes):
 # different tasks have the same numbers
 inc_label = lambda label: label + 2 if label != 0 else label
 increase_label = np.vectorize(inc_label)
+
 # Both fists("1") gets removed, both feet("2") becomes the new "1"
-map_feet_to_fists = lambda label: label - 1 if label == 2 else label
-map_labels = np.vectorize(map_feet_to_fists)
+# map_feet_to_fists = lambda label: label - 1 if label == 2 else label
+# map_labels = np.vectorize(map_feet_to_fists)
+
+event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
@@ -151,16 +154,16 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
     all_data = np.zeros((0, SAMPLES, CHANNELS))
     all_labels = np.zeros((0), dtype=np.int)
     for i, task in enumerate(tasks):
-        data, labels = mne_load_subject(subject, runs[task])
+        tasks_event_dict = event_dict.copy()
         # for 2class classification exclude Rest events("0")
         # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
         if exclude_rest:
-            data, labels = remove_label_occurences(data, labels, 0)
-            labels = labels - 1
-        # for 4class classification exclude both fists event("1")
+            tasks_event_dict = {'T1': 1, 'T2': 2}
+        # for 4class classification exclude both fists event("T1")
         if exclude_bothfists & (task == 4):
-            data, labels = remove_label_occurences(data, labels, 1)
-            labels = map_labels(labels)
+            tasks_event_dict = {'T0': 1, 'T2': 2}
+        data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict)
+
         # Correct labels if multiple tasks are loaded
         # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
         for n in range(i):
@@ -172,7 +175,7 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
 
 # Loads single Subject from mne
 # returns EEG data (X) and corresponding Labels (y)
-def mne_load_subject(subject, runs):
+def mne_load_subject(subject, runs, event_id='auto'):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
     # for 4 Class: need to map to 0,1,2,3
@@ -182,7 +185,7 @@ def mne_load_subject(subject, runs):
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
     raw.rename_channels(lambda x: x.strip('.'))
-    events, event_ids = mne.events_from_annotations(raw, event_id='auto')
+    events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
     picks = pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
                        exclude='bads')
     epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
