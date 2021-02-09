@@ -38,11 +38,13 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
+trials_for_classes = {2: 42, 3: 84, 4: 147, }
+
 
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes, device):
+    def __init__(self, subjects, n_classes, device,preloaded_tuple=None):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -51,12 +53,9 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        if (self.n_classes > 3):
-            self.trials_per_subject = 147
-        elif (self.n_classes == 3):
-            self.trials_per_subject = 84
-        elif (self.n_classes == 2):
-            self.trials_per_subject = 42
+        self.trials_per_subject= trials_for_classes[n_classes]
+        self.preloaded_data= preloaded_tuple[0] if preloaded_tuple is not None else None
+        self.preloaded_labels= preloaded_tuple[1] if preloaded_tuple is not None else None
 
     # Length of Dataset (84 Trials per Subject)
     def __len__(self):
@@ -71,6 +70,10 @@ class TrialsDataset(Dataset):
 
         # determine required subject for trial
         subject = self.subjects[int(trial / self.trials_per_subject)]
+
+        if self.preloaded_data is not None:
+            idx=self.subjects.index(subject)
+            return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
 
         # If Subject is in current buffer, skip MNE Loading
         if self.loaded_subject == subject:

@@ -3,6 +3,9 @@ PLATFORM = "PC"  # used for results folder names
 CUDA = True
 PLOTS = True
 VERBOSE = False
+# Preloads all subjects data for n_classes classification in memory
+#
+DATA_PRELOAD = True
 
 results_folder = './results'
 datasets_folder = './datasets/'
@@ -20,7 +23,7 @@ LR = dict(
 EPOCHS = 50
 BATCH_SIZE = 16
 SPLITS = 5
-N_CLASSES = [2]
+N_CLASSES = [3]
 # 2 sec before + 4 sec event + 2 sec after
 EEG_TMIN = -2
 EEG_TMAX = 6

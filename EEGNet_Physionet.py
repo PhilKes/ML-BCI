@@ -3,6 +3,7 @@ Main Python Script to run
 PyTorch Training + Testing for EEGNet with PhysioNet Dataset
 On initial run MNE downloads the PhysioNet dataset into ./datasets
 """
+import sys
 from datetime import datetime
 
 import mne
@@ -14,12 +15,12 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.autograd import profiler
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-
+from tqdm import tqdm
 from EEGNet_pytorch import EEGNet
 from common import TrialsDataset, ALL_SUBJECTS, \
     print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str, \
-    CHANNELS, load_n_classes_tasks  # noqa
-from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
+    CHANNELS, load_n_classes_tasks, SAMPLES, trials_for_classes  # noqa
+from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DATA_PRELOAD
 
 
 # Runs EEGNet Training + Testing
@@ -53,6 +54,16 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
     cv = GroupKFold(n_splits=splits)
 
     for i, n_class in enumerate(n_classes):
+        preloaded_data = None
+        preloaded_labels = None
+        if DATA_PRELOAD:
+            print("PRELOADING ALL DATA IN MEMORY")
+            preloaded_data = np.zeros((len(ALL_SUBJECTS), trials_for_classes[n_class], SAMPLES, CHANNELS))
+            preloaded_labels = np.zeros((len(ALL_SUBJECTS), trials_for_classes[n_class]))
+            for i, subject in tqdm(enumerate(ALL_SUBJECTS),total= len(ALL_SUBJECTS)):
+                data, labels = load_n_classes_tasks(subject, n_class)
+                preloaded_data[i] = data
+                preloaded_labels[i] = labels
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
@@ -68,11 +79,15 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
             subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
             print_subjects_ranges(subjects_train, subjects_test)
 
-            ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), \
-                                TrialsDataset(subjects_test, n_class, device)
+            ds_train, ds_test = TrialsDataset(subjects_train, n_class, device,
+                                              preloaded_tuple=(
+                                                  preloaded_data, preloaded_labels) if DATA_PRELOAD else None), \
+                                TrialsDataset(subjects_test, n_class, device,
+                                              preloaded_tuple=(
+                                                  preloaded_data, preloaded_labels) if DATA_PRELOAD else None)
 
             # Sample the trials in sequential order
-            # TODO Random Sampler?
+            # TODO Random
             sampler_train, sampler_test = SequentialSampler(ds_train), SequentialSampler(ds_test)
 
             loader_train, loader_test = DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False,
