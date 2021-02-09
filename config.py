@@ -1,6 +1,4 @@
 # Global Default Settings
-import torchvision
-
 PLATFORM = "PC"  # used for results folder names
 CUDA = True
 PLOTS = True
@@ -22,12 +20,12 @@ LR = dict(
 EPOCHS = 50
 BATCH_SIZE = 16
 SPLITS = 5
-N_CLASSES = [3, 4]
+N_CLASSES = [2]
 # 2 sec before + 4 sec event + 2 sec after
 EEG_TMIN = -2
 EEG_TMAX = 6
 
-# Caluclate with python_test.py get_mean_std():
+# Caluclated with python_test.py get_mean_std():
 channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,
                  -3.3686e-06, -4.0484e-06, -3.2589e-06, -1.2037e-06, -3.1303e-06,
                  -1.7123e-06, -1.3769e-06, -3.8620e-06, -3.8488e-06, -3.8019e-06,

@@ -14,7 +14,6 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.autograd import profiler
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torchvision import transforms
 
 from EEGNet_pytorch import EEGNet
 from common import TrialsDataset, ALL_SUBJECTS, \
@@ -29,10 +28,10 @@ from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS
 def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
                num_workers=0):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
-
+    # Dont print MNE loading logs
     mne.set_log_level('WARNING')
 
-    # Use GPU for model if available
+    # Use GPU for model & tensors if available
     dev = None
     if cuda & torch.cuda.is_available():
         dev = "cuda:0"
@@ -60,7 +59,7 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         print(f"######### {n_class}Class-Classification")
         accuracies = np.zeros((splits))
         epoch_losses = np.zeros((splits, num_epochs))
-        # Training of the different splits (5)
+        # Training of the 5 different splits-combinations
         for split in range(splits):
             print(f"############ RUN {split} ############")
             # Next Splits Combination of Train/Test Datasets
@@ -71,8 +70,6 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
 
             ds_train, ds_test = TrialsDataset(subjects_train, n_class, device), \
                                 TrialsDataset(subjects_test, n_class, device)
-            # ds_train, ds_test = PreloadedTrialsDataset(subjects_train, n_class, device), PreloadedTrialsDataset(
-            #     subjects_test, n_class, device)
 
             # Sample the trials in sequential order
             # TODO Random Sampler?
@@ -103,13 +100,13 @@ def run_eegnet(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, c
         print("Avg. Accuracy: ", (sum(accuracies) / len(accuracies)))
         matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
                 save_path=dir_results,
-                box_plot=True, max_y=100.0)
+                bar_plot=True, max_y=100.0)
         matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch',
                 f'loss per batch (size = {batch_size})',
                 labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
         elapsed = datetime.now() - start
         print(f"Elapsed time: {elapsed}")
-        # Store config + results in ./results/{datetime}/results.txt
+        # Store config + results in ./results/{datetime}-PLATFORM/results.txt
         save_results(config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results)
 
 

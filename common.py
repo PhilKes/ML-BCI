@@ -1,15 +1,10 @@
-# Authors: Alexandre Gramfort <alexandre.gramfort@inria.fr>
-#          Jean-Rémi KING <jeanremi.king@gmail.com>
-#
-# License: BSD Style.
-
-import copy
+"""
+Helper functions
+"""
 import functools
 import math
 import os
 import sys
-from datetime import datetime
-
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mne
@@ -26,18 +21,6 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, results_folder, datasets_folder, LR, TRANSFORM
-
-
-def combine_dims(a, i=0, n=1):
-    """
-    Combines dimensions of numpy array `a`,
-    starting at index `i`,
-    and combining `n` dimensions
-    """
-    s = list(a.shape)
-    combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
-    return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
-
 
 # TRIALS_PER_SUBJECT = 84
 CHANNELS = 64
@@ -59,7 +42,7 @@ runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes, device, transform=TRANSFORM):
+    def __init__(self, subjects, n_classes, device):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -68,8 +51,6 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.transform = transform
-        # TODO run 0 has no Epochs?
         if (self.n_classes > 3):
             self.trials_per_subject = 147
         elif (self.n_classes == 3):
@@ -83,20 +64,20 @@ class TrialsDataset(Dataset):
 
     # Determines corresponding Subject of trial and loads subject's data+labels
     # Uses buffer for last loaded subject
-    # event: event idx (trial)
-    # returns trial data(X) and trial label(y)
+    # trial: trial idx
+    # returns trial data (X) and trial label (y)
     def load_trial(self, trial):
         local_trial_idx = trial % self.trials_per_subject
 
         # determine required subject for trial
         subject = self.subjects[int(trial / self.trials_per_subject)]
 
-        # If Subject in current buffer, skip MNE Loading
+        # If Subject is in current buffer, skip MNE Loading
         if self.loaded_subject == subject:
             return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
 
         subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes)
-        # mne_load_subject(subject, self.runs)
+        # Buffer newly loaded subject
         self.loaded_subject = subject
         self.loaded_subject_data = subject_data
         # BCELoss excepts one-hot encoded, Cross Entropy not:
@@ -111,15 +92,15 @@ class TrialsDataset(Dataset):
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
         X = torch.as_tensor(X[None, ...], device=self.device)
-        # X = self.transform(X)
+        # X = TRANSFORM(X)
         return X, y
 
 
-# Finds indices of label-value occurences in y and
-# deletes them from X,y
+# Finds indices of label-value occurrences in y
+# and deletes them from X,y
 def remove_label_occurences(X, y, label):
-    rest_indices = np.where(y == label)
-    return np.delete(X, rest_indices, axis=0), np.delete(y, rest_indices)
+    label_idxs = np.where(y == label)
+    return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs)
 
 
 # Loads corresponding tasks for n_classes Classification
@@ -154,12 +135,12 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
     all_data = np.zeros((0, SAMPLES, CHANNELS))
     all_labels = np.zeros((0), dtype=np.int)
     for i, task in enumerate(tasks):
-        tasks_event_dict = event_dict.copy()
-        # for 2class classification exclude Rest events("0")
+        tasks_event_dict = event_dict
+        # for 2class classification exclude Rest events ("T0")
         # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
         if exclude_rest:
             tasks_event_dict = {'T1': 1, 'T2': 2}
-        # for 4class classification exclude both fists event("T1")
+        # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T0': 1, 'T2': 2}
         data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict)
@@ -173,8 +154,11 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
     return all_data, all_labels
 
 
-# Loads single Subject from mne
+# Loads single Subject of Physionet Data with MNE
 # returns EEG data (X) and corresponding Labels (y)
+# event_id specifies which event types should be loaded,
+# if some are missing, they are ignored
+# event_id= 'auto' loads all event types
 def mne_load_subject(subject, runs, event_id='auto'):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
@@ -249,6 +233,7 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
     return loss_values
 
 
+# Tests labeled data with trained net
 def test(net, data_loader, device=torch.device("cpu")):
     print("###### Testing started")
     total = 0.0
@@ -281,7 +266,8 @@ def subjects_without_excluded(subjects):
 # data: either 1d or 2d datasets
 # labels: if 2d data, provide labels for legend
 # save_path: if plot + data array should be saved, declare save location
-def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, box_plot=False):
+# bar_plot: Plot as bars with average line (for Accuracies)
+def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False):
     fig, ax = plt.subplots()
     plt.title(title)
     plt.xlabel(xlabel)
@@ -301,7 +287,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
             plt.legend()
         plt.grid()
     else:
-        if box_plot:
+        if bar_plot:
             ax.bar(np.arange(len(data)), data, 0.35, )
             ax.axhline(np.average(data), color='red', linestyle='--')
         else:
@@ -313,6 +299,19 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
         np.save(f"{save_path}/{title}.npy", data)
     # fig.tight_layout()
     plt.show()
+
+
+# Create Plot from numpy file
+# if save = True save plot as .png
+def plot_numpy(np_file_path, xlabel, ylabel, save):
+    data = np.load(np_file_path)
+    labels = []
+    if data.ndim > 1:
+        labels = [f"Run {i}" for i in range(data.shape[0])]
+    filename = os.path.splitext(os.path.basename(np_file_path))[0]
+    save_path = os.path.dirname(np_file_path) if save else None
+    matplot(data, filename, xlabel, ylabel, labels=labels, save_path=save_path)
+    return data
 
 
 # Saves config + results.txt in dir_results
@@ -328,6 +327,17 @@ def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_resul
     file_result.close()
 
 
+def create_results_folders(datetime, platform="PC"):
+    now_string = datetime.strftime("%Y-%m-%d %H_%M_%S")
+    results = f"{results_folder}/{now_string}-{platform}"
+    try:
+        os.mkdir(results)
+    except OSError as err:
+        pass
+    return results
+
+
+# Create results folder with current DateTime-PLATFORM as name
 def print_subjects_ranges(train, test):
     if (train[0] < test[0]) & (train[-1] < test[0]):
         print(f"Subjects for Training:\t[{train[0]}-{train[-1]}]")
@@ -337,17 +347,6 @@ def print_subjects_ranges(train, test):
         print(f"Subjects for Training:\t[{train[0]}-{train[-1]}]")
     print(f"Subjects for Testing:\t[{test[0]}-{test[-1]}]")
     return
-
-
-# Create results folder with current DateTime-PLATFORM as name
-def create_results_folders(datetime, platform="PC"):
-    now_string = datetime.strftime("%Y-%m-%d %H_%M_%S")
-    results = f"{results_folder}/{now_string}-{platform}"
-    try:
-        os.mkdir(results)
-    except OSError as err:
-        pass
-    return results
 
 
 str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]
@@ -368,20 +367,17 @@ Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
 ###############\n"""
 
-
-# Create Plot from numpy file
-# if save = True save plot as .png
-def plot_numpy(np_file_path, xlabel, ylabel, save):
-    data = np.load(np_file_path)
-    labels = []
-    if data.ndim > 1:
-        labels = [f"Run {i}" for i in range(data.shape[0])]
-    filename = os.path.splitext(os.path.basename(np_file_path))[0]
-    save_path = os.path.dirname(np_file_path) if save else None
-    matplot(data, filename, xlabel, ylabel, labels=labels, save_path=save_path)
-    return data
-
 ########################### NOT USED ######################################################
+
+# def combine_dims(a, i=0, n=1):
+#     """
+#     Combines dimensions of numpy array `a`,
+#     starting at index `i`,
+#     and combining `n` dimensions
+#     """
+#     s = list(a.shape)
+#     combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
+#     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
 
 # def _do_train(model, loader, optimizer, criterion, device):
 #     # training loop
@@ -447,7 +443,6 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 #         self.n_classes = n_classes
 #         self.runs = []
 #         self.device = device
-#         # TODO run 0 has no Epochs?
 #         if (self.n_classes > 3):
 #             self.trials_per_subject = 147
 #         elif (self.n_classes == 3):
