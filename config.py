@@ -3,8 +3,9 @@ PLATFORM = "PC"  # used for results folder names
 CUDA = True
 PLOTS = True
 VERBOSE = False
+TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification in memory
-#
+# high memory usage (~4GB) but a lot faster
 DATA_PRELOAD = True
 
 results_folder = './results'
@@ -20,10 +21,10 @@ LR = dict(
 )
 
 # Training Settings
-EPOCHS = 50
+EPOCHS = 100
 BATCH_SIZE = 16
 SPLITS = 5
-N_CLASSES = [3]
+N_CLASSES = [2, 3, 4]
 # 2 sec before + 4 sec event + 2 sec after
 EEG_TMIN = -2
 EEG_TMAX = 6

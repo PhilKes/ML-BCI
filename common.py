@@ -20,7 +20,8 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
-from config import VERBOSE, EEG_TMIN, EEG_TMAX, results_folder, datasets_folder, LR, TRANSFORM
+from config import VERBOSE, EEG_TMIN, EEG_TMAX, results_folder, datasets_folder, LR, TRANSFORM, TEST_OVERFITTING, \
+    DATA_PRELOAD, BATCH_SIZE
 
 # TRIALS_PER_SUBJECT = 84
 CHANNELS = 64
@@ -44,7 +45,7 @@ trials_for_classes = {2: 42, 3: 84, 4: 147, }
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes, device,preloaded_tuple=None):
+    def __init__(self, subjects, n_classes, device, preloaded_tuple=None):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -53,9 +54,9 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject= trials_for_classes[n_classes]
-        self.preloaded_data= preloaded_tuple[0] if preloaded_tuple is not None else None
-        self.preloaded_labels= preloaded_tuple[1] if preloaded_tuple is not None else None
+        self.trials_per_subject = trials_for_classes[n_classes]
+        self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
+        self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
 
     # Length of Dataset (84 Trials per Subject)
     def __len__(self):
@@ -72,7 +73,7 @@ class TrialsDataset(Dataset):
         subject = self.subjects[int(trial / self.trials_per_subject)]
 
         if self.preloaded_data is not None:
-            idx=self.subjects.index(subject)
+            idx = ALL_SUBJECTS.index(subject)
             return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
 
         # If Subject is in current buffer, skip MNE Loading
@@ -99,11 +100,46 @@ class TrialsDataset(Dataset):
         return X, y
 
 
+# Returns Loaders of Training + Test Datasets from index splits
+# for n_class classification
+def create_loaders_from_splits(splits, n_class, device, preloaded_data=None, preloaded_labels=None):
+    subjects_train_idxs, subjects_test_idxs = splits
+    subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
+    subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
+    print_subjects_ranges(subjects_train, subjects_test)
+
+    ds_train, ds_test = TrialsDataset(subjects_train, n_class, device,
+                                      preloaded_tuple=(
+                                          preloaded_data, preloaded_labels) if DATA_PRELOAD else None), \
+                        TrialsDataset(subjects_test, n_class, device,
+                                      preloaded_tuple=(
+                                          preloaded_data, preloaded_labels) if DATA_PRELOAD else None)
+
+    # Sample the trials in random order
+    sampler_train, sampler_test = RandomSampler(ds_train), RandomSampler(ds_test)
+
+    return DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False), \
+           DataLoader(ds_test, BATCH_SIZE, sampler=sampler_test, pin_memory=False)
+
+
 # Finds indices of label-value occurrences in y
 # and deletes them from X,y
 def remove_label_occurences(X, y, label):
     label_idxs = np.where(y == label)
     return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs)
+
+
+# Loads all Subjects Data + Labels for n_class Classification
+# Very high memory usage (~4GB)
+def load_all_subjects(n_class):
+    preloaded_data = np.zeros((len(ALL_SUBJECTS), trials_for_classes[n_class], SAMPLES, CHANNELS),
+                              dtype=np.float32)
+    preloaded_labels = np.zeros((len(ALL_SUBJECTS), trials_for_classes[n_class]), dtype=np.float32)
+    for i, subject in tqdm(enumerate(ALL_SUBJECTS), total=len(ALL_SUBJECTS)):
+        data, labels = load_n_classes_tasks(subject, n_class)
+        preloaded_data[i] = data
+        preloaded_labels[i] = labels
+    return preloaded_data, preloaded_labels
 
 
 # Loads corresponding tasks for n_classes Classification
@@ -318,15 +354,20 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Saves config + results.txt in dir_results
-def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results):
+def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results, accuracies_overfitting=None):
     str_elapsed = str(elapsed)
     file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str_elapsed}\n")
     file_result.write(f"Accuracies of Splits:\n")
-    for i in [f"\tSplits {i}: {accuracies[i - 1]:.2f}\n" for i in range(1, len(accuracies) + 1)]:
-        file_result.write(i)
-    file_result.write(f"Average acc: {accuracies.sum() / len(accuracies):.2f}")
+    for i in range(len(accuracies)):
+        file_result.write(f"\tRun {i}: {accuracies[i]:.2f}\n")
+        if TEST_OVERFITTING:
+            file_result.write(f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n")
+    file_result.write(f"Average acc: {np.average(accuracies):.2f}\n")
+    if TEST_OVERFITTING:
+        file_result.write(
+            f"Average Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}")
     file_result.close()
 
 
@@ -369,6 +410,8 @@ Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
 ###############\n"""
+
+
 
 ########################### NOT USED ######################################################
 
