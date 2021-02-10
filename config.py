@@ -1,11 +1,13 @@
-# Global Default Settings
-PLATFORM = "PC"  # used for results folder names
+"""
+Configuration File containing global default values
+"""
+PLATFORM = "PC"  # used for results folder names only
 CUDA = True
 PLOTS = True
 VERBOSE = False
 TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification in memory
-# high memory usage (~4GB) but a lot faster
+# high memory usage (~4GB for 3 class / ~8GB for 4 class) but a lot faster
 DATA_PRELOAD = True
 
 results_folder = './results'
@@ -25,11 +27,14 @@ EPOCHS = 100
 BATCH_SIZE = 16
 SPLITS = 5
 N_CLASSES = [2, 3, 4]
+
+CHANNELS = 64
+SAMPLES = 1281
 # 2 sec before + 4 sec event + 2 sec after
 EEG_TMIN = -2
 EEG_TMAX = 6
 
-# Caluclated with python_test.py get_mean_std():
+# Calculated with python_test.py get_mean_std():
 channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,
                  -3.3686e-06, -4.0484e-06, -3.2589e-06, -1.2037e-06, -3.1303e-06,
                  -1.7123e-06, -1.3769e-06, -3.8620e-06, -3.8488e-06, -3.8019e-06,

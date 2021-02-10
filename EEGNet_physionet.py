@@ -1,9 +1,7 @@
 """
-Main Python Script to run
-PyTorch Training + Testing for EEGNet with PhysioNet Dataset
-On initial run MNE downloads the PhysioNet dataset into ./datasets
+* Training and Validating of Physionet Dataset with EEGNet PyTorch implementation
+* Performance Benchmarking of Inference on EEGNet pretrained with Physionet Data
 """
-import sys
 from datetime import datetime
 
 import mne
@@ -13,33 +11,24 @@ import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
-from torch.autograd import profiler
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from tqdm import tqdm
-from EEGNet_pytorch import EEGNet
-from common import TrialsDataset, ALL_SUBJECTS, \
-    print_subjects_ranges, train, test, matplot, create_results_folders, save_results, config_str, \
-    CHANNELS, load_n_classes_tasks, SAMPLES, trials_for_classes, load_all_subjects, create_loaders_from_splits  # noqa
+
+from EEGNet_model import EEGNet
+from common import train, test
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING
-
-
 # Runs EEGNet Training + Testing
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
 # save_model: Saves trained model with highest accuracy
+from data_loading import ALL_SUBJECTS, load_all_subjects, create_loaders_from_splits
+from utils import config_str, create_results_folders, matplot, save_results
+
+
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
-                       save_model=True):
+                       save_model=True, device=torch.device("cpu")):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
-
-    # Use GPU for model & tensors if available
-    dev = None
-    if cuda & torch.cuda.is_available():
-        dev = "cuda:0"
-    else:
-        dev = "cpu"
-    device = torch.device(dev)
 
     start = datetime.now()
     print(config_str(config))
@@ -112,9 +101,3 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
     if save_model & (best_trained_model is not None):
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
-
-# torch.autograd.set_detect_anomaly(True)
-eegnet_training_cv()
-# run_eegnet(num_epochs=20, lr=dict(start=1e-3, milestones=[], gamma=1))
-# run_eegnet(num_epochs=60)
-# run_eegnet(num_epochs=60, lr=dict(start=1e-3, milestones=[], gamma=1))

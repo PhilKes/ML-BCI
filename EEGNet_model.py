@@ -7,6 +7,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
+# origina paper: https://arxiv.org/pdf/1611.08024.pdf
 class EEGNet(nn.Module):
     def __init__(self, n_classes):
         super(EEGNet, self).__init__()
@@ -30,8 +31,7 @@ class EEGNet(nn.Module):
 
         # FC Layer
         # NOTE: This dimension will depend on the number of timestamps per sample in your data.
-        # I have 120 timepoints.
-        # max pooling sizes x 60
+        # max pooling sizes x 80
         self.fc1 = nn.Linear(2 * 4 * 80, n_classes)
 
     def forward(self, x):
