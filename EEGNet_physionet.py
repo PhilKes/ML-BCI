@@ -14,24 +14,25 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
 from EEGNet_model import EEGNet
-from common import train, test
-from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING
+from common import train, test, benchmark
+from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
+    trained_model_path
 # Runs EEGNet Training + Testing
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
 # save_model: Saves trained model with highest accuracy
-from data_loading import ALL_SUBJECTS, load_all_subjects, create_loaders_from_splits
-from utils import config_str, create_results_folders, matplot, save_results
+from data_loading import ALL_SUBJECTS, load_all_subjects, create_loaders_from_splits, create_loader_from_subjects
+from utils import training_config_str, create_results_folders, matplot, save_results, benchmark_config_str
 
 
-def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, cuda=CUDA, n_classes=N_CLASSES,
+def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
                        save_model=True, device=torch.device("cpu")):
-    config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=cuda, n_classes=n_classes)
+    config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=CUDA, n_classes=n_classes)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
 
     start = datetime.now()
-    print(config_str(config))
+    print(training_config_str(config))
     dir_results = create_results_folders(start, PLATFORM)
 
     # Group labels (subjects in same group need same group label)
@@ -96,8 +97,46 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         elapsed = datetime.now() - start
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}-PLATFORM/results.txt
-        save_results(config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results,
+        save_results(training_config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results,
                      accuracies_overfitting=accuracies_overfitting if TEST_OVERFITTING else None)
     if save_model & (best_trained_model is not None):
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
+
+def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5):
+    config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes)
+    # Dont print MNE loading logs
+    mne.set_log_level('WARNING')
+
+    start = datetime.now()
+    print(benchmark_config_str(config))
+    dir_results = create_results_folders(start, PLATFORM, type='benchmark')
+
+    for i, n_class in enumerate(n_classes):
+        preloaded_data, preloaded_labels = None, None
+        if DATA_PRELOAD:
+            print("PRELOADING ALL DATA IN MEMORY")
+            preloaded_data, preloaded_labels = load_all_subjects(n_class)
+
+        start = datetime.now()
+        print(f"######### {n_class}Class-Classification")
+        # Training of the 5 different splits-combinations
+
+        # Next Splits Combination of Train/Test Datasets
+        loader_data = create_loader_from_subjects(ALL_SUBJECTS, n_class, device, preloaded_data,
+                                                  preloaded_labels)
+
+        # Load pretrained model
+        model = EEGNet(n_class)
+        model.load_state_dict(torch.load(trained_model_path))
+        model.to(device)
+
+        # Warm up GPU
+        if CUDA:
+            data_iter = iter(loader_data)
+            for i in range(warm_ups):
+                data, labels = next(data_iter)
+                y = model(data)
+        batch_lat, trial_inf_time = benchmark(model, loader_data, device)
+        print(f"Batch Latency:{batch_lat}")
+        print(f"Inference Time per Trial:{trial_inf_time}")

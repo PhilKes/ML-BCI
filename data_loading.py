@@ -98,19 +98,17 @@ def create_loaders_from_splits(splits, n_class, device, preloaded_data=None, pre
     subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
     subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
+    return create_loader_from_subjects(subjects_train, n_class, device, preloaded_data, preloaded_labels), \
+           create_loader_from_subjects(subjects_test, n_class, device, preloaded_data, preloaded_labels)
 
-    ds_train, ds_test = TrialsDataset(subjects_train, n_class, device,
-                                      preloaded_tuple=(
-                                          preloaded_data, preloaded_labels) if DATA_PRELOAD else None), \
-                        TrialsDataset(subjects_test, n_class, device,
-                                      preloaded_tuple=(
-                                          preloaded_data, preloaded_labels) if DATA_PRELOAD else None)
 
+def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None):
+    ds_train = TrialsDataset(subjects, n_class, device,
+                             preloaded_tuple=(
+                                 preloaded_data, preloaded_labels) if DATA_PRELOAD else None)
     # Sample the trials in random order
-    sampler_train, sampler_test = RandomSampler(ds_train), RandomSampler(ds_test)
-
-    return DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False), \
-           DataLoader(ds_test, BATCH_SIZE, sampler=sampler_test, pin_memory=False)
+    sampler_train = RandomSampler(ds_train)
+    return DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False)
 
 
 # Finds indices of label-value occurrences in y

@@ -14,7 +14,7 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import results_folder, TEST_OVERFITTING
+from config import results_folder, TEST_OVERFITTING, training_results_folder, benchmark_results_folder
 
 
 # Create results folder with current DateTime-PLATFORM as name
@@ -99,9 +99,9 @@ def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_resul
     file_result.close()
 
 
-def create_results_folders(datetime, platform="PC"):
+def create_results_folders(datetime, platform="PC",type='train'):
     now_string = datetime.strftime("%Y-%m-%d %H_%M_%S")
-    results = f"{results_folder}/{now_string}-{platform}"
+    results = f"{training_results_folder if type=='train' else benchmark_results_folder}/{now_string}-{platform}"
     try:
         os.mkdir(results)
     except OSError as err:
@@ -116,7 +116,7 @@ def get_str_n_classes(n_classes):
     return f'Classes: {[str_n_classes[i] for i in n_classes]}'
 
 
-def config_str(config, n_class=None):
+def training_config_str(config, n_class=None):
     return f"""#### Config ####
 CUDA: {config['cuda']}
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
@@ -125,4 +125,12 @@ Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for T
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
+###############\n"""
+
+def benchmark_config_str(config, n_class=None):
+    return f"""#### Config ####
+CUDA: {config['cuda']}
+Nr. of classes: {config['n_classes'] if n_class is None else n_class}
+{get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
+Batch Size: {config['batch_size']}
 ###############\n"""

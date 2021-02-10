@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 """
-Main Python script to execute
+Main Python script to execute either Training with Cross Validation on Physionet Dataset
+or Benchmarking of Inference (Batch Latency + Inference time per Trial)
 """
 import argparse
 
 import torch
 
-from EEGNet_physionet import eegnet_training_cv
+from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
 from config import EPOCHS, CUDA
 
 
@@ -44,10 +45,11 @@ def main():
 
     if args.train:
         for i in range(args.loops):
-            eegnet_training_cv(num_epochs=args.epochs, device=device)
+            eegnet_training_cv(num_epochs=args.epochs, device=device,n_classes=args.n_classes)
     elif args.benchmark:
         for i in range(args.loops):
-            print("Benchmarking")
+            # For now only 3-Class Classification for benchmarking
+            eegnet_benchmark(n_classes=[3],device=device)
 
 
 ########################################################################################

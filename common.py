@@ -3,6 +3,7 @@ Helper functions
 """
 import math
 import sys
+import time
 
 import numpy as np
 import torch  # noqa
@@ -92,8 +93,26 @@ def test(net, data_loader, device=torch.device("cpu")):
     return acc
 
 
+# Tests labeled data with trained net
+def benchmark(net, data_loader, device=torch.device("cpu")):
+    print("###### Inference started")
+    with torch.no_grad():
+        net.eval()
+        start = time.perf_counter()
+        for data in data_loader:
+            inputs, labels = data
+            inputs = inputs.float()
+            outputs = net(inputs)
+        stop = time.perf_counter()
+        # Latency of one batch
+        print(f"Batches:{len(data_loader)}")
+        batch_lat = (stop - start) / len(data_loader)
+        # Inference time for 1 Trial
+        print(f"Trials:{len(data_loader.dataset)}")
+        trial_inf_time = (stop - start) / len(data_loader.dataset)
 
-
+    print("Inference finished ######")
+    return (batch_lat, trial_inf_time)
 
 ########################### NOT USED ######################################################
 

@@ -11,6 +11,10 @@ TEST_OVERFITTING = True
 DATA_PRELOAD = True
 
 results_folder = './results'
+training_results_folder = f"{results_folder}/training"
+benchmark_results_folder = f"{results_folder}/benchmark"
+# Path to default trained model (copy any results/training folder content into ./trained_model
+trained_model_path = "./trained_model/trained_model.pt"
 datasets_folder = './datasets/'
 
 BASELINE_CORRECTION = False
