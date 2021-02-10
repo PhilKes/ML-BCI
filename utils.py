@@ -108,7 +108,10 @@ def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str_elapsed}\n")
     file_result.write(f"Avg. Batch Latency:{batch_lat}\n")
-    file_result.write(f"Avg. Trial Inference Time:{trial_inf_time}\n")
+    file_result.write(f"Inference time per Trial:{trial_inf_time}\n")
+    file_result.write(f"Trials per second:{trial_inf_time}\n")
+    print(f"Trials per second:{(1 / trial_inf_time):.2f}")
+
     file_result.close()
     # Save trained EEGNet to results folder
     torch.save(model,f"{dir_results}/trained_model.pt")

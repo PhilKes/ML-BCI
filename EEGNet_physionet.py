@@ -16,7 +16,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from EEGNet_model import EEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
-    trained_model_path
+    trained_model_path, SAMPLES, CHANNELS
 # Runs EEGNet Training + Testing
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
@@ -24,6 +24,14 @@ from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DA
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results
+
+# TensorRT
+# https://github.com/NVIDIA-AI-IOT/torch2trt
+if torch.cuda.is_available():
+    import ctypes
+    from torch2trt import torch2trt
+
+    _cudart = ctypes.CDLL('libcudart.so')
 
 
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
@@ -107,7 +115,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 
 
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5,
-                     subjects=ALL_SUBJECTS):
+                     subjects=ALL_SUBJECTS, tensorRT=False):
     config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes, subjects=len(subjects))
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
@@ -124,9 +132,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
 
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
-        # Training of the 5 different splits-combinations
 
-        # Next Splits Combination of Train/Test Datasets
         loader_data = create_loader_from_subjects(subjects, n_class, device, preloaded_data,
                                                   preloaded_labels)
 
@@ -134,9 +140,15 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         model = EEGNet(n_class)
         model.load_state_dict(torch.load(trained_model_path))
         model.to(device)
+        # Get optimized model from TensorRT
+        if tensorRT:
+            sample_data = torch.randn((batch_size, 1, SAMPLES, CHANNELS)).to(device)
+            model = torch2trt(model,[sample_data],max_batch_size=batch_size)
+            print("Optimized EEGNet model with TensorRT")
 
         # Warm up GPU
         if CUDA:
+            print("Warm up GPU")
             data_iter = iter(loader_data)
             for i in range(warm_ups):
                 data, labels = next(data_iter)
@@ -144,5 +156,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         batch_lat, trial_inf_time = benchmark(model, loader_data, device)
         elapsed = datetime.now() - start
         print(f"Batch Latency:{batch_lat}")
-        print(f"Inference Time per Trial:{trial_inf_time}")
-        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat, trial_inf_time, elapsed,model,dir_results)
+        print(f"Inference time per Trial:{trial_inf_time}")
+        print(f"Trials per second:{(1 / trial_inf_time):.2f}")
+        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat, trial_inf_time, elapsed, model,
+                               dir_results)
