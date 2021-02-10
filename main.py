@@ -9,11 +9,13 @@ import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
 from config import EPOCHS, CUDA
+from data_loading import ALL_SUBJECTS
 
 
 def main():
-    parser = argparse.ArgumentParser(description=' Main script to run either Training (+Cross Validation) or Benchmarking'
-                                                 ' of EEGNet on Physionet Motor Imagery Dataset')
+    parser = argparse.ArgumentParser(
+        description=' Main script to run either Training (+Cross Validation) or Benchmarking'
+                    ' of EEGNet on Physionet Motor Imagery Dataset')
     parser.add_argument('-train',
                         help="Runs Training with Cross Validation with Physionet Dataset",
                         action='store_true', required=False)
@@ -24,6 +26,8 @@ def main():
 
     parser.add_argument('-benchmark', help="Runs Benchmarking with Physionet Dataset",
                         action='store_true', required=False)
+    parser.add_argument('--subjects', type=int, default=len(ALL_SUBJECTS) / 2,
+                        help="Number of subjects to infer on (default:50)")
 
     parser.add_argument('--loops', type=int, default=1,
                         help=f'Number of times Training/Benchmarking is run (default:1)')
@@ -34,6 +38,8 @@ def main():
         parser.error("Either flag '--train' or '--benchmark' must be present!")
     if not all(((n_class >= 2) & (n_class <= 4)) for n_class in args.n_classes):
         parser.error("Invalid n-class Classification specified (2/3/4-Class possible)")
+    if args.subjects > len(ALL_SUBJECTS):
+        parser.error(f"Maximum number of subjects: {len(ALL_SUBJECTS)}")
 
     # Use GPU for model & tensors if available
     dev = None
@@ -45,11 +51,11 @@ def main():
 
     if args.train:
         for i in range(args.loops):
-            eegnet_training_cv(num_epochs=args.epochs, device=device,n_classes=args.n_classes)
+            eegnet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes)
     elif args.benchmark:
         for i in range(args.loops):
             # For now only 3-Class Classification for benchmarking
-            eegnet_benchmark(n_classes=[3],device=device)
+            eegnet_benchmark(n_classes=[3], device=device, subjects=ALL_SUBJECTS[:int(args.subjects)])
 
 
 ########################################################################################

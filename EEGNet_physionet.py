@@ -21,7 +21,7 @@ from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DA
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
 # save_model: Saves trained model with highest accuracy
-from data_loading import ALL_SUBJECTS, load_all_subjects, create_loaders_from_splits, create_loader_from_subjects
+from data_loading import ALL_SUBJECTS, load_all_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_results, benchmark_config_str
 
 
@@ -49,7 +49,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_all_subjects(n_class)
+            preloaded_data, preloaded_labels = load_all_subjects_data(n_class)
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
@@ -103,7 +103,8 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
 
-def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5):
+def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5,
+                     subjects=ALL_SUBJECTS):
     config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
@@ -116,14 +117,14 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_all_subjects(n_class)
+            preloaded_data, preloaded_labels = load_all_subjects_data(subjects, n_class)
 
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
         # Training of the 5 different splits-combinations
 
         # Next Splits Combination of Train/Test Datasets
-        loader_data = create_loader_from_subjects(ALL_SUBJECTS, n_class, device, preloaded_data,
+        loader_data = create_loader_from_subjects(subjects, n_class, device, preloaded_data,
                                                   preloaded_labels)
 
         # Load pretrained model

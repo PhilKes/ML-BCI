@@ -86,7 +86,7 @@ class TrialsDataset(Dataset):
     # Returns a single trial as Tensor with Labels
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
-        X = torch.as_tensor(X[None, ...], device=self.device)
+        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y
 
@@ -120,11 +120,11 @@ def remove_label_occurences(X, y, label):
 
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
-def load_all_subjects(n_class):
-    preloaded_data = np.zeros((len(ALL_SUBJECTS), trials_for_classes[n_class], SAMPLES, CHANNELS),
+def load_all_subjects_data(subjects,n_class):
+    preloaded_data = np.zeros((len(subjects), trials_for_classes[n_class], SAMPLES, CHANNELS),
                               dtype=np.float32)
-    preloaded_labels = np.zeros((len(ALL_SUBJECTS), trials_for_classes[n_class]), dtype=np.float32)
-    for i, subject in tqdm(enumerate(ALL_SUBJECTS), total=len(ALL_SUBJECTS)):
+    preloaded_labels = np.zeros((len(subjects), trials_for_classes[n_class]), dtype=np.float32)
+    for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
         data, labels = load_n_classes_tasks(subject, n_class)
         preloaded_data[i] = data
         preloaded_labels[i] = labels

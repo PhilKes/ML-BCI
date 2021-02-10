@@ -8,6 +8,7 @@ VERBOSE = False
 TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification in memory
 # high memory usage (~4GB for 3 class / ~8GB for 4 class) but a lot faster
+# for -benchmark: decrease --subjects (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
 
 results_folder = './results'
