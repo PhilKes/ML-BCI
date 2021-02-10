@@ -1,5 +1,6 @@
 """
-Helper functions
+Main functions for
+Training, Testing, Benchmarking
 """
 import math
 import sys
@@ -30,12 +31,12 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
     for epoch in range(epochs):
         print(f"## Epoch {epoch} ")
         running_loss = 0.0
-        # Wrap in tqdm for Progressbar
+        # Wrap in tqdm for Progressbar in Console
         pbar = tqdm(data_loader, file=sys.stdout)
         # Training in batches from the DataLoader
         for idx_batch, (inputs, labels) in enumerate(pbar):
             # Convert to correct types + put on GPU
-            inputs, labels = inputs.float(), labels.long().to(device)
+            inputs, labels = inputs, labels.long().to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward + backward + optimize
@@ -45,13 +46,6 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
             optimizer.step()
 
             running_loss += loss.item()
-            # if math.isnan(running_loss):
-            #     print("running_loss", running_loss)
-            #     print("loss.item()", loss.item())
-            #     print("outputs", outputs.shape)
-            #     print("labels", labels.shape)
-            # pbar.set_description(
-            #     desc=f"Batch {idx_batch} avg. loss: {running_loss / (idx_batch + 1):.4f}")
         pbar.close()
         lr_scheduler.step()
         # Loss of entire epoch / amount of batches
@@ -77,7 +71,7 @@ def test(net, data_loader, device=torch.device("cpu")):
         net.eval()
         for data in data_loader:
             inputs, labels = data
-            inputs, labels = inputs.float(), labels.float()
+            inputs, labels = inputs, labels.float()
             outputs = net(inputs)
             _, predicted = torch.max(outputs.data.cpu(), 1)
             # For BCELOSS:

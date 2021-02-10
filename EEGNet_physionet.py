@@ -21,8 +21,9 @@ from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DA
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
 # save_model: Saves trained model with highest accuracy
-from data_loading import ALL_SUBJECTS, load_all_subjects_data, create_loaders_from_splits, create_loader_from_subjects
-from utils import training_config_str, create_results_folders, matplot, save_results, benchmark_config_str
+from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
+from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
+    save_benchmark_results
 
 
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
@@ -33,6 +34,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 
     start = datetime.now()
     print(training_config_str(config))
+
     dir_results = create_results_folders(start, PLATFORM)
 
     # Group labels (subjects in same group need same group label)
@@ -49,7 +51,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_all_subjects_data(n_class)
+            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class)
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
@@ -97,15 +99,16 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         elapsed = datetime.now() - start
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}-PLATFORM/results.txt
-        save_results(training_config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed, dir_results,
-                     accuracies_overfitting=accuracies_overfitting if TEST_OVERFITTING else None)
+        save_training_results(training_config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed,
+                              dir_results,
+                              accuracies_overfitting=accuracies_overfitting if TEST_OVERFITTING else None)
     if save_model & (best_trained_model is not None):
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
 
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5,
                      subjects=ALL_SUBJECTS):
-    config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes)
+    config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes, subjects=len(subjects))
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
 
@@ -117,7 +120,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_all_subjects_data(subjects, n_class)
+            preloaded_data, preloaded_labels = load_subjects_data(subjects, n_class)
 
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
@@ -139,5 +142,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                 data, labels = next(data_iter)
                 y = model(data)
         batch_lat, trial_inf_time = benchmark(model, loader_data, device)
+        elapsed = datetime.now() - start
         print(f"Batch Latency:{batch_lat}")
         print(f"Inference Time per Trial:{trial_inf_time}")
+        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat, trial_inf_time, elapsed,model,dir_results)

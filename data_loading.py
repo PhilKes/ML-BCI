@@ -1,7 +1,8 @@
 """
 Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
-(https://physionet.org/content/eegmmidb/1.0.0/)
 (https://neuro.inf.unibe.ch/AlgorithmsNeuroscience/Tutorial_files/DataLoading.html)
+On initial Run MNE downloads the Physionet Dataset into ./datasets
+(https://physionet.org/content/eegmmidb/1.0.0/)
 """
 import mne
 import numpy as np
@@ -19,6 +20,7 @@ from tqdm import tqdm
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, CHANNELS
 from utils import print_subjects_ranges
 
+# Some Subjects are excluded due to differing numbers of Trials in the recordings
 excluded_subjects = [88, 92, 100, 104]
 ALL_SUBJECTS = [i for i in range(1, 110) if i not in excluded_subjects]
 
@@ -30,6 +32,7 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
+# How many trials per subject for n-class Classifications
 trials_for_classes = {2: 42, 3: 84, 4: 147, }
 
 
@@ -49,12 +52,12 @@ class TrialsDataset(Dataset):
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
 
-    # Length of Dataset (84 Trials per Subject)
+    # Length of Dataset (all trials)
     def __len__(self):
         return len(self.subjects) * self.trials_per_subject
 
     # Determines corresponding Subject of trial and loads subject's data+labels
-    # Uses buffer for last loaded subject
+    # Uses buffer for last loaded subject if DATA_PRELOAD = False
     # trial: trial idx
     # returns trial data (X) and trial label (y)
     def load_trial(self, trial):
@@ -63,6 +66,7 @@ class TrialsDataset(Dataset):
         # determine required subject for trial
         subject = self.subjects[int(trial / self.trials_per_subject)]
 
+        # Immediately return from preloaded data if available
         if self.preloaded_data is not None:
             idx = ALL_SUBJECTS.index(subject)
             return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
@@ -75,9 +79,10 @@ class TrialsDataset(Dataset):
         # Buffer newly loaded subject
         self.loaded_subject = subject
         self.loaded_subject_data = subject_data
-        # BCELoss excepts one-hot encoded, Cross Entropy not:
+        # BCELoss excepts one-hot encoded, Cross Entropy (used here) not:
         #   labels (0,1,2) to categorical/one-hot encoded: 0 = [1 0 0], 1 =[0 1 0],...
         #   self.loaded_subject_labels = np.eye(self.n_classes, dtype='uint8')[subject_labels]
+        #   (https://discuss.pytorch.org/t/cross-entropy-with-one-hot-targets/13580/2)
         self.loaded_subject_labels = subject_labels
         # Return single trial from all Subject's Trials
         X, y = self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
@@ -102,6 +107,7 @@ def create_loaders_from_splits(splits, n_class, device, preloaded_data=None, pre
            create_loader_from_subjects(subjects_test, n_class, device, preloaded_data, preloaded_labels)
 
 
+# Creates DataLoader with Random Sampling from subject list
 def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None):
     ds_train = TrialsDataset(subjects, n_class, device,
                              preloaded_tuple=(
@@ -111,16 +117,9 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, 
     return DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False)
 
 
-# Finds indices of label-value occurrences in y
-# and deletes them from X,y
-def remove_label_occurences(X, y, label):
-    label_idxs = np.where(y == label)
-    return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs)
-
-
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
-def load_all_subjects_data(subjects,n_class):
+def load_subjects_data(subjects, n_class):
     preloaded_data = np.zeros((len(subjects), trials_for_classes[n_class], SAMPLES, CHANNELS),
                               dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials_for_classes[n_class]), dtype=np.float32)
@@ -149,10 +148,6 @@ def load_n_classes_tasks(subject, n_classes):
 # different tasks have the same numbers
 inc_label = lambda label: label + 2 if label != 0 else label
 increase_label = np.vectorize(inc_label)
-
-# Both fists("1") gets removed, both feet("2") becomes the new "1"
-# map_feet_to_fists = lambda label: label - 1 if label == 2 else label
-# map_labels = np.vectorize(map_feet_to_fists)
 
 event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
@@ -190,9 +185,6 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
 def mne_load_subject(subject, runs, event_id='auto'):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
-    # for 4 Class: need to map to 0,1,2,3
-    # split reading in run lists (runs_t1,runs_t2,...)
-    # give unique labels
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)

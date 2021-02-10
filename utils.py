@@ -13,6 +13,7 @@ import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
+from shutil import copyfile
 
 from config import results_folder, TEST_OVERFITTING, training_results_folder, benchmark_results_folder
 
@@ -82,7 +83,8 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Saves config + results.txt in dir_results
-def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results, accuracies_overfitting=None):
+def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results,
+                          accuracies_overfitting=None):
     str_elapsed = str(elapsed)
     file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
     file_result.write(str_conf)
@@ -92,19 +94,33 @@ def save_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_resul
         file_result.write(f"\tRun {i}: {accuracies[i]:.2f}\n")
         if TEST_OVERFITTING:
             file_result.write(f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n")
-    file_result.write(f"Average acc: {np.average(accuracies):.2f}\n")
+    file_result.write(f"Avg. acc: {np.average(accuracies):.2f}\n")
     if TEST_OVERFITTING:
         file_result.write(
-            f"Average Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}")
+            f"Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}")
     file_result.close()
 
 
-def create_results_folders(datetime, platform="PC",type='train'):
+# Saves config + results.txt in dir_results
+def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed,model, dir_results):
+    str_elapsed = str(elapsed)
+    file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
+    file_result.write(str_conf)
+    file_result.write(f"Elapsed Time: {str_elapsed}\n")
+    file_result.write(f"Avg. Batch Latency:{batch_lat}\n")
+    file_result.write(f"Avg. Trial Inference Time:{trial_inf_time}\n")
+    file_result.close()
+    # Save trained EEGNet to results folder
+    torch.save(model,f"{dir_results}/trained_model.pt")
+
+
+def create_results_folders(datetime, platform="PC", type='train'):
     now_string = datetime.strftime("%Y-%m-%d %H_%M_%S")
-    results = f"{training_results_folder if type=='train' else benchmark_results_folder}/{now_string}-{platform}"
+    results = f"{training_results_folder if type == 'train' else benchmark_results_folder}/{now_string}-{platform}"
     try:
-        os.mkdir(results)
+        os.makedirs(results)
     except OSError as err:
+        raise err
         pass
     return results
 
@@ -125,12 +141,14 @@ Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for T
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
-###############\n"""
+###############\n\n"""
+
 
 def benchmark_config_str(config, n_class=None):
     return f"""#### Config ####
 CUDA: {config['cuda']}
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
+Nr. of Subjects: {config['subjects']}
 Batch Size: {config['batch_size']}
-###############\n"""
+###############\n\n"""

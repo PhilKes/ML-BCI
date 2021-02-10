@@ -1,3 +1,7 @@
+"""
+IGNORE
+Python script for miscellaneous testing of libraries
+"""
 import math
 import os
 from datetime import datetime
@@ -10,8 +14,7 @@ from torch import tensor
 from torch.utils.data import DataLoader, SequentialSampler
 from torchvision import transforms
 
-from common import ALL_SUBJECTS, print_subjects_ranges, mne_load_subject, matplot, runs_t1, runs_t4, runs_t2, runs_rest, \
-    load_task_runs, load_n_classes_tasks, plot_numpy, TrialsDataset
+from data_loading import TrialsDataset, ALL_SUBJECTS, load_n_classes_tasks
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -189,7 +192,7 @@ def get_mean_std(loader):
 # print("mean", mean, "std", std)
 def check_bad_data(subjects, n_classes):
     min, max = math.inf, -math.inf
-    for idx,i in enumerate(subjects):
+    for idx, i in enumerate(subjects):
         data, labels = load_n_classes_tasks(i, n_classes)
         if np.isneginf(data).any():
             print("negative infinite data")
@@ -197,18 +200,18 @@ def check_bad_data(subjects, n_classes):
             print("Nan found ")
         if np.isinf(data).any():
             print("Not finite data")
-        print(f"{i:3d}"," X", data.shape, "y", labels.shape)
-        loc_min= data.min()
-        loc_max= data.max()
-        if(loc_min < min):
-            min=loc_min
-        if(loc_max > max):
-            max=loc_max
+        print(f"{i:3d}", " X", data.shape, "y", labels.shape)
+        loc_min = data.min()
+        loc_max = data.max()
+        if (loc_min < min):
+            min = loc_min
+        if (loc_max > max):
+            max = loc_max
     print("Min", min, "Max", max)
 
 
-#check_bad_data(ALL_SUBJECTS, 4)
-#data,labels=mne_load_subject(1,4,{'T0':1,'T2':2})
-data,labels=load_n_classes_tasks(1,4)
-print(labels,labels.shape)
+# check_bad_data(ALL_SUBJECTS, 4)
+# data,labels=mne_load_subject(1,4,{'T0':1,'T2':2})
+data, labels = load_n_classes_tasks(1, 4)
+print(labels, labels.shape)
 print(data.shape)
