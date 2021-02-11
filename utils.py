@@ -102,19 +102,18 @@ def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, 
 
 
 # Saves config + results.txt in dir_results
-def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed,model, dir_results):
+def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed, model, dir_results):
     str_elapsed = str(elapsed)
     file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str_elapsed}\n")
     file_result.write(f"Avg. Batch Latency:{batch_lat}\n")
     file_result.write(f"Inference time per Trial:{trial_inf_time}\n")
-    file_result.write(f"Trials per second:{trial_inf_time}\n")
-    print(f"Trials per second:{(1 / trial_inf_time):.2f}")
+    file_result.write(f"Trials per second:{(1/trial_inf_time):.2f}\n")
 
     file_result.close()
     # Save trained EEGNet to results folder
-    torch.save(model,f"{dir_results}/trained_model.pt")
+    torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")
 
 
 def create_results_folders(datetime, platform="PC", type='train'):
@@ -150,6 +149,7 @@ Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr
 def benchmark_config_str(config, n_class=None):
     return f"""#### Config ####
 CUDA: {config['cuda']}
+TensorRT optimized: {config['trt']}
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Nr. of Subjects: {config['subjects']}

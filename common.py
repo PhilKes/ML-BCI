@@ -87,7 +87,7 @@ def test(net, data_loader, device=torch.device("cpu")):
     return acc
 
 
-# Tests labeled data with trained net
+# Benchmarks net on Inference Time in Batches
 def benchmark(net, data_loader, device=torch.device("cpu")):
     print("###### Inference started")
     with torch.no_grad():

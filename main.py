@@ -29,7 +29,7 @@ def main():
     # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage for benchmarking
     parser.add_argument('--subjects', type=int, default=len(ALL_SUBJECTS),
                         help=f"Number of subjects to infer on (default:{len(ALL_SUBJECTS)})")
-    parser.add_argument('--trt', type=bool, default=False,
+    parser.add_argument('--trt', action='store_true', required=False,
                         help=f"Use TensorRT to optimize trained EEGNet")
 
     parser.add_argument('--loops', type=int, default=1,
@@ -58,7 +58,8 @@ def main():
     elif args.benchmark:
         for i in range(args.loops):
             # For now only 3-Class Classification for benchmarking
-            eegnet_benchmark(n_classes=[3], device=device, subjects=ALL_SUBJECTS[:int(args.subjects)])
+            eegnet_benchmark(n_classes=[3], device=device, subjects=ALL_SUBJECTS[:int(args.subjects)],
+                             tensorRT=args.trt)
 
 
 ########################################################################################
