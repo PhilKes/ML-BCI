@@ -14,8 +14,8 @@ DATA_PRELOAD = True
 results_folder = './results'
 training_results_folder = f"{results_folder}/training"
 benchmark_results_folder = f"{results_folder}/benchmark"
-# Path to default trained model (copy any results/training folder content into ./trained_model
-trained_model_path = "./trained_model/trained_model.pt"
+# Path to default trained model (copy any results/training folder content into ./benchmarking_model
+trained_model_path = "./benchmarking_model/trained_model.pt"
 datasets_folder = './datasets/'
 
 BASELINE_CORRECTION = False
@@ -27,17 +27,25 @@ LR = dict(
     gamma=0.1
 )
 
-# Training Settings
-EPOCHS = 100
-BATCH_SIZE = 16
-SPLITS = 5
-N_CLASSES = [2, 3, 4]
-
 CHANNELS = 64
 SAMPLES = 1281
+
+# Training Settings
+EPOCHS = 100
+SPLITS = 5
+N_CLASSES = [2, 3, 4]
 # 2 sec before + 4 sec event + 2 sec after
 EEG_TMIN = -2
 EEG_TMAX = 6
+
+BATCH_SIZE = 16
+
+# Benchmark Settings
+SUBJECTS_CS = 10
+
+
+
+
 
 # Calculated with python_test.py get_mean_std():
 channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,

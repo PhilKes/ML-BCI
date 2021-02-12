@@ -88,7 +88,7 @@ def test(net, data_loader, device=torch.device("cpu")):
 
 
 # Benchmarks net on Inference Time in Batches
-def benchmark(net, data_loader, device=torch.device("cpu")):
+def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
     print("###### Inference started")
     with torch.no_grad():
         net.eval()
@@ -97,8 +97,8 @@ def benchmark(net, data_loader, device=torch.device("cpu")):
         for i, data in enumerate(data_loader):
             inputs, labels = data
             inputs = inputs.float()
-            outputs = net(inputs)
-            print(f"Batch: {i} of {num_batches}")
+            outputs = net(inputs.half() if fp16 else inputs)
+            print(f"Batch: {i + 1} of {num_batches}")
         stop = time.perf_counter()
         # Latency of one batch
         print(f"Batches:{num_batches}")

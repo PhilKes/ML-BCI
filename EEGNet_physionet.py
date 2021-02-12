@@ -2,6 +2,7 @@
 * Training and Validating of Physionet Dataset with EEGNet PyTorch implementation
 * Performance Benchmarking of Inference on EEGNet pretrained with Physionet Data
 """
+import math
 from datetime import datetime
 
 import mne
@@ -20,7 +21,7 @@ from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DA
 
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
-    save_benchmark_results
+    save_benchmark_results, split_list_into_chunks
 
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
@@ -120,8 +121,9 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 # Returns Batch Latency + Time per EEG Trial inference
 # saves results in ./results/benchmark/{DateTime}
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5,
-                     subjects=ALL_SUBJECTS, tensorRT=False):
-    config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes, subjects=len(subjects), trt=tensorRT)
+                     subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False):
+    config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes, subjects_cs=subjects_cs,
+                  trt=tensorRT, iters=1, fp16=fp16)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
 
@@ -130,42 +132,56 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
     dir_results = create_results_folders(start, PLATFORM, type='benchmark')
 
     for i, n_class in enumerate(n_classes):
-        # TODO: if subjects is less than ALL_SUBJECTS, loop over preloaded batches of subjects
-        preloaded_data, preloaded_labels = None, None
-        if DATA_PRELOAD:
-            print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_subjects_data(subjects, n_class)
-
-        start = datetime.now()
-        print(f"######### {n_class}Class-Classification")
-
-        loader_data = create_loader_from_subjects(subjects, n_class, device, preloaded_data,
-                                                  preloaded_labels)
-
-        # Load pretrained model
+        print(f"######### {n_class}Class-Classification Benchmarking")
+        print(f"Loading pretrained model from '{trained_model_path}'")
         model = EEGNet(n_class)
         model.load_state_dict(torch.load(trained_model_path))
         model.to(device)
+        model.eval()
         # Get optimized model with TensorRT
         if tensorRT:
             t = torch.randn((batch_size, 1, SAMPLES, CHANNELS)).to(device)
             # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
-            model.eval()
-            model = torch2trt(model, [t], max_batch_size=batch_size)
+            # TensorRT either with fp16 ("half") or fp32
+            if fp16:
+                t = t.half()
+                model = model.half()
+            model = torch2trt(model, [t], max_batch_size=batch_size, fp16_mode=fp16)
             print("Optimized EEGNet model with TensorRT")
 
-        # Warm up GPU
+        # Warm up GPU with random data
         if CUDA:
             print("Warming up GPU")
-            data_iter = iter(loader_data)
             for i in range(warm_ups):
-                data, labels = next(data_iter)
-                y = model(data)
-        batch_lat, trial_inf_time = benchmark(model, loader_data, device)
+                data = torch.randn((batch_size, 1, SAMPLES, CHANNELS)).to(device)
+                y = model(data.half() if fp16 else data)
+        # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
+        preload_chunks = split_list_into_chunks(ALL_SUBJECTS, subjects_cs)
+        batch_lats = np.zeros((len(preload_chunks) * iters))
+        trial_inf_times = np.zeros((len(preload_chunks) * iters))
+
+        start = datetime.now()
+        # Infer over the entire Dataset multiple times
+        for j in range(iters):
+            # Benchmarking is executed per chunk of subjects
+            for i, subjects_chunk in enumerate(preload_chunks):
+                preloaded_data, preloaded_labels = None, None
+                if DATA_PRELOAD:
+                    print(f"PRELOADING SUBJECTS [{subjects_chunk[0]}-{subjects_chunk[-1]}] DATA IN MEMORY")
+                    preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class)
+
+                loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
+                                                          preloaded_labels)
+                batch_lats[len(preload_chunks) * j + i], trial_inf_times[len(preload_chunks) * j + i] = benchmark(model,
+                                                                                                                  loader_data,
+                                                                                                                  device,
+                                                                                                                  fp16)
         elapsed = datetime.now() - start
-        print(f"Batch Latency:{batch_lat}")
-        print(f"Inference time per Trial:{trial_inf_time}")
-        print(f"Trials per second:{(1 / trial_inf_time):.2f}")
+        batch_lat_avg = np.average(batch_lats)
+        trial_inf_time_avg = np.average(trial_inf_times)
+        print(f"Batch Latency:{batch_lat_avg}")
+        print(f"Inference time per Trial:{trial_inf_time_avg}")
+        print(f"Trials per second:{(1 / trial_inf_time_avg):.2f}")
         print(f"Elapsed Time: {str(elapsed)}")
-        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat, trial_inf_time, elapsed, model,
+        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat_avg, trial_inf_time_avg, elapsed, model,
                                dir_results)

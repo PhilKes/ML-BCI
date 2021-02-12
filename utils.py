@@ -2,6 +2,7 @@
 Utility functions for printing Statistics, Plotting,
 Saving results, etc.
 """
+import math
 import os
 
 import matplotlib.pyplot as plt
@@ -84,6 +85,7 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 # Saves config + results.txt in dir_results
 def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results,
                           accuracies_overfitting=None):
+    # TODO save numpy array in one file with dict names
     str_elapsed = str(elapsed)
     file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
     file_result.write(str_conf)
@@ -126,6 +128,12 @@ def create_results_folders(datetime, platform="PC", type='train'):
 
 str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]
 
+# Split python list into chunks with equal size (last chunk can have smaller size)
+# source: https://stackoverflow.com/questions/24483182/python-split-list-into-n-chunks
+def split_list_into_chunks(list, chunk_size):
+    m = int(len(list) / int(math.ceil(len(list) / chunk_size))) + 1
+    return [list[i:i + m] for i in range(0, len(list), m)]
+
 
 def get_str_n_classes(n_classes):
     return f'Classes: {[str_n_classes[i] for i in n_classes]}'
@@ -146,9 +154,10 @@ Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr
 def benchmark_config_str(config, n_class=None):
     return f"""#### Config ####
 CUDA: {config['cuda']}
-TensorRT optimized: {config['trt']}
+TensorRT optimized: {config['trt']} (fp{16 if config['fp16'] else 32})
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
-Nr. of Subjects: {config['subjects']}
+Preload subjects Chunksize: {config['subjects_cs']}
 Batch Size: {config['batch_size']}
+Dataset Iterations: {config['iters']}
 ###############\n\n"""

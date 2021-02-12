@@ -68,7 +68,10 @@ class TrialsDataset(Dataset):
 
         # Immediately return from preloaded data if available
         if self.preloaded_data is not None:
-            idx = ALL_SUBJECTS.index(subject)
+            if self.preloaded_data.shape[0] == len(ALL_SUBJECTS):
+                idx = ALL_SUBJECTS.index(subject)
+            else:
+                idx = self.subjects.index(subject)
             return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
 
         # If Subject is in current buffer, skip MNE Loading
@@ -195,7 +198,9 @@ def mne_load_subject(subject, runs, event_id='auto'):
     epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
                     baseline=None, preload=True)
     # [trials (84), timepoints (1281), channels (64)]
-    subject_data = np.swapaxes(epochs.get_data(), 2, 1)
+    # TODO immediately cast to float32? .fif Files contain float 32, MNE loads as float64 for preprocessing precision
+    subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
+    #print("Subjects data type", type(subject_data[0][0][0]))
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1
 

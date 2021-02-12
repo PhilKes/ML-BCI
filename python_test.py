@@ -150,9 +150,11 @@ if torch.cuda.is_available():
 else:
     dev = "cpu"
 device = torch.device("cpu")
-scale = lambda x: x * 10000
-ds_train = TrialsDataset(ALL_SUBJECTS, 4, device)
-loader_train = DataLoader(ds_train, 32, sampler=SequentialSampler(ds_train), pin_memory=False, )
+
+
+# scale = lambda x: x * 10000
+# ds_train = TrialsDataset(ALL_SUBJECTS, 4, device)
+# loader_train = DataLoader(ds_train, 32, sampler=SequentialSampler(ds_train), pin_memory=False, )
 
 
 # data, labels = next(iter(loader_train))
@@ -212,6 +214,12 @@ def check_bad_data(subjects, n_classes):
 
 # check_bad_data(ALL_SUBJECTS, 4)
 # data,labels=mne_load_subject(1,4,{'T0':1,'T2':2})
-data, labels = load_n_classes_tasks(1, 4)
-print(labels, labels.shape)
-print(data.shape)
+# data, labels = load_n_classes_tasks(1, 4)
+# print(labels, labels.shape)
+# print(data.shape)
+x = ALL_SUBJECTS
+batch_size = 16
+m = int(len(ALL_SUBJECTS) / int(math.ceil(len(x) / batch_size)))+1
+test = [x[i:i + m] for i in range(0, len(x), m)]
+# test[-2:] = [test[-2] + test[-1]]
+print(test)
