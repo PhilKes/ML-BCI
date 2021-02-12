@@ -17,24 +17,24 @@ from EEGNet_model import EEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, PLATFORM, SPLITS, CUDA, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
     trained_model_path, SAMPLES, CHANNELS
-# Runs EEGNet Training + Testing
-# Cross Validation with 5 Splits (á 21 Subjects' Data)
-# Can run 2/3/4-Class Classifications
-# save_model: Saves trained model with highest accuracy
+
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results
 
-# TensorRT
+# Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 if torch.cuda.is_available():
     import ctypes
     from torch2trt import torch2trt
-    import tensorrt as trt
 
     _cudart = ctypes.CDLL('libcudart.so')
 
 
+# Runs EEGNet Training + Testing
+# Cross Validation with 5 Splits (á 21 Subjects' Data)
+# Can run 2/3/4-Class Classifications
+# save_model: Saves trained model with highest accuracy
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
                        save_model=True, device=torch.device("cpu")):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, cuda=CUDA, n_classes=n_classes)
@@ -115,6 +115,10 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
 
+# Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
+# with Physionet Dataset (3class-Classification)
+# Returns Batch Latency + Time per EEG Trial inference
+# saves results in ./results/benchmark/{DateTime}
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=5,
                      subjects=ALL_SUBJECTS, tensorRT=False):
     config = dict(batch_size=batch_size, cuda=CUDA, n_classes=n_classes, subjects=len(subjects), trt=tensorRT)
@@ -147,12 +151,12 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
             t = torch.randn((batch_size, 1, SAMPLES, CHANNELS)).to(device)
             # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
             model.eval()
-            model = torch2trt(model,[t],max_batch_size=batch_size)
+            model = torch2trt(model, [t], max_batch_size=batch_size)
             print("Optimized EEGNet model with TensorRT")
 
         # Warm up GPU
         if CUDA:
-            print("Warm up GPU")
+            print("Warming up GPU")
             data_iter = iter(loader_data)
             for i in range(warm_ups):
                 data, labels = next(data_iter)
@@ -162,5 +166,6 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         print(f"Batch Latency:{batch_lat}")
         print(f"Inference time per Trial:{trial_inf_time}")
         print(f"Trials per second:{(1 / trial_inf_time):.2f}")
+        print(f"Elapsed Time: {str(elapsed)}")
         save_benchmark_results(benchmark_config_str(config), n_class, batch_lat, trial_inf_time, elapsed, model,
                                dir_results)

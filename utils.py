@@ -1,6 +1,6 @@
 """
 Utility functions for printing Statistics, Plotting,
-Saving results of Training,...
+Saving results, etc.
 """
 import os
 
@@ -13,9 +13,8 @@ import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
-from shutil import copyfile
 
-from config import results_folder, TEST_OVERFITTING, training_results_folder, benchmark_results_folder
+from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder
 
 
 # Create results folder with current DateTime-PLATFORM as name
@@ -103,14 +102,12 @@ def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, 
 
 # Saves config + results.txt in dir_results
 def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed, model, dir_results):
-    str_elapsed = str(elapsed)
     file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
     file_result.write(str_conf)
-    file_result.write(f"Elapsed Time: {str_elapsed}\n")
+    file_result.write(f"Elapsed Time: {str(elapsed)}\n")
     file_result.write(f"Avg. Batch Latency:{batch_lat}\n")
     file_result.write(f"Inference time per Trial:{trial_inf_time}\n")
-    file_result.write(f"Trials per second:{(1/trial_inf_time):.2f}\n")
-
+    file_result.write(f"Trials per second:{(1 / trial_inf_time):.2f}\n")
     file_result.close()
     # Save trained EEGNet to results folder
     torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")

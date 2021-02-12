@@ -26,7 +26,7 @@ def main():
 
     parser.add_argument('-benchmark', help="Runs Benchmarking with Physionet Dataset",
                         action='store_true', required=False)
-    # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage for benchmarking
+    # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
     parser.add_argument('--subjects', type=int, default=len(ALL_SUBJECTS),
                         help=f"Number of subjects to infer on (default:{len(ALL_SUBJECTS)})")
     parser.add_argument('--trt', action='store_true', required=False,
