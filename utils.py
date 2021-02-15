@@ -2,6 +2,7 @@
 Utility functions for printing Statistics, Plotting,
 Saving results, etc.
 """
+import errno
 import math
 import os
 
@@ -18,7 +19,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder
 
 
-# Create results folder with current DateTime-PLATFORM as name
+# Create results folder with current DateTime as name
 def print_subjects_ranges(train, test):
     if (train[0] < test[0]) & (train[-1] < test[0]):
         print(f"Subjects for Training:\t[{train[0]}-{train[-1]}]")
@@ -64,7 +65,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     if save_path is not None:
         fig = plt.gcf()
         fig.savefig(f"{save_path}/{title}.png")
-        np.save(f"{save_path}/{title}.npy", data)
+        # np.save(f"{save_path}/{title}.npy", data)
     # fig.tight_layout()
     plt.show()
 
@@ -102,6 +103,10 @@ def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, 
     file_result.close()
 
 
+def save_training_numpy_data(accs, losses, save_path, n_class):
+    np.savez(f"{save_path}/{n_class}class-results.npz", accs=accs, losses=losses)
+
+
 # Saves config + results.txt in dir_results
 def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed, model, dir_results):
     file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
@@ -115,18 +120,27 @@ def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed
     torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")
 
 
-def create_results_folders(datetime, platform="PC", type='train'):
-    now_string = datetime.strftime("%Y-%m-%d %H_%M_%S")
-    results = f"{training_results_folder if type == 'train' else benchmark_results_folder}/{now_string}-{platform}"
+def datetime_to_folder_str(datetime):
+    return datetime.strftime("%Y-%m-%d %H_%M_%S")
+
+
+def create_results_folders(path=None, datetime=None, type='train'):
+    if path is not None:
+        results = f"{training_results_folder if type == 'train' else benchmark_results_folder}/{path}"
+    else:
+        now_string = datetime_to_folder_str(datetime)
+        results = f"{training_results_folder if type == 'train' else benchmark_results_folder}/{now_string}"
     try:
         os.makedirs(results)
-    except OSError as err:
-        raise err
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
         pass
     return results
 
 
 str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]
+
 
 # Split python list into chunks with equal size (last chunk can have smaller size)
 # source: https://stackoverflow.com/questions/24483182/python-split-list-into-n-chunks
@@ -141,7 +155,7 @@ def get_str_n_classes(n_classes):
 
 def training_config_str(config, n_class=None):
     return f"""#### Config ####
-CUDA: {config['cuda']}
+Device: {config['device']}
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
@@ -153,8 +167,8 @@ Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr
 
 def benchmark_config_str(config, n_class=None):
     return f"""#### Config ####
-CUDA: {config['cuda']}
-TensorRT optimized: {config['trt']} (fp{16 if config['fp16'] else 32})
+Device: {config['device']}
+TensorRT optimized: {config['trt']} (fp{16 if bool(config['fp16']) else 32})
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Preload subjects Chunksize: {config['subjects_cs']}

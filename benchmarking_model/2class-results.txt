@@ -1,0 +1,23 @@
+#### Config ####
+CUDA: True
+Nr. of classes: 2
+Classes: ['Left/Right Fist']
+Dataset split in 5 Subject Groups, 4 for Training, 1 for Testing (Cross Validation)
+Batch Size: 16
+Epochs: 100
+Learning Rate: initial = 0.01, Epoch milestones = [20, 50], gamma = 0.1
+###############
+Elapsed Time: 0:19:37.207823
+Accuracies of Splits:
+	Run 0: 82.99
+		Overfitting (Test-Training): -4.08
+	Run 1: 81.86
+		Overfitting (Test-Training): -8.70
+	Run 2: 89.91
+		Overfitting (Test-Training): 0.11
+	Run 3: 86.05
+		Overfitting (Test-Training): -7.28
+	Run 4: 73.24
+		Overfitting (Test-Training): -2.86
+Average acc: 82.81
+Average Overfitting difference: -4.56

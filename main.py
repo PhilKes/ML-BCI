@@ -1,18 +1,20 @@
 #!/usr/bin/python3
 """
-Main Python script to execute either Training with Cross Validation on Physionet Dataset
-or Benchmarking of Inference (Batch Latency + Inference time per Trial)
+Main Python script to execute either Training with Cross Validation on Physionet Dataset (-train)
+or Benchmarking of Inference (Batch Latency + Inference time per Trial) (-benchmark)
+Configuration Parameters for Number of Epochs, TensorRT Optimizations,... (see main.py --help)
 """
 import argparse
+import sys
 
 import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
-from config import EPOCHS, CUDA, SUBJECTS_CS
+from config import EPOCHS, SUBJECTS_CS
 from data_loading import ALL_SUBJECTS
 
 
-def main():
+def single_run(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         description=' Main script to run either Training (+Cross Validation) or Benchmarking'
                     ' of EEGNet on Physionet Motor Imagery Dataset')
@@ -29,17 +31,21 @@ def main():
     # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
     parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
                         help=f"Chunk size for preloading subjects in memory (only for benchmark, default:{SUBJECTS_CS}, lower for less memory usage )")
-    parser.add_argument('--trt', action='store_true', required=False,
+    parser.add_argument('--trt', action='store_true',
                         help=f"Use TensorRT to optimize trained EEGNet")
-    parser.add_argument('--fp16', action='store_true', required=False,
+    parser.add_argument('--fp16', action='store_true',
                         help=f"Use fp16 for TensorRT optimization")
     parser.add_argument('--iters', type=int, default=1,
                         help=f'Number of benchmark iterations over the Dataset in a loop (default:1)')
 
-    parser.add_argument('--loops', type=int, default=1,
-                        help=f'Number of loops of Training/Benchmarking is run (default:1)')
+    # parser.add_argument('--loops', type=int, default=1,
+    #                     help=f'Number of loops of Training/Benchmarking is run (default:1)')
+    parser.add_argument('--name', type=str, default=None,
+                        help='Name for executed Run (stores results in ./results/{benchmark/training}/{name})')
+    parser.add_argument('--device', type=str, default="gpu", required=False,
+                        help='Either "gpu" or "cpu"')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     print(args)
     if (not args.train) & (not args.benchmark):
         parser.error("Either flag '--train' or '--benchmark' must be present!")
@@ -50,26 +56,32 @@ def main():
     if (args.iters > 1) & (not args.benchmark):
         parser.error(f"Iteration parameter is only used if benchmarking")
     if args.fp16 & (not args.trt):
-        parser.error(f"Floating Point16 only availabe if TensorRT optimization is enabled too")
+        parser.error(f"Floating Point16 only available if TensorRT optimization is enabled too")
+    if (args.device != "gpu") & (args.device != "cpu"):
+        parser.error(f"Device can either be 'gpu' or 'cpu'")
+    if (args.device == "cpu") & (args.trt):
+        parser.error(f"Cannot optimize with TensorRT with device='cpu'")
 
     # Use GPU for model & tensors if available
     dev = None
-    if CUDA & torch.cuda.is_available():
+    if (args.device == "gpu") & torch.cuda.is_available():
         dev = "cuda:0"
     else:
         dev = "cpu"
     device = torch.device(dev)
+    print("device", device.type)
 
     if args.train:
-        for i in range(args.loops):
-            eegnet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes)
+        # for i in range(args.loops):
+        eegnet_training_cv(num_epochs=args.epochs, device=device,
+                           n_classes=args.n_classes, name=args.name)
     elif args.benchmark:
-        for i in range(args.loops):
-            # For now only 3-Class Classification for benchmarking
-            eegnet_benchmark(n_classes=[3], device=device, subjects_cs=args.subjects_cs,
-                             tensorRT=args.trt,fp16=args.fp16)
+        # for i in range(args.loops):
+        # For now only 3-Class Classification for benchmarking
+        return eegnet_benchmark(n_classes=[3], device=device, subjects_cs=args.subjects_cs, name=args.name,
+                                tensorRT=args.trt, fp16=args.fp16, iters=args.iters)
 
 
 ########################################################################################
 if __name__ == '__main__':
-    main()
+    single_run()

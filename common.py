@@ -89,23 +89,41 @@ def test(net, data_loader, device=torch.device("cpu")):
 
 # Benchmarks net on Inference Time in Batches
 def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
+    # TODO Check Accuracy if fp16= True
+    # INIT LOGGERS
+    #starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
     print("###### Inference started")
+    net.eval()
+    num_batches = len(data_loader)
+    # https://deci.ai/the-correct-way-to-measure-inference-time-of-deep-neural-networks/?utm_referrer=https%3A%2F%2Fwww.google.com%2F
+    timings = np.zeros((num_batches))
+    # start = time.perf_counter()
     with torch.no_grad():
-        net.eval()
-        start = time.perf_counter()
-        num_batches = len(data_loader)
         for i, data in enumerate(data_loader):
             inputs, labels = data
-            inputs = inputs.float()
-            outputs = net(inputs.half() if fp16 else inputs)
-            print(f"Batch: {i + 1} of {num_batches}")
-        stop = time.perf_counter()
+            if fp16:
+                inputs = inputs.half()
+            # starter.record()
+            start = time.perf_counter()
+            outputs = net(inputs)
+            # ender.record()
+            # WAIT FOR GPU SYNC
+            #torch.cuda.synchronize()
+            stop = time.perf_counter()
+            # curr_time = starter.elapsed_time(ender)
+            curr_time = stop - start
+            timings[i] = curr_time
+
+            # print(f"Batch: {i + 1} of {num_batches}")
+        # stop = time.perf_counter()
+        batch_lat = np.sum(timings) / num_batches
+        trial_inf_time = np.sum(timings) / len(data_loader.dataset)
         # Latency of one batch
         print(f"Batches:{num_batches}")
-        batch_lat = (stop - start) / num_batches
+        # batch_lat = (stop - start) / num_batches
         # Inference time for 1 Trial
         print(f"Trials:{len(data_loader.dataset)}")
-        trial_inf_time = (stop - start) / len(data_loader.dataset)
+        # trial_inf_time = (stop - start) / len(data_loader.dataset)
 
     print("Inference finished ######")
     return (batch_lat, trial_inf_time)
