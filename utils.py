@@ -70,6 +70,53 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     plt.show()
 
 
+# Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
+def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save_path=None):
+    # group_labels = ['G1', 'G2', 'G3', 'G4', 'G5']
+    # data = [[20, 34, 30, 35, 27], [25, 32, 34, 20, 25]]
+
+    #print(configs_data)
+    x = np.arange(len(configs_data))  # the label locations
+    width = 0.35  # the width of the bars
+
+    fig, ax = plt.subplots()
+    rects = []
+    for bs_idx, bs in enumerate(batch_sizes):
+        label = f"BS {bs}"
+        for conf_idx in range(len(configs_data)):
+            conf_data = configs_data[conf_idx]
+            print(conf_data)
+            rects.append(ax.bar((conf_idx) - width / len(batch_sizes) + bs_idx * width,
+                                conf_data[bs_idx], width, label=label))
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.set_xticks(x)
+    ax.set_xticklabels(f"Conf_{i}" for i in range(len(configs_data)))
+    ax.legend()
+
+    # def autolabel(rects):
+    #     """Attach a text label above each bar in *rects*, displaying its height."""
+    #     for rect in rects:
+    #         height = rect.get_height()
+    #         ax.annotate('{}'.format(height),
+    #                     xy=(rect.get_x() + rect.get_width() / 2, height),
+    #                     xytext=(0, 3),  # 3 points vertical offset
+    #                     textcoords="offset points",
+    #                     ha='center', va='bottom')
+    #
+    # autolabel(rects1)
+    # autolabel(rects2)
+
+    fig.tight_layout()
+
+    plt.show()
+    if save_path is not None:
+        fig = plt.gcf()
+        fig.savefig(f"{save_path}/{title}.png")
+
+
 # Create Plot from numpy file
 # if save = True save plot as .png
 def plot_numpy(np_file_path, xlabel, ylabel, save):
@@ -108,8 +155,8 @@ def save_training_numpy_data(accs, losses, save_path, n_class):
 
 
 # Saves config + results.txt in dir_results
-def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed, model, dir_results):
-    file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
+def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed, model, dir_results, tag=None):
+    file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str(elapsed)}\n")
     file_result.write(f"Avg. Batch Latency:{batch_lat}\n")

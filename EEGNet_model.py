@@ -12,7 +12,7 @@ class EEGNet(nn.Module):
     def __init__(self, n_classes):
         super(EEGNet, self).__init__()
         # self.T = 160
-
+        # TODO dependency on number of EEG channels?
         # Layer 1
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, 64), padding=0)
         self.batchnorm1 = nn.BatchNorm2d(16, False)

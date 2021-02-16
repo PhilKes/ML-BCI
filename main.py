@@ -10,7 +10,7 @@ import sys
 import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
-from config import EPOCHS, SUBJECTS_CS
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE
 from data_loading import ALL_SUBJECTS
 
 
@@ -37,11 +37,15 @@ def single_run(argv=sys.argv[1:]):
                         help=f"Use fp16 for TensorRT optimization")
     parser.add_argument('--iters', type=int, default=1,
                         help=f'Number of benchmark iterations over the Dataset in a loop (default:1)')
+    parser.add_argument('--bs', type=int, default=BATCH_SIZE,
+                        help=f'Trial Batch Size (default:{BATCH_SIZE})')
 
     # parser.add_argument('--loops', type=int, default=1,
     #                     help=f'Number of loops of Training/Benchmarking is run (default:1)')
     parser.add_argument('--name', type=str, default=None,
                         help='Name for executed Run (stores results in ./results/{benchmark/training}/{name})')
+    parser.add_argument('--tag', type=str, default=None, required=False,
+                        help='Optional Tag for results files (e.g. for different batch sizes)')
     parser.add_argument('--device', type=str, default="gpu", required=False,
                         help='Either "gpu" or "cpu"')
 
@@ -74,12 +78,13 @@ def single_run(argv=sys.argv[1:]):
     if args.train:
         # for i in range(args.loops):
         eegnet_training_cv(num_epochs=args.epochs, device=device,
-                           n_classes=args.n_classes, name=args.name)
+                           n_classes=args.n_classes, name=args.name, batch_size=args.bs)
     elif args.benchmark:
         # for i in range(args.loops):
         # For now only 3-Class Classification for benchmarking
         return eegnet_benchmark(n_classes=[3], device=device, subjects_cs=args.subjects_cs, name=args.name,
-                                tensorRT=args.trt, fp16=args.fp16, iters=args.iters)
+                                tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
+                                tag=args.tag)
 
 
 ########################################################################################

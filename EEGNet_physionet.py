@@ -2,7 +2,6 @@
 * Training and Validating of Physionet Dataset with EEGNet PyTorch implementation
 * Performance Benchmarking of Inference on EEGNet pretrained with Physionet Data
 """
-import math
 from datetime import datetime
 
 import mne
@@ -18,19 +17,17 @@ from EEGNet_model import EEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
     trained_model_path, SAMPLES, CHANNELS, GPU_WARMUPS
-
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data
 
-
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
-# if torch.cuda.is_available():
-#     import ctypes
-#     from torch2trt import torch2trt
-#
-#     _cudart = ctypes.CDLL('libcudart.so')
+if torch.cuda.is_available():
+    import ctypes
+    from torch2trt import torch2trt
+
+    _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs EEGNet Training + Testing
@@ -80,7 +77,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
             print(f"############ RUN {split} ############")
             # Next Splits Combination of Train/Test Datasets
             loader_train, loader_test = create_loaders_from_splits(next(cv_split), n_class, device, preloaded_data,
-                                                                   preloaded_labels)
+                                                                   preloaded_labels, batch_size)
 
             model = EEGNet(n_class)
             model.to(device)
@@ -128,7 +125,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 # Returns Batch Latency + Time per EEG Trial inference
 # saves results in ./results/benchmark/{DateTime}
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=GPU_WARMUPS,
-                     subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, name=None):
+                     subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, name=None, tag=None):
     config = dict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                   trt=tensorRT, iters=iters, fp16=fp16)
     # Dont print MNE loading logs
@@ -176,7 +173,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                     preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class)
 
                 loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
-                                                          preloaded_labels)
+                                                          preloaded_labels, batch_size)
                 # Warm up GPU with random data
                 if device.type != 'cpu':
                     print("Warming up GPU")
@@ -196,5 +193,5 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         print(f"Trials per second:{(1 / trial_inf_time_avg):.2f}")
         print(f"Elapsed Time: {str(elapsed)}")
         save_benchmark_results(benchmark_config_str(config), n_class, batch_lat_avg, trial_inf_time_avg, elapsed, model,
-                               dir_results)
+                               dir_results, tag=tag)
         return batch_lat_avg, trial_inf_time_avg

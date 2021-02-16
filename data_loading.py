@@ -101,23 +101,23 @@ class TrialsDataset(Dataset):
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
-def create_loaders_from_splits(splits, n_class, device, preloaded_data=None, preloaded_labels=None):
+def create_loaders_from_splits(splits, n_class, device, preloaded_data=None, preloaded_labels=None, bs=BATCH_SIZE):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
     subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
-    return create_loader_from_subjects(subjects_train, n_class, device, preloaded_data, preloaded_labels), \
-           create_loader_from_subjects(subjects_test, n_class, device, preloaded_data, preloaded_labels)
+    return create_loader_from_subjects(subjects_train, n_class, device, preloaded_data, preloaded_labels, bs), \
+           create_loader_from_subjects(subjects_test, n_class, device, preloaded_data, preloaded_labels, bs)
 
 
 # Creates DataLoader with Random Sampling from subject list
-def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None):
+def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None, bs=BATCH_SIZE):
     ds_train = TrialsDataset(subjects, n_class, device,
                              preloaded_tuple=(
                                  preloaded_data, preloaded_labels) if DATA_PRELOAD else None)
     # Sample the trials in random order
     sampler_train = RandomSampler(ds_train)
-    return DataLoader(ds_train, BATCH_SIZE, sampler=sampler_train, pin_memory=False)
+    return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
 
 
 # Loads all Subjects Data + Labels for n_class Classification
@@ -136,11 +136,11 @@ def load_subjects_data(subjects, n_class):
 # Loads corresponding tasks for n_classes Classification
 def load_n_classes_tasks(subject, n_classes):
     tasks = []
-    if (n_classes == 4):
+    if n_classes == 4:
         tasks = [2, 4]
-    elif (n_classes == 3):
+    elif n_classes == 3:
         tasks = [2]
-    elif (n_classes == 2):
+    elif n_classes == 2:
         tasks = [2]
     return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
                           exclude_bothfists=(n_classes == 4))
@@ -200,7 +200,7 @@ def mne_load_subject(subject, runs, event_id='auto'):
     # [trials (84), timepoints (1281), channels (64)]
     # TODO immediately cast to float32? .fif Files contain float 32, MNE loads as float64 for preprocessing precision
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
-    #print("Subjects data type", type(subject_data[0][0][0]))
+    # print("Subjects data type", type(subject_data[0][0][0]))
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1
 
