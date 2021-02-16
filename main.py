@@ -26,7 +26,7 @@ def single_run(argv=sys.argv[1:]):
     parser.add_argument('--n_classes', nargs='+', type=int, default=[3],
                         help="List of n-class Classifications to run (2/3/4-Class possible)")
 
-    parser.add_argument('-benchmark', help="Runs Benchmarking with Physionet Dataset",
+    parser.add_argument('-benchmark', help="Runs Benchmarking with Physionet Dataset with trained model (./benchmarking_model/trained_model.pt)",
                         action='store_true', required=False)
     # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
     parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
