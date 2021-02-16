@@ -6,8 +6,7 @@ VERBOSE = False
 # Calculate the difference in accuracy between (new) Validation Dataset and known Training Dataset
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
-# Preloads all subjects data for n_classes classification in memory
-# high memory usage (~4GB for 3 class / ~8GB for 4 class) but a lot faster
+# Preloads all subjects data for n_classes classification Training in memory
 # for -benchmark: decrease --subjects (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
 
@@ -17,6 +16,8 @@ benchmark_results_folder = f"{results_folder}/benchmark"
 # Path to default trained model for benchmarking mode
 # (copy any results/training/ folder content into ./benchmarking_model
 trained_model_path = "./benchmarking_model/trained_model.pt"
+# Folder where MNE downloads Physionet Dataset to
+# on initial Run MNE needs to download the Dataset
 datasets_folder = './datasets/'
 
 BASELINE_CORRECTION = False
