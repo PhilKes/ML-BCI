@@ -17,7 +17,8 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
-from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, CHANNELS
+from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, CHANNELS, \
+    MNE_CHANNELS
 from utils import print_subjects_ranges
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -39,7 +40,7 @@ trials_for_classes = {2: 42, 3: 84, 4: 147, }
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes, device, preloaded_tuple=None):
+    def __init__(self, subjects, n_classes, device, preloaded_tuple=None, ch_names=MNE_CHANNELS):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -51,6 +52,7 @@ class TrialsDataset(Dataset):
         self.trials_per_subject = trials_for_classes[n_classes]
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
+        self.ch_names = ch_names
 
     # Length of Dataset (all trials)
     def __len__(self):
@@ -78,7 +80,7 @@ class TrialsDataset(Dataset):
         if self.loaded_subject == subject:
             return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
 
-        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes)
+        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes, ch_names=self.ch_names)
         # Buffer newly loaded subject
         self.loaded_subject = subject
         self.loaded_subject_data = subject_data
@@ -101,20 +103,24 @@ class TrialsDataset(Dataset):
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
-def create_loaders_from_splits(splits, n_class, device, preloaded_data=None, preloaded_labels=None, bs=BATCH_SIZE):
+def create_loaders_from_splits(splits, n_class, device, preloaded_data=None,
+                               preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
     subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
-    return create_loader_from_subjects(subjects_train, n_class, device, preloaded_data, preloaded_labels, bs), \
-           create_loader_from_subjects(subjects_test, n_class, device, preloaded_data, preloaded_labels, bs)
+    return create_loader_from_subjects(subjects_train, n_class, device,
+                                       preloaded_data, preloaded_labels, bs, ch_names), \
+           create_loader_from_subjects(subjects_test, n_class, device,
+                                       preloaded_data, preloaded_labels, bs, ch_names)
 
 
 # Creates DataLoader with Random Sampling from subject list
-def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None, bs=BATCH_SIZE):
+def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
+                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS):
     ds_train = TrialsDataset(subjects, n_class, device,
-                             preloaded_tuple=(
-                                 preloaded_data, preloaded_labels) if DATA_PRELOAD else None)
+                             preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
+                             ch_names=ch_names)
     # Sample the trials in random order
     sampler_train = RandomSampler(ds_train)
     return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
@@ -122,19 +128,19 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, 
 
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
-def load_subjects_data(subjects, n_class):
-    preloaded_data = np.zeros((len(subjects), trials_for_classes[n_class], SAMPLES, CHANNELS),
+def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS):
+    preloaded_data = np.zeros((len(subjects), trials_for_classes[n_class], SAMPLES, len(ch_names)),
                               dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials_for_classes[n_class]), dtype=np.float32)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
-        data, labels = load_n_classes_tasks(subject, n_class)
+        data, labels = load_n_classes_tasks(subject, n_class, ch_names)
         preloaded_data[i] = data
         preloaded_labels[i] = labels
     return preloaded_data, preloaded_labels
 
 
 # Loads corresponding tasks for n_classes Classification
-def load_n_classes_tasks(subject, n_classes):
+def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS):
     tasks = []
     if n_classes == 4:
         tasks = [2, 4]
@@ -143,7 +149,7 @@ def load_n_classes_tasks(subject, n_classes):
     elif n_classes == 2:
         tasks = [2]
     return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
-                          exclude_bothfists=(n_classes == 4))
+                          exclude_bothfists=(n_classes == 4), ch_names=ch_names)
 
 
 # If multiple tasks are used (4classes classification)
@@ -156,9 +162,9 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
-def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
+def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS):
     global map_label
-    all_data = np.zeros((0, SAMPLES, CHANNELS))
+    all_data = np.zeros((0, SAMPLES, len(ch_names)))
     all_labels = np.zeros((0), dtype=np.int)
     for i, task in enumerate(tasks):
         tasks_event_dict = event_dict
@@ -169,7 +175,7 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
         # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T0': 1, 'T2': 2}
-        data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict)
+        data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
 
         # Correct labels if multiple tasks are loaded
         # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
@@ -185,7 +191,8 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False):
 # event_id specifies which event types should be loaded,
 # if some are missing, they are ignored
 # event_id= 'auto' loads all event types
-def mne_load_subject(subject, runs, event_id='auto'):
+# ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
+def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
@@ -193,13 +200,17 @@ def mne_load_subject(subject, runs, event_id='auto'):
     raw = concatenate_raws(raw_files)
     raw.rename_channels(lambda x: x.strip('.'))
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
-    picks = pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
-                       exclude='bads')
+    # https://mne.tools/0.11/auto_tutorials/plot_info.html
+    # picks = pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
+    #                    exclude='bads')
+    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+
     epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
                     baseline=None, preload=True)
     # [trials (84), timepoints (1281), channels (64)]
     # TODO immediately cast to float32? .fif Files contain float 32, MNE loads as float64 for preprocessing precision
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
+    #print("Channels", epochs.ch_names)
     # print("Subjects data type", type(subject_data[0][0][0]))
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1

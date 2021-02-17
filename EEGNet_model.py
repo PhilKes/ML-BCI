@@ -7,14 +7,17 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
-# origina paper: https://arxiv.org/pdf/1611.08024.pdf
+# original paper: https://arxiv.org/pdf/1611.08024.pdf
+from config import CHANNELS
+
+
 class EEGNet(nn.Module):
-    def __init__(self, n_classes):
+    def __init__(self, n_classes, channels):
         super(EEGNet, self).__init__()
         # self.T = 160
-        # TODO dependency on number of EEG channels?
+
         # Layer 1
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, 64), padding=0)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, channels), padding=0)
         self.batchnorm1 = nn.BatchNorm2d(16, False)
 
         # Layer 2

@@ -10,7 +10,7 @@ import sys
 import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, CHANNELS, MNE_CHANNELS
 from data_loading import ALL_SUBJECTS
 
 
@@ -25,8 +25,11 @@ def single_run(argv=sys.argv[1:]):
                         help=f'Number of epochs for Training (default:{EPOCHS})')
     parser.add_argument('--n_classes', nargs='+', type=int, default=[3],
                         help="List of n-class Classifications to run (2/3/4-Class possible)")
+    parser.add_argument('--chs', type=int, default=CHANNELS,
+                        help="Number of EEG channels to use (max:64)")
 
-    parser.add_argument('-benchmark', help="Runs Benchmarking with Physionet Dataset with trained model (./benchmarking_model/trained_model.pt)",
+    parser.add_argument('-benchmark',
+                        help="Runs Benchmarking with Physionet Dataset with trained model (./benchmarking_model/trained_model.pt)",
                         action='store_true', required=False)
     # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
     parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
@@ -68,6 +71,8 @@ def single_run(argv=sys.argv[1:]):
     if (args.device == "cpu") & (args.bs > 15):
         parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
 
+    # Slice channels from the 64 available EEG Channels from the start to given chs
+    ch_names = MNE_CHANNELS[:args.chs]
 
     # Use GPU for model & tensors if available
     dev = None
@@ -80,14 +85,14 @@ def single_run(argv=sys.argv[1:]):
 
     if args.train:
         # for i in range(args.loops):
-        eegnet_training_cv(num_epochs=args.epochs, device=device,
-                           n_classes=args.n_classes, name=args.name, batch_size=args.bs)
+        eegnet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
+                           name=args.name, batch_size=args.bs, ch_names=ch_names)
     elif args.benchmark:
         # for i in range(args.loops):
         # For now only 3-Class Classification for benchmarking
         return eegnet_benchmark(n_classes=[3], device=device, subjects_cs=args.subjects_cs, name=args.name,
                                 tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
-                                tag=args.tag)
+                                tag=args.tag, ch_names=ch_names)
 
 
 ########################################################################################

@@ -208,6 +208,7 @@ Device: {config['device']}
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
+Channels: {len(config['ch_names'])} {config['ch_names']}
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
@@ -220,6 +221,7 @@ Device: {config['device']}
 TensorRT optimized: {config['trt']} (fp{16 if bool(config['fp16']) else 32})
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
+Channels: {len(config['ch_names'])} {config['ch_names']}
 Preload subjects Chunksize: {config['subjects_cs']}
 Batch Size: {config['batch_size']}
 Dataset Iterations: {config['iters']}

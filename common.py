@@ -89,7 +89,6 @@ def test(net, data_loader, device=torch.device("cpu")):
 
 # Benchmarks net on Inference Time in Batches
 def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
-    # TODO Check Accuracy if fp16= True
     # TODO Correct way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
     # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
@@ -137,4 +136,4 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
         # trial_inf_time = (stop - start) / len(data_loader.dataset)
 
     print("Inference finished ######")
-    return (batch_lat, trial_inf_time, acc)
+    return batch_lat, trial_inf_time, acc

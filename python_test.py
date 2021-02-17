@@ -14,7 +14,8 @@ from torch import tensor
 from torch.utils.data import DataLoader, SequentialSampler
 from torchvision import transforms
 
-from data_loading import TrialsDataset, ALL_SUBJECTS, load_n_classes_tasks
+from config import MNE_CHANNELS, CHANNELS
+from data_loading import TrialsDataset, ALL_SUBJECTS, load_n_classes_tasks, runs_t1, runs_t2, mne_load_subject
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -217,9 +218,11 @@ def check_bad_data(subjects, n_classes):
 # data, labels = load_n_classes_tasks(1, 4)
 # print(labels, labels.shape)
 # print(data.shape)
-x = ALL_SUBJECTS
-batch_size = 16
-m = int(len(ALL_SUBJECTS) / int(math.ceil(len(x) / batch_size)))+1
-test = [x[i:i + m] for i in range(0, len(x), m)]
-# test[-2:] = [test[-2] + test[-1]]
-print(test)
+# x = ALL_SUBJECTS
+# batch_size = 16
+# m = int(len(ALL_SUBJECTS) / int(math.ceil(len(x) / batch_size)))+1
+# test = [x[i:i + m] for i in range(0, len(x), m)]
+# # test[-2:] = [test[-2] + test[-1]]
+# print(test)
+data,labels=load_n_classes_tasks(1,3,ch_names=MNE_CHANNELS[:CHANNELS])
+print(data.shape)
