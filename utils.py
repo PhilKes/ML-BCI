@@ -75,7 +75,7 @@ def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save
     # group_labels = ['G1', 'G2', 'G3', 'G4', 'G5']
     # data = [[20, 34, 30, 35, 27], [25, 32, 34, 20, 25]]
 
-    #print(configs_data)
+    # print(configs_data)
     x = np.arange(len(configs_data))  # the label locations
     width = 0.35  # the width of the bars
 
@@ -155,13 +155,15 @@ def save_training_numpy_data(accs, losses, save_path, n_class):
 
 
 # Saves config + results.txt in dir_results
-def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, elapsed, model, dir_results, tag=None):
+def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, acc_avg, elapsed, model, dir_results,
+                           tag=None):
     file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str(elapsed)}\n")
     file_result.write(f"Avg. Batch Latency:{batch_lat}\n")
     file_result.write(f"Inference time per Trial:{trial_inf_time}\n")
     file_result.write(f"Trials per second:{(1 / trial_inf_time):.2f}\n")
+    file_result.write(f"Accuracies:{acc_avg:.2f}\n")
     file_result.close()
     # Save trained EEGNet to results folder
     torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")

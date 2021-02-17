@@ -1,6 +1,6 @@
 """
 Helper Script to plot Benchmarking results.npz files
-(Batch Latencies)
+(Batch Latencies + Trial Inference Time)
 """
 import argparse
 import os

@@ -92,13 +92,15 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
     # TODO Check Accuracy if fp16= True
     # TODO Correct way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
-    #starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
     print("###### Inference started")
     net.eval()
     num_batches = len(data_loader)
     # https://deci.ai/the-correct-way-to-measure-inference-time-of-deep-neural-networks/?utm_referrer=https%3A%2F%2Fwww.google.com%2F
     timings = np.zeros((num_batches))
     # start = time.perf_counter()
+    total = 0.0
+    correct = 0.0
     with torch.no_grad():
         for i, data in enumerate(data_loader):
             inputs, labels = data
@@ -109,14 +111,21 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
             outputs = net(inputs)
             # ender.record()
             # WAIT FOR GPU SYNC
-            #torch.cuda.synchronize()
+            # torch.cuda.synchronize()
             stop = time.perf_counter()
+            _, predicted = torch.max(outputs.data.cpu(), 1)
+            labels = labels.cpu()
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
             # curr_time = starter.elapsed_time(ender)
             curr_time = stop - start
             timings[i] = curr_time
 
             # print(f"Batch: {i + 1} of {num_batches}")
         # stop = time.perf_counter()
+        acc = (100 * correct / total)
+        print(F'Accuracy on the {len(data_loader.dataset)} trials: %0.2f %%' % (
+            acc))
         batch_lat = np.sum(timings) / num_batches
         trial_inf_time = np.sum(timings) / len(data_loader.dataset)
         # Latency of one batch
@@ -128,4 +137,4 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
         # trial_inf_time = (stop - start) / len(data_loader.dataset)
 
     print("Inference finished ######")
-    return (batch_lat, trial_inf_time)
+    return (batch_lat, trial_inf_time, acc)

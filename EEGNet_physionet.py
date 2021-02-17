@@ -21,6 +21,7 @@ from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_s
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data
 
+
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 if torch.cuda.is_available():
@@ -159,6 +160,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
         preload_chunks = split_list_into_chunks(ALL_SUBJECTS, subjects_cs)
         chunks = len(preload_chunks)
+        accuracies = np.zeros((chunks * iters))
         batch_lats = np.zeros((chunks * iters))
         trial_inf_times = np.zeros((chunks * iters))
 
@@ -181,17 +183,19 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                         with torch.no_grad():
                             data = torch.randn((batch_size, 1, SAMPLES, CHANNELS)).to(device)
                             y = model(data.half() if fp16 else data)
-                batch_lats[chunks * i + chunk_idx], trial_inf_times[chunks * i + chunk_idx] = benchmark(model,
-                                                                                                        loader_data,
-                                                                                                        device,
-                                                                                                        fp16)
+                batch_lats[chunks * i + chunk_idx], trial_inf_times[chunks * i + chunk_idx], accuracies[
+                    chunks * i + chunk_idx] = benchmark(model,
+                                                        loader_data,
+                                                        device,
+                                                        fp16)
         elapsed = datetime.now() - start
+        acc_avg = np.average(accuracies)
         batch_lat_avg = np.average(batch_lats)
         trial_inf_time_avg = np.average(trial_inf_times)
         print(f"Batch Latency:{batch_lat_avg}")
         print(f"Inference time per Trial:{trial_inf_time_avg}")
         print(f"Trials per second:{(1 / trial_inf_time_avg):.2f}")
         print(f"Elapsed Time: {str(elapsed)}")
-        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat_avg, trial_inf_time_avg, elapsed, model,
+        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat_avg, trial_inf_time_avg,acc_avg, elapsed, model,
                                dir_results, tag=tag)
         return batch_lat_avg, trial_inf_time_avg

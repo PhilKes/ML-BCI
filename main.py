@@ -65,6 +65,9 @@ def single_run(argv=sys.argv[1:]):
         parser.error(f"Device can either be 'gpu' or 'cpu'")
     if (args.device == "cpu") & (args.trt):
         parser.error(f"Cannot optimize with TensorRT with device='cpu'")
+    if (args.device == "cpu") & (args.bs > 15):
+        parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
+
 
     # Use GPU for model & tensors if available
     dev = None

@@ -15,14 +15,18 @@ from utils import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')
-parser.add_argument('--bs', nargs='+', type=int, default=[BATCH_SIZE], help=f'Trial Batch Size (default:{BATCH_SIZE})')
+parser.add_argument('--bs', nargs='+', type=int, default=[BATCH_SIZE],
+                    help=f'Trial Batch Size (default:{BATCH_SIZE})')
 args = parser.parse_args()
 
 if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
     parser.error("Batchsizes (--bs) must be a list of integers > 0")
 
-# TODO add CPU config -> Error at outputs=net(inputs)(RuntimeError: NNPACK SpatialConvolution_updateOutput failed)
+# if device = cpu, maximum batch size: 15 (on Jetson Nano)
+# otherwise Error at outputs=net(inputs)(RuntimeError: NNPACK SpatialConvolution_updateOutput failed)
+# maybe related to: https://github.com/pytorch/pytorch/pull/49464
 all_confs = [
+    ['--device', 'cpu'],
     ['--device', 'gpu'],
     ['--device', 'gpu', '--trt'],
     ['--device', 'gpu', '--trt', '--fp16'],
@@ -39,12 +43,14 @@ batch_lat_avgs, trial_inf_time_avgs = np.zeros((len(all_confs), len(args.bs))), 
 # Run all Configurations with all Batchsizes
 for i, conf in enumerate(all_confs):
     print(f"Conf {i} {conf}")
-    for bs_idx,bs in enumerate(args.bs):
+    for bs_idx, bs in enumerate(args.bs):
+        # Make sure that batch_size !> 15 if CPU is used
+        batch_size = str(15) if (conf[1] == 'cpu') & (bs > 15) else str(bs)
         batch_lat_avgs[i][bs_idx], trial_inf_time_avgs[i][bs_idx] = single_run(
             default_options + conf +
             ['--name', f"{parent_folder}/conf_{i}",
              '--tag', f"bs_{bs}",
-             '--bs', str(bs)])
+             '--bs', batch_size])
 # Save all results with numpy
 # Shapes:
 # batch_sizes: (batch size idx)
