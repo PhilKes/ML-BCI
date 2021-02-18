@@ -21,15 +21,14 @@ from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_s
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data
 
-
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
-if torch.cuda.is_available():
-    import ctypes
-    from torch2trt import torch2trt
-
-    _cudart = ctypes.CDLL('libcudart.so')
+# if torch.cuda.is_available():
+#     import ctypes
+#     from torch2trt import torch2trt
+#
+#     _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs EEGNet Training + Testing
@@ -38,7 +37,7 @@ if torch.cuda.is_available():
 # Saves Accuracies + Epochs in ./results/training/{DateTime}
 # save_model: Saves trained model with highest accuracy in results folder
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
-                       save_model=True, device=torch.device("cpu"), name=None, ch_names=MNE_CHANNELS):
+                       save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
                   n_classes=n_classes, ch_names=ch_names)
     chs = len(ch_names)
@@ -118,7 +117,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}/results.txt
         save_training_results(training_config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed,
-                              dir_results, accuracies_overfitting)
+                              dir_results, accuracies_overfitting, tag)
         save_training_numpy_data(accuracies, epoch_losses, dir_results, n_class)
     if save_model & (best_trained_model is not None):
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")

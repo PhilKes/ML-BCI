@@ -112,6 +112,7 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
             # WAIT FOR GPU SYNC
             # torch.cuda.synchronize()
             stop = time.perf_counter()
+            outputs = outputs.float()
             _, predicted = torch.max(outputs.data.cpu(), 1)
             labels = labels.cpu()
             total += labels.size(0)

@@ -72,10 +72,6 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
 
 # Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
 def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save_path=None):
-    # group_labels = ['G1', 'G2', 'G3', 'G4', 'G5']
-    # data = [[20, 34, 30, 35, 27], [25, 32, 34, 20, 25]]
-
-    # print(configs_data)
     x = np.arange(len(configs_data))  # the label locations
     width = 0.35  # the width of the bars
 
@@ -132,10 +128,10 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 # Saves config + results.txt in dir_results
 def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results,
-                          accuracies_overfitting=None):
+                          accuracies_overfitting=None, tag=None):
     # TODO save numpy array in one file with dict names
     str_elapsed = str(elapsed)
-    file_result = open(f"{dir_results}/{n_class}class-results.txt", "w+")
+    file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
     file_result.write(f"Elapsed Time: {str_elapsed}\n")
     file_result.write(f"Accuracies of Splits:\n")
