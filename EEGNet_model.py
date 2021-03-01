@@ -1,21 +1,25 @@
+import math
+
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
-
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
 # original paper: https://arxiv.org/pdf/1611.08024.pdf
-from config import CHANNELS
+from config import SAMPLES
 
 
 class EEGNet(nn.Module):
-    def __init__(self, n_classes, channels):
+    def __init__(self, n_classes, channels, samples=SAMPLES, dropoutRate=0.25):
         super(EEGNet, self).__init__()
-        # self.T = 160
-
+        self.srate = 160
+        self.l3_maxpool_1 = 2
+        self.l3_maxpool_2 = 4
+        self.lin = math.floor(samples / (self.l3_maxpool_1 * self.l3_maxpool_2))
+        self.dropoutRate = dropoutRate
         # Layer 1
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, channels), padding=0)
         self.batchnorm1 = nn.BatchNorm2d(16, False)
@@ -35,31 +39,31 @@ class EEGNet(nn.Module):
         # FC Layer
         # NOTE: This dimension will depend on the number of timestamps per sample in your data.
         # max pooling sizes x 80
-        self.fc1 = nn.Linear(2 * 4 * 80, n_classes)
+        self.fc1 = nn.Linear(self.l3_maxpool_1 * self.l3_maxpool_2 * int(self.lin / 2), n_classes)
 
     def forward(self, x):
         # Layer 1
         x = F.elu(self.conv1(x))
         x = self.batchnorm1(x)
-        x = F.dropout(x, 0.25)
+        x = F.dropout(x, self.dropoutRate)
         x = x.permute(0, 3, 1, 2)
 
         # Layer 2
         x = self.padding1(x)
         x = F.elu(self.conv2(x))
         x = self.batchnorm2(x)
-        x = F.dropout(x, 0.25)
+        x = F.dropout(x, self.dropoutRate)
         x = self.pooling2(x)
 
         # Layer 3
         x = self.padding2(x)
         x = F.elu(self.conv3(x))
         x = self.batchnorm3(x)
-        x = F.dropout(x, 0.25)
+        x = F.dropout(x, self.dropoutRate)
         x = self.pooling3(x)
 
         # FC Layer
-        x = x.view(-1, 2 * 4 * 80)
+        x = x.view(-1, self.l3_maxpool_1 * self.l3_maxpool_2 * int(self.lin / 2))
         # Original: x = F.sigmoid(self.fc1(x))
         # For BCELoss:
         # x = torch.sigmoid(self.fc1(x))

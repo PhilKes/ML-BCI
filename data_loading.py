@@ -134,6 +134,9 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS):
     preloaded_labels = np.zeros((len(subjects), trials_for_classes[n_class]), dtype=np.float32)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
         data, labels = load_n_classes_tasks(subject, n_class, ch_names)
+        if data.shape[0] > trials_for_classes[n_class]:
+            data = data[:trials_for_classes[n_class], :, :]
+            labels = labels[:trials_for_classes[n_class]]
         preloaded_data[i] = data
         preloaded_labels[i] = labels
     return preloaded_data, preloaded_labels
@@ -207,10 +210,10 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
 
     epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
                     baseline=None, preload=True)
-    # [trials (84), timepoints (1281), channels (64)]
+    # [trials (84), timepoints (1281), channels (len(ch_names)]
     # TODO immediately cast to float32? .fif Files contain float 32, MNE loads as float64 for preprocessing precision
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
-    #print("Channels", epochs.ch_names)
+    # print("Channels", epochs.ch_names)
     # print("Subjects data type", type(subject_data[0][0][0]))
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1

@@ -30,15 +30,15 @@ LR = dict(
 )
 
 CHANNELS = 64
-SAMPLES = 1281
+SAMPLES = 641
 
 # Training Settings
 EPOCHS = 100
 SPLITS = 5
 N_CLASSES = [2, 3, 4]
 # 2 sec before + 4 sec event + 2 sec after
-EEG_TMIN = -2
-EEG_TMAX = 6
+EEG_TMIN = 0
+EEG_TMAX = 4
 
 BATCH_SIZE = 16
 

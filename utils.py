@@ -70,40 +70,46 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     plt.show()
 
 
+colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple']
+
+
 # Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
 def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save_path=None):
     x = np.arange(len(configs_data))  # the label locations
-    width = 0.35  # the width of the bars
+    width = (1.0 / len(batch_sizes)) - 0.1  # the width of the bars
 
     fig, ax = plt.subplots()
-    rects = []
+    bs_rects = []
+    bs_labels = []
     for bs_idx, bs in enumerate(batch_sizes):
-        label = f"BS {bs}"
+        bs_rects.append([])
+        bs_labels.append(f"BS {bs}")
         for conf_idx in range(len(configs_data)):
             conf_data = configs_data[conf_idx]
             print(conf_data)
-            rects.append(ax.bar((conf_idx) - width / len(batch_sizes) + bs_idx * width,
-                                conf_data[bs_idx], width, label=label))
+            bs_rects[bs_idx].append(ax.bar((conf_idx) - width / len(batch_sizes) + bs_idx * width,
+                                           conf_data[bs_idx], width, color=colors[bs_idx]))
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.set_xticks(x)
     ax.set_xticklabels(f"Conf_{i}" for i in range(len(configs_data)))
-    ax.legend()
+    ax.legend(bs_rects, bs_labels)
 
-    # def autolabel(rects):
-    #     """Attach a text label above each bar in *rects*, displaying its height."""
-    #     for rect in rects:
-    #         height = rect.get_height()
-    #         ax.annotate('{}'.format(height),
-    #                     xy=(rect.get_x() + rect.get_width() / 2, height),
-    #                     xytext=(0, 3),  # 3 points vertical offset
-    #                     textcoords="offset points",
-    #                     ha='center', va='bottom')
-    #
-    # autolabel(rects1)
-    # autolabel(rects2)
+    def autolabel(rects):
+        """Attach a text label above each bar in *rects*, displaying its height."""
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f"{height:.4f}",
+                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 3),  # 3 points vertical offset
+                        textcoords="offset points",
+                        ha='center', va='bottom')
+
+    for rects in bs_rects:
+        for rect in rects:
+            autolabel(rect)
 
     fig.tight_layout()
 
@@ -127,9 +133,9 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Saves config + results.txt in dir_results
-def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, dir_results,
+def save_training_results(str_conf, n_class, accuracies, class_accuracies, class_trials, epoch_losses, elapsed,
+                          dir_results,
                           accuracies_overfitting=None, tag=None):
-    # TODO save numpy array in one file with dict names
     str_elapsed = str(elapsed)
     file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
@@ -142,12 +148,18 @@ def save_training_results(str_conf, n_class, accuracies, epoch_losses, elapsed, 
     file_result.write(f"Avg. acc: {np.average(accuracies):.2f}\n")
     if TEST_OVERFITTING:
         file_result.write(
-            f"Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}")
+            f"Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}\n")
+    file_result.write("Trials per class:\n")
+    for cl, trs in enumerate(class_trials):
+        file_result.write(f"\t[{cl}]: {int(trs)}")
+    file_result.write(f"\nClass Accuracies: ")
+    for l in range(len(class_accuracies)):
+        file_result.write(f'\t[{l}]: {class_accuracies[l]}')
     file_result.close()
 
 
-def save_training_numpy_data(accs, losses, save_path, n_class):
-    np.savez(f"{save_path}/{n_class}class-results.npz", accs=accs, losses=losses)
+def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class):
+    np.savez(f"{save_path}/{n_class}class-results.npz", accs=accs, losses=losses, class_accs=class_accuracies)
 
 
 # Saves config + results.txt in dir_results

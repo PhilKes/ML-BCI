@@ -26,7 +26,7 @@ if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
 # otherwise Error at outputs=net(inputs)(RuntimeError: NNPACK SpatialConvolution_updateOutput failed)
 # maybe related to: https://github.com/pytorch/pytorch/pull/49464
 all_confs = [
-    ['--device', 'cpu'],
+   # ['--device', 'cpu'],
     ['--device', 'gpu'],
     ['--device', 'gpu', '--trt'],
     ['--device', 'gpu', '--trt', '--fp16'],

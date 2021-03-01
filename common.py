@@ -63,10 +63,11 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
 
 
 # Tests labeled data with trained net
-def test(net, data_loader, device=torch.device("cpu")):
+def test(net, data_loader, device=torch.device("cpu"), classes=3):
     print("###### Testing started")
     total = 0.0
     correct = 0.0
+    class_hits = [[] for i in range(classes)]
     with torch.no_grad():
         net.eval()
         for data in data_loader:
@@ -80,11 +81,24 @@ def test(net, data_loader, device=torch.device("cpu")):
             labels = labels.cpu()
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            for (pred, label) in zip(predicted, labels):
+                pred, label = int(pred.item()), int(label.item())
+                if pred == label:
+                    class_hits[label].append(1)
+                else:
+                    class_hits[label].append(0)
+
     acc = (100 * correct / total)
+    class_accuracies = np.zeros(classes)
+    print("Trials for classes:")
+    for i in range(classes):
+        print(len(class_hits[i]))
+        class_accuracies[i] = (100 * (sum(class_hits[i]) / len(class_hits[i])))
     print(F'Accuracy on the {len(data_loader.dataset)} test trials: %0.2f %%' % (
         acc))
+    print(F'Class Accuracies: {class_accuracies}')
     print("Testing finished ######")
-    return acc
+    return acc, class_hits
 
 
 # Benchmarks net on Inference Time in Batches

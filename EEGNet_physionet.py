@@ -21,6 +21,7 @@ from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_s
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data
 
+
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
@@ -72,6 +73,8 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
         accuracies = np.zeros((splits))
+        class_accuracies = np.zeros((splits, n_class))
+        class_trials = np.zeros(n_class)
         accuracies_overfitting = np.zeros((splits)) if TEST_OVERFITTING else None
         epoch_losses = np.zeros((splits, num_epochs))
         # Training of the 5 different splits-combinations
@@ -87,16 +90,22 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
             print("## Validation ##")
-            test_accuracy = test(model, loader_test, device)
+            test_accuracy, test_class_hits = test(model, loader_test, device, n_class)
             # Test overfitting by validating on Training Dataset
             if TEST_OVERFITTING:
                 print("## Validation on Training Dataset ##")
-                accuracies_overfitting[split] = test(model, loader_train, device)
+                accuracies_overfitting[split], train_class_accuracies = test(model, loader_train, device, n_class)
             if save_model & (n_class == 3):
                 if accuracies[split] >= accuracies.max():
                     best_trained_model = model
 
             accuracies[split] = test_accuracy
+            test_class_accuracies = np.zeros(n_class)
+            print("Trials for classes:")
+            for cl in range(n_class):
+                class_trials[cl] = len(test_class_hits[cl])
+                test_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
+            class_accuracies[split] = test_class_accuracies
         # Statistics
         print("Accuracies on Test Dataset: ", accuracies)
         print("Avg. Accuracy: ", np.average(accuracies))
@@ -109,6 +118,17 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
                 save_path=dir_results,
                 bar_plot=True, max_y=100.0)
+        avg_class_accuracies = np.zeros(n_class)
+        # for n in range(n_class):
+        # avg_class_accuracies[n] = np.average([class_accuracies[sp][n] for sp in range(splits)])
+        for j in range(n_class):
+            avg_class_accuracies[j] = np.average([float(class_accuracies[sp][j]) for sp in range(splits)])
+
+        print("Trials per class: ", *class_trials, sep="\t")
+        print("Avg. Class Accuracies: ", avg_class_accuracies)
+        matplot(avg_class_accuracies, f"{n_class}classes Accuracies", "Class", "Accuracy in %",
+                save_path=dir_results,
+                bar_plot=True, max_y=100.0)
         matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch',
                 f'loss per batch (size = {batch_size})',
                 labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
@@ -116,9 +136,11 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         elapsed = datetime.now() - start
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}/results.txt
-        save_training_results(training_config_str(config, n_class), n_class, accuracies, epoch_losses, elapsed,
+        save_training_results(training_config_str(config, n_class), n_class, accuracies, avg_class_accuracies, class_trials,
+                              epoch_losses,
+                              elapsed,
                               dir_results, accuracies_overfitting, tag)
-        save_training_numpy_data(accuracies, epoch_losses, dir_results, n_class)
+        save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class)
     if save_model & (best_trained_model is not None):
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
