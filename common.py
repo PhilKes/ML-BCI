@@ -41,6 +41,7 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
             optimizer.zero_grad()
             # forward + backward + optimize
             outputs = net(inputs)
+            #print("out",outputs.shape,"labels",labels.shape)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -80,10 +81,11 @@ def test(net, data_loader, device=torch.device("cpu"), classes=3):
             #   labels = np.argmax(labels.cpu(), axis=1)
             labels = labels.cpu()
             total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            #correct += (predicted == labels).sum().item()
             for (pred, label) in zip(predicted, labels):
                 pred, label = int(pred.item()), int(label.item())
                 if pred == label:
+                    correct += 1
                     class_hits[label].append(1)
                 else:
                     class_hits[label].append(0)

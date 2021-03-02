@@ -13,21 +13,22 @@ from config import SAMPLES
 
 
 class EEGNet(nn.Module):
-    def __init__(self, n_classes, channels, samples=SAMPLES, dropoutRate=0.25):
+    def __init__(self, n_classes, channels, samples=SAMPLES, dropoutRate=0.25, F1=16, D=2):
         super(EEGNet, self).__init__()
         self.srate = 160
-        self.l3_maxpool_1 = 2
-        self.l3_maxpool_2 = 4
-        self.lin = math.floor(samples / (self.l3_maxpool_1 * self.l3_maxpool_2))
+        self.samples = samples
         self.dropoutRate = dropoutRate
+
         # Layer 1
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, channels), padding=0)
-        self.batchnorm1 = nn.BatchNorm2d(16, False)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=F1, kernel_size=(1, channels), padding=0)
+        self.batchnorm1 = nn.BatchNorm2d(F1, False)
 
         # Layer 2
         self.padding1 = nn.ZeroPad2d((16, 17, 0, 1))
         self.conv2 = nn.Conv2d(in_channels=1, out_channels=4, kernel_size=(2, 32))
-        self.batchnorm2 = nn.BatchNorm2d(4, False)
+        # Throws error: expected 4 elements -> change to 1
+        # self.batchnorm2 = nn.BatchNorm2d(4, False)
+        self.batchnorm2 = nn.BatchNorm2d(1, False)
         self.pooling2 = nn.MaxPool2d(2, 4)
 
         # Layer 3
@@ -38,36 +39,43 @@ class EEGNet(nn.Module):
 
         # FC Layer
         # NOTE: This dimension will depend on the number of timestamps per sample in your data.
-        # max pooling sizes x 80
-        self.fc1 = nn.Linear(self.l3_maxpool_1 * self.l3_maxpool_2 * int(self.lin / 2), n_classes)
+        self.fc1 = nn.Linear(int(self.samples / 2), n_classes)
 
     def forward(self, x):
         # Layer 1
-        x = F.elu(self.conv1(x))
+        #x = F.elu(self.conv1(x))
+        x = self.conv1(x)
         x = self.batchnorm1(x)
-        x = F.dropout(x, self.dropoutRate)
+        #x = F.dropout(x, self.dropoutRate)
         x = x.permute(0, 3, 1, 2)
+
+        #print("after L1:",x.shape)
 
         # Layer 2
         x = self.padding1(x)
-        x = F.elu(self.conv2(x))
         x = self.batchnorm2(x)
-        x = F.dropout(x, self.dropoutRate)
+        x = F.elu(self.conv2(x))
         x = self.pooling2(x)
+        x = F.dropout(x, self.dropoutRate)
+
+        #print("after L2:",x.shape)
 
         # Layer 3
         x = self.padding2(x)
-        x = F.elu(self.conv3(x))
         x = self.batchnorm3(x)
+        x = F.elu(self.conv3(x))
         x = F.dropout(x, self.dropoutRate)
         x = self.pooling3(x)
 
+        #print("after L3:",x.shape)
+
         # FC Layer
-        x = x.view(-1, self.l3_maxpool_1 * self.l3_maxpool_2 * int(self.lin / 2))
+        x = x.view(-1, int(self.samples / 2))
         # Original: x = F.sigmoid(self.fc1(x))
         # For BCELoss:
         # x = torch.sigmoid(self.fc1(x))
         x = self.fc1(x)
+        #print("after FC:",x.shape)
         return x
 
 # Evaluate function returns values of different criteria like accuracy, precision etc.

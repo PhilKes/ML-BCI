@@ -94,7 +94,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
             # Test overfitting by validating on Training Dataset
             if TEST_OVERFITTING:
                 print("## Validation on Training Dataset ##")
-                accuracies_overfitting[split], train_class_accuracies = test(model, loader_train, device, n_class)
+                accuracies_overfitting[split], train_class_hits = test(model, loader_train, device, n_class)
             if save_model & (n_class == 3):
                 if accuracies[split] >= accuracies.max():
                     best_trained_model = model

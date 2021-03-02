@@ -96,6 +96,7 @@ class TrialsDataset(Dataset):
     # Returns a single trial as Tensor with Labels
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
+        # [1, trials (84), timepoints (641), channels (len(ch_names)]
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y
@@ -210,7 +211,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
 
     epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
                     baseline=None, preload=True)
-    # [trials (84), timepoints (1281), channels (len(ch_names)]
+    # [trials (84), timepoints (641), channels (len(ch_names)]
     # TODO immediately cast to float32? .fif Files contain float 32, MNE loads as float64 for preprocessing precision
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
     # print("Channels", epochs.ch_names)

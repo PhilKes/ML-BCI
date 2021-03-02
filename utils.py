@@ -154,7 +154,7 @@ def save_training_results(str_conf, n_class, accuracies, class_accuracies, class
         file_result.write(f"\t[{cl}]: {int(trs)}")
     file_result.write(f"\nClass Accuracies: ")
     for l in range(len(class_accuracies)):
-        file_result.write(f'\t[{l}]: {class_accuracies[l]}')
+        file_result.write(f'\t[{l}]: {class_accuracies[l]:.2f}')
     file_result.close()
 
 
