@@ -2,15 +2,18 @@ import numpy as np
 import torch as t
 import torch.nn.functional as F
 
-
 # Source
 # https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
+from EEGNet_model_v2 import get_padding
+
+
 class QEEGNet(t.nn.Module):
     """
     EEGNet
     """
+
     def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.1, reg_rate=0.25,
-                 activation='elu', constrain_w=False, dropout_type='Dropout',
+                 kernLength=80, activation='elu', constrain_w=False, dropout_type='Dropout',
                  permuted_flatten=False):
         """
         F1:           Number of spectral filters
@@ -56,9 +59,11 @@ class QEEGNet(t.nn.Module):
         # Number of input neurons to the final fully connected layer
         n_features = (T // 8) // 8
 
+        kernel_size = (1, kernLength)
+        print("padding", get_padding(kernel_size))
         # Block 1
-        self.conv1_pad = t.nn.ZeroPad2d((31, 32, 0, 0))
-        self.conv1 = t.nn.Conv2d(1, F1, (1, 64), bias=False)
+        self.conv1_pad = t.nn.ZeroPad2d(get_padding(kernel_size))
+        self.conv1 = t.nn.Conv2d(1, F1, kernel_size, bias=False)
         self.batch_norm1 = t.nn.BatchNorm2d(F1, momentum=0.01, eps=0.001)
         # By setting groups=F1 (input dimension), we get a depthwise convolution
         if constrain_w:
@@ -97,33 +102,33 @@ class QEEGNet(t.nn.Module):
     def forward(self, x):
 
         # reshape vector from (s,1,T, C) to (s, 1, C, T)
-        #print("x",x.shape)
+        # print("x",x.shape)
         x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
 
         # input dimensions: (s, 1, C, T)
 
         # Block 1
         x = self.conv1_pad(x)
-        x = self.conv1(x)            # output dim: (s, F1, C, T-1)
+        x = self.conv1(x)  # output dim: (s, F1, C, T-1)
         x = self.batch_norm1(x)
-        x = self.conv2(x)            # output dim: (s, D * F1, 1, T-1)
+        x = self.conv2(x)  # output dim: (s, D * F1, 1, T-1)
         x = self.batch_norm2(x)
         x = self.activation1(x)
-        x = self.pool1(x)            # output dim: (s, D * F1, 1, T // 8)
+        x = self.pool1(x)  # output dim: (s, D * F1, 1, T // 8)
         x = self.dropout1(x)
 
         # Block2
         x = self.sep_conv_pad(x)
-        x = self.sep_conv1(x)        # output dim: (s, D * F1, 1, T // 8 - 1)
-        x = self.sep_conv2(x)        # output dim: (s, F2, 1, T // 8 - 1)
+        x = self.sep_conv1(x)  # output dim: (s, D * F1, 1, T // 8 - 1)
+        x = self.sep_conv2(x)  # output dim: (s, F2, 1, T // 8 - 1)
         x = self.batch_norm3(x)
         x = self.activation2(x)
-        x = self.pool2(x)            # output dim: (s, F2, 1, T // 64)
+        x = self.pool2(x)  # output dim: (s, F2, 1, T // 64)
         x = self.dropout2(x)
 
         # Classification
-        x = self.flatten(x)          # output dim: (s, F2 * (T // 64))
-        x = self.fc(x)               # output dim: (s, N)
+        x = self.flatten(x)  # output dim: (s, F2 * (T // 64))
+        x = self.fc(x)  # output dim: (s, N)
 
         return x
 
@@ -216,6 +221,7 @@ class ConstrainedConv2d(t.nn.Conv2d):
     """
     Regularized Convolution, where the weights are clamped between two values.
     """
+
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1,
                  groups=1, bias=True, padding_mode='zeros', max_weight=1.0):
         """
@@ -258,6 +264,7 @@ class TimeDropout2d(t.nn.Dropout2d):
     """
     Dropout layer, where the last dimension is treated as channels
     """
+
     def __init__(self, p=0.5, inplace=False):
         """
         See t.nn.Dropout2d for parameters
@@ -276,6 +283,7 @@ class PermutedFlatten(t.nn.Flatten):
     """
     Flattens the input vector in the same way as Keras does
     """
+
     def __init__(self, start_dim=1, end_dim=-1):
         super(PermutedFlatten, self).__init__(start_dim, end_dim)
 

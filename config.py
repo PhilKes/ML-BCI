@@ -38,7 +38,7 @@ SAMPLES = 641
 EPOCHS = 100
 SPLITS = 5
 N_CLASSES = [2, 3, 4]
-# 2 sec before + 4 sec event + 2 sec after
+# Full 4 secs of trial
 EEG_TMIN = 0
 EEG_TMAX = 4
 

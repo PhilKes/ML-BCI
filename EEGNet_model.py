@@ -35,7 +35,7 @@ class EEGNet(nn.Module):
         # FC Layer
         # NOTE: This dimension will depend on the number of timestamps per sample in your data.
         # max pooling sizes x 80
-        self.fc1 = nn.Linear(2 * 4 * 80, n_classes)
+        self.fc1 = nn.Linear(2 * 4 * 40, n_classes)
 
     def forward(self, x):
         # Layer 1
@@ -59,7 +59,7 @@ class EEGNet(nn.Module):
         x = self.pooling3(x)
 
         # FC Layer
-        x = x.view(-1, 2 * 4 * 80)
+        x = x.view(-1, 2 * 4 * 40)
         # Original: x = F.sigmoid(self.fc1(x))
         # For BCELoss:
         # x = torch.sigmoid(self.fc1(x))
