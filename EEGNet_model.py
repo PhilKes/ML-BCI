@@ -1,34 +1,29 @@
-import math
-
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
+
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
 # original paper: https://arxiv.org/pdf/1611.08024.pdf
-from config import SAMPLES
+from config import CHANNELS
 
 
 class EEGNet(nn.Module):
-    def __init__(self, n_classes, channels, samples=SAMPLES, dropoutRate=0.25, F1=16, D=2):
+    def __init__(self, n_classes, channels):
         super(EEGNet, self).__init__()
-        self.srate = 160
-        self.samples = samples
-        self.dropoutRate = dropoutRate
+        # self.T = 160
 
         # Layer 1
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=F1, kernel_size=(1, channels), padding=0)
-        self.batchnorm1 = nn.BatchNorm2d(F1, False)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, channels), padding=0)
+        self.batchnorm1 = nn.BatchNorm2d(16, False)
 
         # Layer 2
         self.padding1 = nn.ZeroPad2d((16, 17, 0, 1))
         self.conv2 = nn.Conv2d(in_channels=1, out_channels=4, kernel_size=(2, 32))
-        # Throws error: expected 4 elements -> change to 1
-        # self.batchnorm2 = nn.BatchNorm2d(4, False)
-        self.batchnorm2 = nn.BatchNorm2d(1, False)
+        self.batchnorm2 = nn.BatchNorm2d(4, False)
         self.pooling2 = nn.MaxPool2d(2, 4)
 
         # Layer 3
@@ -39,80 +34,34 @@ class EEGNet(nn.Module):
 
         # FC Layer
         # NOTE: This dimension will depend on the number of timestamps per sample in your data.
-        self.fc1 = nn.Linear(int(self.samples / 2), n_classes)
+        # max pooling sizes x 80
+        self.fc1 = nn.Linear(2 * 4 * 80, n_classes)
 
     def forward(self, x):
         # Layer 1
-        #x = F.elu(self.conv1(x))
-        x = self.conv1(x)
+        x = F.elu(self.conv1(x))
         x = self.batchnorm1(x)
-        #x = F.dropout(x, self.dropoutRate)
+        x = F.dropout(x, 0.25)
         x = x.permute(0, 3, 1, 2)
-
-        #print("after L1:",x.shape)
 
         # Layer 2
         x = self.padding1(x)
-        x = self.batchnorm2(x)
         x = F.elu(self.conv2(x))
+        x = self.batchnorm2(x)
+        x = F.dropout(x, 0.25)
         x = self.pooling2(x)
-        x = F.dropout(x, self.dropoutRate)
-
-        #print("after L2:",x.shape)
 
         # Layer 3
         x = self.padding2(x)
-        x = self.batchnorm3(x)
         x = F.elu(self.conv3(x))
-        x = F.dropout(x, self.dropoutRate)
+        x = self.batchnorm3(x)
+        x = F.dropout(x, 0.25)
         x = self.pooling3(x)
 
-        #print("after L3:",x.shape)
-
         # FC Layer
-        x = x.view(-1, int(self.samples / 2))
+        x = x.view(-1, 2 * 4 * 80)
         # Original: x = F.sigmoid(self.fc1(x))
         # For BCELoss:
         # x = torch.sigmoid(self.fc1(x))
         x = self.fc1(x)
-        #print("after FC:",x.shape)
         return x
-
-# Evaluate function returns values of different criteria like accuracy, precision etc.
-# In case you face memory overflow issues, use batch size to control how many samples get
-# evaluated at one time. Use a batch_size that is a factor of length of samples.
-# This ensures that you won't miss any samples.
-# def evaluate(model, X, Y, params=["acc"]):
-#     results = []
-#     batch_size = 69
-#
-#     predicted = []
-#
-#     for i in range(int(len(X) / batch_size)):
-#         s = i * batch_size
-#         e = i * batch_size + batch_size
-#
-#         inputs = Variable(torch.from_numpy(X[s:e]))
-#         pred = model(inputs)
-#
-#         predicted.append(pred.data.cpu().numpy())
-#
-#     inputs = Variable(torch.from_numpy(X))
-#     predicted = model(inputs)
-#
-#     predicted = predicted.data.cpu().numpy()
-#
-#     for param in params:
-#         if param == 'acc':
-#             results.append(accuracy_score(Y, np.round(predicted)))
-#         if param == "auc":
-#             results.append(roc_auc_score(Y, predicted))
-#         if param == "recall":
-#             results.append(recall_score(Y, np.round(predicted)))
-#         if param == "precision":
-#             results.append(precision_score(Y, np.round(predicted)))
-#         if param == "fmeasure":
-#             precision = precision_score(Y, np.round(predicted))
-#             recall = recall_score(Y, np.round(predicted))
-#             results.append(2 * precision * recall / (precision + recall))
-#     return results

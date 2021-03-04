@@ -118,8 +118,10 @@ class TrialsDataset(Dataset):
     # Returns a single trial as Tensor with Labels
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
-        # [1, trials (84), timepoints (641), channels (len(ch_names)]
-        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
+        X = np.swapaxes(X, 1, 0)
+        # [trials (84),channels (len(ch_names), timepoints (641), 1]
+        X = torch.as_tensor(X[..., None], device=self.device, dtype=torch.float32)
+        print("X",X.shape)
         # X = TRANSFORM(X)
         return X, y
 
@@ -161,7 +163,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS):
         #     data = data[:trials_for_classes_per_subject[n_class], :, :]
         #     labels = labels[:trials_for_classes_per_subject[n_class]]
         overhead_trials = labels.shape[0] - preloaded_labels.shape[1]
-        #print("overhead",overhead_trials)
+        # print("overhead",overhead_trials)
         # Remove Rest (0) trials until about even amount of 0,1,2 trials
         if overhead_trials > 0:
             data, labels, removed = remove_n_occurence_of(data, labels, overhead_trials, 0)
@@ -249,7 +251,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     raw = concatenate_raws(raw_files)
     # TODO Band Pass Filter? see Paper 'Motor Imagery EEG Signal Processing and
     # TODO Classification using Machine Learning Approach'
-    raw.filter(FREQ_FILTER_HIGH, FREQ_FILTER_LOW)
+    # raw.filter(7.0, 30.0)
     raw.rename_channels(lambda x: x.strip('.'))
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
     # https://mne.tools/0.11/auto_tutorials/plot_info.html
