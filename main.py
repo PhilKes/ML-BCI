@@ -5,13 +5,15 @@ or Benchmarking of Inference (Batch Latency + Inference time per Trial) (-benchm
 Configuration Parameters for Number of Epochs, TensorRT Optimizations,... (see main.py --help)
 """
 import argparse
+from datetime import datetime
 import sys
 
 import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, CHANNELS, MNE_CHANNELS
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, CHANNELS, MNE_CHANNELS, MOTORIMAGERY_CHANNELS
 from data_loading import ALL_SUBJECTS
+from utils import datetime_to_folder_str
 
 
 def single_run(argv=sys.argv[1:]):
@@ -26,7 +28,9 @@ def single_run(argv=sys.argv[1:]):
     parser.add_argument('--n_classes', nargs='+', type=int, default=[3],
                         help="List of n-class Classifications to run (2/3/4-Class possible)")
     parser.add_argument('--ch_names', nargs='+', type=str, default=MNE_CHANNELS,
-                        help="EEG Channel names to use (see config.py MNE_CHANNELS)")
+                        help="List of EEG Channels to use (see config.py MNE_CHANNELS for all available Channels)")
+    parser.add_argument('--ch_motorimg', action='store_true',
+                        help=f"Use Predefined Motor Imagery Channels for Training ({MOTORIMAGERY_CHANNELS})")
 
     parser.add_argument('-benchmark',
                         help="Runs Benchmarking with Physionet Dataset with trained model (./benchmarking_model/trained_model.pt)",
@@ -54,6 +58,13 @@ def single_run(argv=sys.argv[1:]):
 
     args = parser.parse_args(argv)
     print(args)
+    if args.ch_motorimg:
+        args.ch_names = MOTORIMAGERY_CHANNELS
+        if args.name is None:
+            start = datetime.now()
+            args.name = f"{datetime_to_folder_str(start)}_motor_img"
+        else:
+            args.name = args.tag + "_motor_img"
     if (not args.train) & (not args.benchmark):
         parser.error("Either flag '--train' or '--benchmark' must be present!")
     if not all(((n_class >= 2) & (n_class <= 4)) for n_class in args.n_classes):

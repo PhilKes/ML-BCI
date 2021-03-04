@@ -18,7 +18,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, CHANNELS, \
-    MNE_CHANNELS
+    MNE_CHANNELS, FREQ_FILTER_LOW, FREQ_FILTER_HIGH
 from utils import print_subjects_ranges
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -33,8 +33,30 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
-# How many trials per subject for n-class Classifications
-trials_for_classes = {2: 42, 3: 84, 4: 147, }
+# How many trials per subject for n-class Classifications should be used
+trials_for_classes_per_subject = {2: 42, 3: 67, 4: 90, }
+# Maximum available trials
+trials_for_classes_per_subject_avail = {2: 42, 3: 87, 4: 200, }
+# Need to remove trials for 3/4 Class classification, otheriwse too many Rest trials
+rest_trials_removes = {2: -1, 3: 20, 4: 20, }
+# All total trials per class per n_class-Classification
+classes_trials = {
+    "2class": {
+        0: 445,  # Left
+        1: 437,  # Right
+    },
+    "3class": {
+        0: 882,  # Rest
+        1: 445,  # Left
+        2: 437,  # Right
+    },
+    "4class": {
+        0: 1748,  # Rest
+        1: 479,  # Left
+        2: 466,  # Right
+        3: 394,  # Both Fists
+    },
+}
 
 
 # Dataset for EEG Trials Data (divided by subjects)
@@ -49,7 +71,7 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject = trials_for_classes[n_classes]
+        self.trials_per_subject = trials_for_classes_per_subject[n_classes]
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
         self.ch_names = ch_names
@@ -130,14 +152,19 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
 def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS):
-    preloaded_data = np.zeros((len(subjects), trials_for_classes[n_class], SAMPLES, len(ch_names)),
+    preloaded_data = np.zeros((len(subjects), trials_for_classes_per_subject[n_class], SAMPLES, len(ch_names)),
                               dtype=np.float32)
-    preloaded_labels = np.zeros((len(subjects), trials_for_classes[n_class]), dtype=np.float32)
+    preloaded_labels = np.zeros((len(subjects), trials_for_classes_per_subject[n_class]), dtype=np.float32)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
         data, labels = load_n_classes_tasks(subject, n_class, ch_names)
-        if data.shape[0] > trials_for_classes[n_class]:
-            data = data[:trials_for_classes[n_class], :, :]
-            labels = labels[:trials_for_classes[n_class]]
+        # if data.shape[0] > trials_for_classes_per_subject[n_class]:
+        #     data = data[:trials_for_classes_per_subject[n_class], :, :]
+        #     labels = labels[:trials_for_classes_per_subject[n_class]]
+        overhead_trials = labels.shape[0] - preloaded_labels.shape[1]
+        #print("overhead",overhead_trials)
+        # Remove Rest (0) trials until about even amount of 0,1,2 trials
+        if overhead_trials > 0:
+            data, labels, removed = remove_n_occurence_of(data, labels, overhead_trials, 0)
         preloaded_data[i] = data
         preloaded_labels[i] = labels
     return preloaded_data, preloaded_labels
@@ -153,7 +180,8 @@ def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS):
     elif n_classes == 2:
         tasks = [2]
     return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
-                          exclude_bothfists=(n_classes == 4), ch_names=ch_names)
+                          exclude_bothfists=(n_classes == 4), ch_names=ch_names,
+                          remove_n_rests=rest_trials_removes[n_classes])
 
 
 # If multiple tasks are used (4classes classification)
@@ -165,11 +193,21 @@ increase_label = np.vectorize(inc_label)
 event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
 
+# Finds indices of label-value occurrences in y
+# and deletes them from X,y
+def remove_n_occurence_of(X, y, n, label):
+    label_idxs = np.where(y == label)[0]
+    label_idxs = label_idxs[:n]
+    return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs), len(label_idxs)
+
+
 # Merges runs from different tasks + correcting labels for n_class classification
-def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS):
+def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS,
+                   remove_n_rests=-1):
     global map_label
     all_data = np.zeros((0, SAMPLES, len(ch_names)))
     all_labels = np.zeros((0), dtype=np.int)
+    # remove_rests = remove_n_rests
     for i, task in enumerate(tasks):
         tasks_event_dict = event_dict
         # for 2class classification exclude Rest events ("T0")
@@ -180,6 +218,13 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T0': 1, 'T2': 2}
         data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
+        # print("before", data.shape, labels.shape)
+        # Ensure that amount of rest trial events is approx. equal to T1 and T2 events
+        # for n_classes = 3 or 4 drop every nth Rest event (where label == 0)
+        # if (remove_n_rests != -1) :
+        #     data, labels, removed = remove_every_n_occurence_of(data, labels, remove_n_rests, 0)
+        # remove_rests -= removed
+        # print("after", data.shape, labels.shape)
 
         # Correct labels if multiple tasks are loaded
         # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
@@ -202,6 +247,9 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
+    # TODO Band Pass Filter? see Paper 'Motor Imagery EEG Signal Processing and
+    # TODO Classification using Machine Learning Approach'
+    raw.filter(FREQ_FILTER_HIGH, FREQ_FILTER_LOW)
     raw.rename_channels(lambda x: x.strip('.'))
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
     # https://mne.tools/0.11/auto_tutorials/plot_info.html
@@ -212,7 +260,6 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
                     baseline=None, preload=True)
     # [trials (84), timepoints (641), channels (len(ch_names)]
-    # TODO immediately cast to float32? .fif Files contain float 32, MNE loads as float64 for preprocessing precision
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
     # print("Channels", epochs.ch_names)
     # print("Subjects data type", type(subject_data[0][0][0]))

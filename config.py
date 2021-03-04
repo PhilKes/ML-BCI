@@ -9,6 +9,8 @@ TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
 # for -benchmark: decrease --subjects (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
+FREQ_FILTER_HIGH = 0.05
+FREQ_FILTER_LOW = 200.0
 
 results_folder = './results'
 training_results_folder = f"{results_folder}/training"
@@ -37,8 +39,8 @@ EPOCHS = 100
 SPLITS = 5
 N_CLASSES = [2, 3, 4]
 # 2 sec before + 4 sec event + 2 sec after
-EEG_TMIN = 0
-EEG_TMAX = 4
+EEG_TMIN = -0.5
+EEG_TMAX = 3.5
 
 BATCH_SIZE = 16
 
@@ -62,6 +64,11 @@ MNE_CHANNELS = [
     'Po7', 'Po3', 'Poz', 'Po4', 'Po8',
     'O1', 'Oz', 'O2',
     'Iz']
+MOTORIMAGERY_CHANNELS = [
+    'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
+    'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
+    'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
+]
 
 # # Calculated with python_test.py get_mean_std():
 # channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,

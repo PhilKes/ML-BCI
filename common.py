@@ -81,7 +81,6 @@ def test(net, data_loader, device=torch.device("cpu"), classes=3):
             #   labels = np.argmax(labels.cpu(), axis=1)
             labels = labels.cpu()
             total += labels.size(0)
-            #correct += (predicted == labels).sum().item()
             for (pred, label) in zip(predicted, labels):
                 pred, label = int(pred.item()), int(label.item())
                 if pred == label:
