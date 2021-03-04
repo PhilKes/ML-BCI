@@ -118,11 +118,9 @@ class TrialsDataset(Dataset):
     # Returns a single trial as Tensor with Labels
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
-        X = np.swapaxes(X, 1, 0)
-        # [trials (84),channels (len(ch_names), timepoints (641), 1]
-        X = torch.as_tensor(X[..., None], device=self.device, dtype=torch.float32)
-        print("X",X.shape)
-        # X = TRANSFORM(X)
+        # Shape of 1 Batch (list of multiple __getitem__() calls):
+        # [samples (BATCH_SIZE), 1 , Timepoints (641), Channels (len(ch_names)]
+        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         return X, y
 
 

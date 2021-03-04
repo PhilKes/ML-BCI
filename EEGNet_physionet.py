@@ -12,9 +12,9 @@ import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-
 from EEGNet_model import EEGNet
 from EEGNet_model_v2 import EEGNetv2
+from QEEGNet import QEEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
     trained_model_path, SAMPLES, GPU_WARMUPS, MNE_CHANNELS
@@ -86,7 +86,8 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                                                                    preloaded_data, preloaded_labels,
                                                                    batch_size)
 
-            model = EEGNetv2(n_class, chs)
+            #model = EEGNet(n_class, chs)
+            model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
             model.to(device)
 
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
@@ -137,7 +138,8 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         elapsed = datetime.now() - start
         print(f"Elapsed time: {elapsed}")
         # Store config + results in ./results/{datetime}/results.txt
-        save_training_results(training_config_str(config, n_class), n_class, accuracies, avg_class_accuracies, class_trials,
+        save_training_results(training_config_str(config, n_class), n_class, accuracies, avg_class_accuracies,
+                              class_trials,
                               epoch_losses,
                               elapsed,
                               dir_results, accuracies_overfitting, tag)

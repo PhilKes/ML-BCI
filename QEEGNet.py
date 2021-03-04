@@ -5,12 +5,12 @@ import torch.nn.functional as F
 
 # Source
 # https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
-class EEGNet(t.nn.Module):
+class QEEGNet(t.nn.Module):
     """
     EEGNet
     """
-    def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.5, reg_rate=0.25,
-                 activation='relu', constrain_w=False, dropout_type='TimeDropout2D',
+    def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.1, reg_rate=0.25,
+                 activation='elu', constrain_w=False, dropout_type='Dropout',
                  permuted_flatten=False):
         """
         F1:           Number of spectral filters
@@ -27,7 +27,7 @@ class EEGNet(t.nn.Module):
         dropout_type: string, either 'dropout', 'SpatialDropout2d' or 'TimeDropout2D'
         permuted_flatten: bool, if True, use the permuted flatten to make the model keras compliant
         """
-        super(EEGNet, self).__init__()
+        super(QEEGNet, self).__init__()
 
         # prepare network constants
         if F2 is None:
@@ -96,8 +96,9 @@ class EEGNet(t.nn.Module):
 
     def forward(self, x):
 
-        # reshape vector from (s, C, T) to (s, 1, C, T)
-        x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
+        # reshape vector from (s,1,T, C) to (s, 1, C, T)
+        #print("x",x.shape)
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
 
         # input dimensions: (s, 1, C, T)
 
