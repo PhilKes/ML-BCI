@@ -7,8 +7,6 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
-# original paper: https://arxiv.org/pdf/1611.08024.pdf
-from config import CHANNELS
 
 
 class EEGNet(nn.Module):

@@ -9,8 +9,8 @@ TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
 # for -benchmark: decrease --subjects (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
-FREQ_FILTER_HIGH = 0.05
-FREQ_FILTER_LOW = 200.0
+FREQ_FILTER_HIGHPASS = None
+FREQ_FILTER_LOWPASS = None
 
 results_folder = './results'
 training_results_folder = f"{results_folder}/training"

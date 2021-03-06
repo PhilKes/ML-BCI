@@ -87,7 +87,8 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                                                                    batch_size)
 
             #model = EEGNet(n_class, chs)
-            model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
+            model = EEGNetv2(n_class, chs)
+            #model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
             model.to(device)
 
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)

@@ -13,7 +13,7 @@ class QEEGNet(t.nn.Module):
     """
 
     def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.1, reg_rate=0.25,
-                 kernLength=80, activation='elu', constrain_w=False, dropout_type='Dropout',
+                 kernLength=80, activation='elu', constrain_w=False, dropout_type='dropout',
                  permuted_flatten=False):
         """
         F1:           Number of spectral filters
@@ -102,8 +102,8 @@ class QEEGNet(t.nn.Module):
     def forward(self, x):
 
         # reshape vector from (s,1,T, C) to (s, 1, C, T)
-        # print("x",x.shape)
         x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
+        #print("x",x.shape)
 
         # input dimensions: (s, 1, C, T)
 

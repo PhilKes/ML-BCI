@@ -18,7 +18,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, CHANNELS, \
-    MNE_CHANNELS, FREQ_FILTER_LOW, FREQ_FILTER_HIGH
+    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS
 from utils import print_subjects_ranges
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -249,7 +249,8 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     raw = concatenate_raws(raw_files)
     # TODO Band Pass Filter? see Paper 'Motor Imagery EEG Signal Processing and
     # TODO Classification using Machine Learning Approach'
-    # raw.filter(7.0, 30.0)
+    if((FREQ_FILTER_HIGHPASS is not None) | (FREQ_FILTER_LOWPASS is not None)):
+        raw.filter(FREQ_FILTER_HIGHPASS, FREQ_FILTER_LOWPASS, method='iir')
     raw.rename_channels(lambda x: x.strip('.'))
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
     # https://mne.tools/0.11/auto_tutorials/plot_info.html
