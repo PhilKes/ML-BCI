@@ -37,7 +37,7 @@ runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 trials_for_classes_per_subject = {2: 42, 3: 67, 4: 90, }
 # Maximum available trials
 trials_for_classes_per_subject_avail = {2: 42, 3: 87, 4: 200, }
-# Need to remove trials for 3/4 Class classification, otheriwse too many Rest trials
+# Need to remove trials for 3/4 Class classification, otherwise too many Rest trials
 rest_trials_removes = {2: -1, 3: 20, 4: 20, }
 # All total trials per class per n_class-Classification
 classes_trials = {
@@ -249,7 +249,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     raw = concatenate_raws(raw_files)
     # TODO Band Pass Filter? see Paper 'Motor Imagery EEG Signal Processing and
     # TODO Classification using Machine Learning Approach'
-    if((FREQ_FILTER_HIGHPASS is not None) | (FREQ_FILTER_LOWPASS is not None)):
+    if ((FREQ_FILTER_HIGHPASS is not None) | (FREQ_FILTER_LOWPASS is not None)):
         raw.filter(FREQ_FILTER_HIGHPASS, FREQ_FILTER_LOWPASS, method='iir')
     raw.rename_channels(lambda x: x.strip('.'))
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
