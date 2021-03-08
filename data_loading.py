@@ -18,7 +18,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS
+    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_CLASS_PER_SUBJECT_RUN
 from utils import print_subjects_ranges
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -35,8 +35,7 @@ runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
 # Maximum available trials
 trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}
-# remove trials for 3/4 Class classification, otherwise too many Rest trials
-rest_trials_removes = {2: -1, 3: 20, 4: 20}
+
 # All total trials per class per n_class-Classification
 classes_trials = {
     "2class": {
@@ -70,6 +69,7 @@ class TrialsDataset(Dataset):
         self.runs = []
         self.device = device
         self.trials_per_subject = get_trials_size(n_classes, equal_trials)
+        self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
         self.ch_names = ch_names
@@ -100,7 +100,8 @@ class TrialsDataset(Dataset):
         if self.loaded_subject == subject:
             return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
 
-        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes, ch_names=self.ch_names)
+        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes, ch_names=self.ch_names,
+                                                            equal_trials=self.equal_trials)
         # Buffer newly loaded subject
         self.loaded_subject = subject
         self.loaded_subject_data = subject_data
@@ -151,7 +152,7 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
 def get_trials_size(n_class, equal_trials):
     trials = trials_for_classes_per_subject_avail[n_class]
     if equal_trials:
-        trials -= rest_trials_removes[n_class]
+        trials = n_class * TRIALS_PER_CLASS_PER_SUBJECT_RUN
     return trials
 
 
@@ -163,14 +164,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Fa
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
     print("Preload Shape", preloaded_data.shape)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
-        data, labels = load_n_classes_tasks(subject, n_class, ch_names)
-        # if data.shape[0] > trials_for_classes_per_subject[n_class]:
-        #     data = data[:trials_for_classes_per_subject[n_class], :, :]
-        #     labels = labels[:trials_for_classes_per_subject[n_class]]
-        overhead_trials = labels.shape[0] - preloaded_labels.shape[1]
-        # Remove Rest (0) trials until about even amount of 0,1,2 trials
-        if equal_trials & (overhead_trials > 0):
-            data, labels, removed = remove_n_occurence_of(data, labels, overhead_trials, 0)
+        data, labels = load_n_classes_tasks(subject, n_class, ch_names, equal_trials)
 
         if data.shape[0] > preloaded_data.shape[1]:
             data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
@@ -180,7 +174,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Fa
 
 
 # Loads corresponding tasks for n_classes Classification
-def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS):
+def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
     tasks = []
     if n_classes == 4:
         tasks = [2, 4]
@@ -190,7 +184,7 @@ def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS):
         tasks = [2]
     return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
                           exclude_bothfists=(n_classes == 4), ch_names=ch_names,
-                          remove_n_rests=rest_trials_removes[n_classes])
+                          equal_trials=equal_trials, n_class=n_classes)
 
 
 # If multiple tasks are used (4classes classification)
@@ -211,13 +205,14 @@ def remove_n_occurence_of(X, y, n, label):
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
-def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS,
-                   remove_n_rests=-1):
+def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
+                   equal_trials=False):
     global map_label
     all_data = np.zeros((0, SAMPLES, len(ch_names)))
     all_labels = np.zeros((0), dtype=np.int)
-    # remove_rests = remove_n_rests
+    # Load Subject Data of all Tasks
     for i, task in enumerate(tasks):
+        # TODO always exclude Rest, use Baseline Runs for Rest trials
         tasks_event_dict = event_dict
         # for 2class classification exclude Rest events ("T0")
         # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
@@ -227,13 +222,25 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T0': 1, 'T2': 2}
         data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
-        # print("before", data.shape, labels.shape)
-        # Ensure that amount of rest trial events is approx. equal to T1 and T2 events
-        # for n_classes = 3 or 4 drop every nth Rest event (where label == 0)
-        # if (remove_n_rests != -1) :
-        #     data, labels, removed = remove_every_n_occurence_of(data, labels, remove_n_rests, 0)
-        # remove_rests -= removed
-        # print("after", data.shape, labels.shape)
+
+        # Ensure equal amount of trials per class
+        if equal_trials:
+            trials_per_subject = TRIALS_PER_CLASS_PER_SUBJECT_RUN * len(runs[task])
+            trials_idxs = np.zeros(0, dtype=np.int)
+            for cl in range(n_class):
+                cl_idxs = np.where(labels == cl)[0]
+                # Randomly sample Rest "0" Trials, because there are always too many
+                if cl == 0:
+                    # For 4class classification this is executed 2x, so we only pick Rest Trials from the first Task
+                    if i > 0:
+                        continue
+                    cl_idxs = np.random.choice(cl_idxs, size=trials_per_subject, replace=False)
+                # For all other classes take the first n Trials of Class
+                else:
+                    cl_idxs = cl_idxs[:trials_per_subject]
+                trials_idxs = np.concatenate((trials_idxs, cl_idxs))
+            trials_idxs = np.sort(trials_idxs)
+            data, labels = data[trials_idxs], labels[trials_idxs]
 
         # Correct labels if multiple tasks are loaded
         # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists

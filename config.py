@@ -37,6 +37,9 @@ EEG_TMAX = 4
 SAMPLERATE = 160
 SAMPLES = (EEG_TMAX - EEG_TMIN) * SAMPLERATE + 1
 
+# Amount of picked Trials in 1 Run of 1 Subject for 1 Class
+TRIALS_PER_CLASS_PER_SUBJECT_RUN = 7
+
 # Training Settings
 EPOCHS = 100
 SPLITS = 5

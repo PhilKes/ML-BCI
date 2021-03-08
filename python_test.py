@@ -218,15 +218,7 @@ def check_bad_data(subjects, n_classes):
 # test = [x[i:i + m] for i in range(0, len(x), m)]
 # # test[-2:] = [test[-2] + test[-1]]
 # print(test)
-# data,labels=load_n_classes_tasks(1,3,ch_names=MNE_CHANNELS[:CHANNELS])
-# print(data.shape)
-
-import itertools
-mylist = [1,2,3,4,5,6]
-def contains_sublist(lst, sublst):
-    n = len(sublst)
-    return any((sublst == lst[i:i+n]) for i in range(len(lst)-n+1))
-#print([i for i in itertools.combinations(mylist,3) ])
-
-combs=itertools.combinations(MNE_CHANNELS, 16)
-print(sum(1 for ignore in combs))
+X, y = load_n_classes_tasks(1, 3, equal_trials=True)
+print("X", X.shape, "Y", y.shape)
+for i in range(4):
+    print(i, ": ", len(np.where(y == i)[0]))
