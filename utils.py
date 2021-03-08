@@ -201,9 +201,16 @@ str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Righ
 
 # Split python list into chunks with equal size (last chunk can have smaller size)
 # source: https://stackoverflow.com/questions/24483182/python-split-list-into-n-chunks
-def split_list_into_chunks(list, chunk_size):
-    m = int(len(list) / int(math.ceil(len(list) / chunk_size))) + 1
-    return [list[i:i + m] for i in range(0, len(list), m)]
+def split_list_into_chunks(p_list, chunk_size):
+    m = int(len(p_list) / int(math.ceil(len(p_list) / chunk_size))) + 1
+    return [p_list[i:i + m] for i in range(0, len(p_list), m)]
+
+def split_np_into_chunks(arr, chunk_size):
+    p_list = arr.tolist()
+    m = int(len(p_list) / int(math.ceil(len(p_list) / chunk_size))) + 1
+    return np.asarray([np.asarray(p_list[i:i + m]) for i in range(0, len(p_list), m)])
+
+
 
 
 def get_str_n_classes(n_classes):

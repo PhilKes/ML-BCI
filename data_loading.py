@@ -33,6 +33,8 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
+n_classes_tasks = {1: [0], 2: [2], 3: [2], 4: [2, 4]}
+
 # Maximum available trials
 trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}
 
@@ -152,7 +154,7 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
 def get_trials_size(n_class, equal_trials):
     trials = trials_for_classes_per_subject_avail[n_class]
     if equal_trials:
-        trials = n_class * TRIALS_PER_CLASS_PER_SUBJECT_RUN
+        trials = n_class * TRIALS_PER_CLASS_PER_SUBJECT_RUN * len(get_runs_of_n_classes(n_class))
     return trials
 
 
@@ -173,15 +175,16 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Fa
     return preloaded_data, preloaded_labels
 
 
+def get_runs_of_n_classes(n_classes):
+    n_runs = []
+    for task in n_classes_tasks[n_classes]:
+        n_runs.extend(runs[task])
+    return n_runs
+
+
 # Loads corresponding tasks for n_classes Classification
 def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
-    tasks = []
-    if n_classes == 4:
-        tasks = [2, 4]
-    elif n_classes == 3:
-        tasks = [2]
-    elif n_classes == 2:
-        tasks = [2]
+    tasks = n_classes_tasks[n_classes]
     return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
                           exclude_bothfists=(n_classes == 4), ch_names=ch_names,
                           equal_trials=equal_trials, n_class=n_classes)
@@ -213,6 +216,7 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
     # Load Subject Data of all Tasks
     for i, task in enumerate(tasks):
         # TODO always exclude Rest, use Baseline Runs for Rest trials
+        # TODO Baseline Run only contains 1 Trial
         tasks_event_dict = event_dict
         # for 2class classification exclude Rest events ("T0")
         # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
@@ -221,19 +225,21 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T0': 1, 'T2': 2}
+        if task == 0:
+            tasks_event_dict = {'T0': 1}
         data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
-
+        print("data", data.shape, "labels", labels.shape)
         # Ensure equal amount of trials per class
         if equal_trials:
             trials_per_subject = TRIALS_PER_CLASS_PER_SUBJECT_RUN * len(runs[task])
             trials_idxs = np.zeros(0, dtype=np.int)
             for cl in range(n_class):
                 cl_idxs = np.where(labels == cl)[0]
-                # Randomly sample Rest "0" Trials, because there are always too many
                 if cl == 0:
                     # For 4class classification this is executed 2x, so we only pick Rest Trials from the first Task
                     if i > 0:
                         continue
+                    # Randomly pick  Rest "0" Trials, because there are always too many
                     cl_idxs = np.random.choice(cl_idxs, size=trials_per_subject, replace=False)
                 # For all other classes take the first n Trials of Class
                 else:
@@ -257,7 +263,7 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
 # if some are missing, they are ignored
 # event_id= 'auto' loads all event types
 # ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
-def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
+def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=EEG_TMIN, tmax=EEG_TMAX):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
@@ -274,7 +280,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS):
     #                    exclude='bads')
     picks = mne.pick_channels(raw.info['ch_names'], ch_names)
 
-    epochs = Epochs(raw, events, event_ids, EEG_TMIN, EEG_TMAX, picks=picks,
+    epochs = Epochs(raw, events, event_ids, tmin, tmax, picks=picks,
                     baseline=None, preload=True)
     # [trials (84), timepoints (641), channels (len(ch_names)]
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
