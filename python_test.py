@@ -3,19 +3,13 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
-import os
-from datetime import datetime
 
 import mne
-import torch
 import numpy as np
-from sklearn.model_selection import GroupKFold
-from torch import tensor
-from torch.utils.data import DataLoader, SequentialSampler
-from torchvision import transforms
+import torch
 
-from config import MNE_CHANNELS, CHANNELS
-from data_loading import TrialsDataset, ALL_SUBJECTS, load_n_classes_tasks, runs_t1, runs_t2, mne_load_subject
+from config import MNE_CHANNELS
+from data_loading import load_n_classes_tasks
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")

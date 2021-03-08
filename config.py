@@ -31,16 +31,16 @@ LR = dict(
     gamma=0.1
 )
 
-CHANNELS = 64
-SAMPLES = 641
+# Time Interval per EEG Trial (T=0: start of MI Cue)
+EEG_TMIN = 0
+EEG_TMAX = 4
+SAMPLERATE = 160
+SAMPLES = (EEG_TMAX - EEG_TMIN) * SAMPLERATE + 1
 
 # Training Settings
 EPOCHS = 100
 SPLITS = 5
 N_CLASSES = [2, 3, 4]
-# Full 4 secs of trial
-EEG_TMIN = 0
-EEG_TMAX = 4
 
 BATCH_SIZE = 16
 

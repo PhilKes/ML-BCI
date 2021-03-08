@@ -2,11 +2,11 @@ import numpy as np
 import torch as t
 import torch.nn.functional as F
 
-# Source
-# https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
 from models.EEGNet_model_v2 import get_padding
 
 
+# Source
+# https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
 class QEEGNet(t.nn.Module):
     """
     EEGNet
@@ -60,7 +60,7 @@ class QEEGNet(t.nn.Module):
         n_features = (T // 8) // 8
 
         kernel_size = (1, kernLength)
-        #print("padding", get_padding(kernel_size))
+        # print("padding", get_padding(kernel_size))
         # Block 1
         self.conv1_pad = t.nn.ZeroPad2d(get_padding(kernel_size))
         self.conv1 = t.nn.Conv2d(1, F1, kernel_size, bias=False)
@@ -103,7 +103,7 @@ class QEEGNet(t.nn.Module):
 
         # reshape vector from (s,1,T, C) to (s, 1, C, T)
         x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
-        #print("x",x.shape)
+        # print("x",x.shape)
 
         # input dimensions: (s, 1, C, T)
 

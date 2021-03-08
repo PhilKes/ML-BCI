@@ -1,18 +1,23 @@
+import math
+
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
-
 # Model
 # see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
+from config import SAMPLES
 
 
 class EEGNet(nn.Module):
-    def __init__(self, n_classes, channels):
+    def __init__(self, n_classes, channels, samples=SAMPLES):
         super(EEGNet, self).__init__()
-        # self.T = 160
+        self.maxpool_1 = 2
+        self.maxpool_2 = 4
+        self.T = (samples // 2) // (self.maxpool_1 * self.maxpool_2)
+        print(samples)
 
         # Layer 1
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, channels), padding=0)
@@ -22,18 +27,17 @@ class EEGNet(nn.Module):
         self.padding1 = nn.ZeroPad2d((16, 17, 0, 1))
         self.conv2 = nn.Conv2d(in_channels=1, out_channels=4, kernel_size=(2, 32))
         self.batchnorm2 = nn.BatchNorm2d(4, False)
-        self.pooling2 = nn.MaxPool2d(2, 4)
+        self.pooling2 = nn.MaxPool2d(self.maxpool_1, self.maxpool_2)
 
         # Layer 3
         self.padding2 = nn.ZeroPad2d((2, 1, 4, 3))
         self.conv3 = nn.Conv2d(in_channels=4, out_channels=4, kernel_size=(8, 4))
         self.batchnorm3 = nn.BatchNorm2d(4, False)
-        self.pooling3 = nn.MaxPool2d((2, 4))
+        self.pooling3 = nn.MaxPool2d((self.maxpool_1, self.maxpool_2))
 
         # FC Layer
         # NOTE: This dimension will depend on the number of timestamps per sample in your data.
-        # max pooling sizes x 80
-        self.fc1 = nn.Linear(2 * 4 * 40, n_classes)
+        self.fc1 = nn.Linear(self.maxpool_1 * self.maxpool_2 * self.T, n_classes)
 
     def forward(self, x):
         # Layer 1
@@ -57,7 +61,7 @@ class EEGNet(nn.Module):
         x = self.pooling3(x)
 
         # FC Layer
-        x = x.view(-1, 2 * 4 * 40)
+        x = x.view(-1, self.maxpool_1 * self.maxpool_2 * self.T)
         # Original: x = F.sigmoid(self.fc1(x))
         # For BCELoss:
         # x = torch.sigmoid(self.fc1(x))

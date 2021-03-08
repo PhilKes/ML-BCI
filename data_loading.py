@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
-from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, CHANNELS, \
+from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
     MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS
 from utils import print_subjects_ranges
 
@@ -33,12 +33,10 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
-# How many trials per subject for n-class Classifications should be used
-trials_for_classes_per_subject = {2: 42, 3: 67, 4: 90, }
 # Maximum available trials
-trials_for_classes_per_subject_avail = {2: 42, 3: 87, 4: 200, }
-# Need to remove trials for 3/4 Class classification, otherwise too many Rest trials
-rest_trials_removes = {2: -1, 3: 20, 4: 20, }
+trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}
+# remove trials for 3/4 Class classification, otherwise too many Rest trials
+rest_trials_removes = {2: -1, 3: 20, 4: 20}
 # All total trials per class per n_class-Classification
 classes_trials = {
     "2class": {
@@ -62,7 +60,7 @@ classes_trials = {
 # Dataset for EEG Trials Data (divided by subjects)
 class TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes, device, preloaded_tuple=None, ch_names=MNE_CHANNELS):
+    def __init__(self, subjects, n_classes, device, preloaded_tuple=None, ch_names=MNE_CHANNELS, equal_trials=False):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -71,7 +69,7 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject = trials_for_classes_per_subject[n_classes]
+        self.trials_per_subject = get_trials_size(n_classes, equal_trials)
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
         self.ch_names = ch_names
@@ -127,44 +125,55 @@ class TrialsDataset(Dataset):
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
 def create_loaders_from_splits(splits, n_class, device, preloaded_data=None,
-                               preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS):
+                               preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
+                               equal_trials=False):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
     subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
     return create_loader_from_subjects(subjects_train, n_class, device,
-                                       preloaded_data, preloaded_labels, bs, ch_names), \
+                                       preloaded_data, preloaded_labels, bs, ch_names, equal_trials), \
            create_loader_from_subjects(subjects_test, n_class, device,
-                                       preloaded_data, preloaded_labels, bs, ch_names)
+                                       preloaded_data, preloaded_labels, bs, ch_names, equal_trials)
 
 
 # Creates DataLoader with Random Sampling from subject list
 def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
-                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS):
+                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=False):
     ds_train = TrialsDataset(subjects, n_class, device,
                              preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
-                             ch_names=ch_names)
+                             ch_names=ch_names, equal_trials=equal_trials)
     # Sample the trials in random order
     sampler_train = RandomSampler(ds_train)
     return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
 
 
+def get_trials_size(n_class, equal_trials):
+    trials = trials_for_classes_per_subject_avail[n_class]
+    if equal_trials:
+        trials -= rest_trials_removes[n_class]
+    return trials
+
+
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
-def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS):
-    preloaded_data = np.zeros((len(subjects), trials_for_classes_per_subject[n_class], SAMPLES, len(ch_names)),
-                              dtype=np.float32)
-    preloaded_labels = np.zeros((len(subjects), trials_for_classes_per_subject[n_class]), dtype=np.float32)
+def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False):
+    trials = get_trials_size(n_class, equal_trials)
+    preloaded_data = np.zeros((len(subjects), trials, SAMPLES, len(ch_names)), dtype=np.float32)
+    preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
+    print("Preload Shape", preloaded_data.shape)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
         data, labels = load_n_classes_tasks(subject, n_class, ch_names)
         # if data.shape[0] > trials_for_classes_per_subject[n_class]:
         #     data = data[:trials_for_classes_per_subject[n_class], :, :]
         #     labels = labels[:trials_for_classes_per_subject[n_class]]
         overhead_trials = labels.shape[0] - preloaded_labels.shape[1]
-        # print("overhead",overhead_trials)
         # Remove Rest (0) trials until about even amount of 0,1,2 trials
-        if overhead_trials > 0:
+        if equal_trials & (overhead_trials > 0):
             data, labels, removed = remove_n_occurence_of(data, labels, overhead_trials, 0)
+
+        if data.shape[0] > preloaded_data.shape[1]:
+            data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
         preloaded_data[i] = data
         preloaded_labels[i] = labels
     return preloaded_data, preloaded_labels

@@ -38,7 +38,8 @@ from utils import training_config_str, create_results_folders, matplot, save_tra
 # Saves Accuracies + Epochs in ./results/training/{DateTime}
 # save_model: Saves trained model with highest accuracy in results folder
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
-                       save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS):
+                       save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
+                       equal_trials=False):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
                   n_classes=n_classes, ch_names=ch_names)
     chs = len(ch_names)
@@ -67,7 +68,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names)
+            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials)
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
@@ -83,7 +84,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
             # Next Splits Combination of Train/Test Datasets
             loader_train, loader_test = create_loaders_from_splits(next(cv_split), n_class, device,
                                                                    preloaded_data, preloaded_labels,
-                                                                   batch_size)
+                                                                   batch_size, ch_names, equal_trials)
 
             #model = EEGNet(n_class, chs)
             #model = EEGNetv2(n_class, chs)

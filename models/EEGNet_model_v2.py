@@ -7,15 +7,15 @@ import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
-# Model
-# see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
-# original paper: https://arxiv.org/pdf/1611.08024.pdf
 from config import SAMPLES
 
 
 def get_padding(kernel_size):
     return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
 
+
+# see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
+# original paper: https://arxiv.org/pdf/1611.08024.pdf
 
 # Input Shape: (Channels, Timepoints, 1)
 class EEGNetv2(nn.Module):
