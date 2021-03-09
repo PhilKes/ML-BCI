@@ -219,7 +219,7 @@ def check_bad_data(subjects, n_classes):
 # test = [x[i:i + m] for i in range(0, len(x), m)]
 # # test[-2:] = [test[-2] + test[-1]]
 # print(test)
-X, y = load_n_classes_tasks(1, 4, equal_trials=False)
+X, y = load_n_classes_tasks(1, 4, equal_trials=True)
 print("X", X.shape, "Y", y.shape)
 for i in range(4):
     print(i, ": ", len(np.where(y == i)[0]))

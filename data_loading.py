@@ -18,7 +18,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_CLASS_PER_SUBJECT
+    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN
 from utils import print_subjects_ranges
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -159,7 +159,7 @@ def get_trials_size(n_class, equal_trials):
             r -= 2
         if n_class == 2:
             r -= 1
-        trials = TRIALS_PER_CLASS_PER_SUBJECT * r
+        trials = TRIALS_PER_SUBJECT_RUN * r
     return trials
 
 
@@ -236,7 +236,7 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         # print("data", data.shape, "labels", labels.shape)
         # Ensure equal amount of trials per class
         if equal_trials:
-            trials_per_subject = TRIALS_PER_CLASS_PER_SUBJECT
+            trials_per_subject = TRIALS_PER_SUBJECT_RUN
             trials_idxs = np.zeros(0, dtype=np.int)
             for cl in range(n_class):
                 cl_idxs = np.where(labels == cl)[0]
