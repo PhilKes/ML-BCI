@@ -16,10 +16,11 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
+import statistics as stats
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN
-from utils import print_subjects_ranges
+    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN, TRANSFORM
+from utils import print_subjects_ranges, split_np_into_chunks
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
 excluded_subjects = [88, 92, 100, 104]
@@ -33,7 +34,7 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
-n_classes_tasks = {1: [0], 2: [2], 3: [2], 4: [2, 4]}
+n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}
 
 # Maximum available trials
 trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}
@@ -122,6 +123,7 @@ class TrialsDataset(Dataset):
         # Shape of 1 Batch (list of multiple __getitem__() calls):
         # [samples (BATCH_SIZE), 1 , Timepoints (641), Channels (len(ch_names)]
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
+        X = TRANSFORM(X)
         return X, y
 
 
@@ -159,13 +161,15 @@ def get_trials_size(n_class, equal_trials):
             r -= 2
         if n_class == 2:
             r -= 1
+        if n_class == 3:
+            r -= 1
         trials = TRIALS_PER_SUBJECT_RUN * r
     return trials
 
 
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
-def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False):
+def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False, normalize=False):
     trials = get_trials_size(n_class, equal_trials)
     preloaded_data = np.zeros((len(subjects), trials, SAMPLES, len(ch_names)), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
@@ -177,6 +181,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Fa
             data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
         preloaded_data[i] = data
         preloaded_labels[i] = labels
+
     return preloaded_data, preloaded_labels
 
 
@@ -212,12 +217,38 @@ def remove_n_occurence_of(X, y, n, label):
     return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs), len(label_idxs)
 
 
+# Loads Rest trials from the 1st baseline run
+def mne_load_rests(trials, ch_names):
+    X, y = mne_load_subject(1, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
+    chs = len(ch_names)
+    X = np.squeeze(X, axis=0)
+    X_cop = np.array(X, copy=True)
+    # print("X", X.shape, "Y", y.shape)
+    X = split_np_into_chunks(X, SAMPLES)
+    # print("X", X.shape, "Y", y.shape)
+
+    missing_trials = trials - X.shape[0]
+    if missing_trials > 0:
+        for m in range(missing_trials):
+            np.random.seed(m)
+            rand_start_idx = np.random.randint(0, X_cop.shape[0] - SAMPLES)
+            # print("rand_start", rand_start_idx)
+            rand_x = np.zeros((1, SAMPLES, chs))
+            rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + SAMPLES)]
+            X = np.concatenate((X, rand_x))
+    y = np.full(X.shape[0], y[0])
+
+    # print("X", X.shape, "Y", y)
+    return X, y
+
+
 # Merges runs from different tasks + correcting labels for n_class classification
 def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
                    equal_trials=False):
     global map_label
     all_data = np.zeros((0, SAMPLES, len(ch_names)))
     all_labels = np.zeros((0), dtype=np.int)
+    contains_rest_task = (0 in tasks)
     # Load Subject Data of all Tasks
     for i, task in enumerate(tasks):
         # TODO always exclude Rest, use Baseline Runs for Rest trials
@@ -225,41 +256,49 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         tasks_event_dict = event_dict
         # for 2class classification exclude Rest events ("T0")
         # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
-        if exclude_rest:
-            tasks_event_dict = {'T1': 1, 'T2': 2}
+        tasks_event_dict = {'T1': 2, 'T2': 3}
         # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
-            tasks_event_dict = {'T0': 1, 'T2': 2}
+            tasks_event_dict = {'T2': 2}
         if task == 0:
             tasks_event_dict = {'T0': 1}
-        data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
-        # print("data", data.shape, "labels", labels.shape)
-        # Ensure equal amount of trials per class
-        if equal_trials:
-            trials_per_subject = TRIALS_PER_SUBJECT_RUN
-            trials_idxs = np.zeros(0, dtype=np.int)
-            for cl in range(n_class):
-                cl_idxs = np.where(labels == cl)[0]
-                if cl == 0:
-                    # For 4class classification this is executed 2x, so we only pick Rest Trials from the first Task
-                    if i > 0:
-                        continue
-                    # Randomly pick  Rest "0" Trials, because there are always too many
-                    cl_idxs = np.random.choice(cl_idxs, size=trials_per_subject, replace=False)
-                # For all other classes take the first n Trials of Class
-                else:
-                    cl_idxs = cl_idxs[:trials_per_subject]
-                trials_idxs = np.concatenate((trials_idxs, cl_idxs))
-            trials_idxs = np.sort(trials_idxs)
-            data, labels = data[trials_idxs], labels[trials_idxs]
+            data, labels = mne_load_rests(TRIALS_PER_SUBJECT_RUN, ch_names)
+        else:
+            data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
+            # print("data", data.shape, "labels", labels.shape)
+            # Ensure equal amount of trials per class
+            if equal_trials:
+                trials_per_subject = TRIALS_PER_SUBJECT_RUN
+                trials_idxs = np.zeros(0, dtype=np.int)
+                for cl in range(n_class):
+                    cl_idxs = np.where(labels == cl)[0]
+                    if cl == 0:
+                        # For 4class classification this is executed 2x, so we only pick Rest Trials from the first Task
+                        if i > 0:
+                            continue
+                        # Randomly pick  Rest "0" Trials, because there are always too many
+                        cl_idxs = np.random.choice(cl_idxs, size=trials_per_subject, replace=False)
+                    # For all other classes take the first n Trials of Class
+                    else:
+                        cl_idxs = cl_idxs[:trials_per_subject]
+                    trials_idxs = np.concatenate((trials_idxs, cl_idxs))
+                trials_idxs = np.sort(trials_idxs)
+                data, labels = data[trials_idxs], labels[trials_idxs]
 
-        # Correct labels if multiple tasks are loaded
-        # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
-        for n in range(i):
-            labels = increase_label(labels)
+            # Correct labels if multiple tasks are loaded
+            # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
+            for n in range(i if (not contains_rest_task) else i - 1):
+                labels = increase_label(labels)
         all_data = np.concatenate((all_data, data))
         all_labels = np.concatenate((all_labels, labels))
+    #all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
     return all_data, all_labels
+
+# Shuffle 2 arrays unified
+def unison_shuffled_copies(a, b):
+    assert len(a) == len(b)
+    p = np.random.permutation(len(a))
+    return a[p], b[p]
 
 
 # Loads single Subject of Physionet Data with MNE

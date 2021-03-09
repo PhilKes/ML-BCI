@@ -205,12 +205,15 @@ def split_list_into_chunks(p_list, chunk_size):
     m = int(len(p_list) / int(math.ceil(len(p_list) / chunk_size))) + 1
     return [p_list[i:i + m] for i in range(0, len(p_list), m)]
 
+
 def split_np_into_chunks(arr, chunk_size):
-    p_list = arr.tolist()
-    m = int(len(p_list) / int(math.ceil(len(p_list) / chunk_size))) + 1
-    return np.asarray([np.asarray(p_list[i:i + m]) for i in range(0, len(p_list), m)])
-
-
+    chunks = math.ceil(arr.shape[0] / chunk_size)
+    arr2 = np.zeros((chunks - 1, chunk_size, arr.shape[1]), dtype=np.float)
+    splits = np.split(arr, np.arange(chunk_size, len(arr), chunk_size))
+    # Last chunk is of smaller size, so it is skipped
+    for i in range(chunks - 1):
+        arr2[i] = splits[i]
+    return arr2
 
 
 def get_str_n_classes(n_classes):

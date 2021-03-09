@@ -105,4 +105,4 @@ MOTORIMAGERY_CHANNELS = [
 # means = -6.1795e-06
 # stds = 7.1783e-05
 # TRANSFORM = torchvision.transforms.Normalize(channel_means, channel_stds)
-# TRANSFORM = lambda x: x * 1e4
+TRANSFORM = lambda x: x * 1e4

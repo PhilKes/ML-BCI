@@ -70,7 +70,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials)
+            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials,normalize=True)
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
