@@ -89,8 +89,6 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                                                                    batch_size, ch_names, equal_trials)
 
             # model = EEGNet(n_class, chs)
-            # model = EEGNetv2(n_class, chs)
-            # model = ERDS_EEGNet(SAMPLES, chs)
             model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
             model.to(device)
 
