@@ -13,6 +13,8 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from models.EEGNet_model import EEGNet
+from models.EEGNet_model_v2 import EEGNetv2
+from models.ERDS_PyTorch_EEGNet import ERDS_EEGNet
 from models.QEEGNet import QEEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
@@ -86,9 +88,10 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                                                                    preloaded_data, preloaded_labels,
                                                                    batch_size, ch_names, equal_trials)
 
-            model = EEGNet(n_class, chs)
-            #model = EEGNetv2(n_class, chs)
-            #model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
+            # model = EEGNet(n_class, chs)
+            # model = EEGNetv2(n_class, chs)
+            # model = ERDS_EEGNet(SAMPLES, chs)
+            model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
             model.to(device)
 
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
@@ -122,8 +125,6 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                 save_path=dir_results,
                 bar_plot=True, max_y=100.0)
         avg_class_accuracies = np.zeros(n_class)
-        # for n in range(n_class):
-        # avg_class_accuracies[n] = np.average([class_accuracies[sp][n] for sp in range(splits)])
         for j in range(n_class):
             avg_class_accuracies[j] = np.average([float(class_accuracies[sp][j]) for sp in range(splits)])
 
@@ -173,19 +174,20 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         print(f"######### {n_class}Class-Classification Benchmarking")
         print(f"Loading pretrained model from '{trained_model_path}'")
         model = EEGNet(n_class, chs)
+        #model = QEEGNet(T=SAMPLES, C=chs)
         model.load_state_dict(torch.load(trained_model_path))
         model.to(device)
         model.eval()
         # Get optimized model with TensorRT
-        if tensorRT:
-            t = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
-            # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
-            # TensorRT either with fp16 ("half") or fp32
-            if fp16:
-                t = t.half()
-                model = model.half()
-            model = torch2trt(model, [t], max_batch_size=batch_size, fp16_mode=fp16)
-            print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
+        # if tensorRT:
+        #     t = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
+        #     # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
+        #     # TensorRT either with fp16 ("half") or fp32
+        #     if fp16:
+        #         t = t.half()
+        #         model = model.half()
+        #     model = torch2trt(model, [t], max_batch_size=batch_size, fp16_mode=fp16)
+        #     print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
         preload_chunks = split_list_into_chunks(ALL_SUBJECTS, subjects_cs)

@@ -10,6 +10,9 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from config import SAMPLES
 
 
+# Source:
+# https://stackoverflow.com/questions/58307036/is-there-really-no-padding-same-option-for-pytorchs-conv2d
+# Calculates correct Padding for Conv2d Layer for given kernel size
 def get_padding(kernel_size):
     return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
 

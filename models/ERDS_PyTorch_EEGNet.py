@@ -6,11 +6,11 @@ from torch.autograd import Variable
 import numpy as np
 
 # Source: https://github.com/berdakh/ERDS-Pytorch/blob/master/nu_models.py
-class EEGNet(nn.Module):
+class ERDS_EEGNet(nn.Module):
     def __init__(self,
                  time_samples,
                  channels):
-        super(EEGNet, self).__init__()
+        super(ERDS_EEGNet, self).__init__()
 
         self.T = time_samples
         self.chans = channels

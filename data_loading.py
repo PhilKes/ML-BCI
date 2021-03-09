@@ -18,7 +18,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_CLASS_PER_SUBJECT_RUN
+    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_CLASS_PER_SUBJECT
 from utils import print_subjects_ranges
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -154,7 +154,12 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
 def get_trials_size(n_class, equal_trials):
     trials = trials_for_classes_per_subject_avail[n_class]
     if equal_trials:
-        trials = n_class * TRIALS_PER_CLASS_PER_SUBJECT_RUN * len(get_runs_of_n_classes(n_class))
+        r = len(get_runs_of_n_classes(n_class))
+        if n_class == 4:
+            r -= 2
+        if n_class == 2:
+            r -= 1
+        trials = TRIALS_PER_CLASS_PER_SUBJECT * r
     return trials
 
 
@@ -228,10 +233,10 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         if task == 0:
             tasks_event_dict = {'T0': 1}
         data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
-        print("data", data.shape, "labels", labels.shape)
+        # print("data", data.shape, "labels", labels.shape)
         # Ensure equal amount of trials per class
         if equal_trials:
-            trials_per_subject = TRIALS_PER_CLASS_PER_SUBJECT_RUN * len(runs[task])
+            trials_per_subject = TRIALS_PER_CLASS_PER_SUBJECT
             trials_idxs = np.zeros(0, dtype=np.int)
             for cl in range(n_class):
                 cl_idxs = np.where(labels == cl)[0]

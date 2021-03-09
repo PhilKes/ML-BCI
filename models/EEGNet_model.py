@@ -1,13 +1,11 @@
-import math
-
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
-# Model
-# see https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
+# Original Model of:
+# https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
 from config import SAMPLES
 
 
@@ -17,7 +15,6 @@ class EEGNet(nn.Module):
         self.maxpool_1 = 2
         self.maxpool_2 = 4
         self.T = (samples // 2) // (self.maxpool_1 * self.maxpool_2)
-        print(samples)
 
         # Layer 1
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=(1, channels), padding=0)

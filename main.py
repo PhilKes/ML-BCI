@@ -31,8 +31,8 @@ def single_run(argv=sys.argv[1:]):
                         help="List of EEG Channels to use (see config.py MNE_CHANNELS for all available Channels)")
     parser.add_argument('--ch_motorimg', action='store_true',
                         help=f"Use Predefined Motor Imagery Channels for Training ({MOTORIMAGERY_CHANNELS})")
-    parser.add_argument('--equal_trials', action='store_true',
-                        help=f"Use equal amount of Trials per class for Training (if False, Rest class ('0') has more Trials than other classes)")
+    parser.add_argument('--all_trials', action='store_true',
+                        help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
 
     parser.add_argument('-benchmark',
                         help="Runs Benchmarking with Physionet Dataset with trained model (./benchmarking_model/trained_model.pt)",
@@ -102,7 +102,7 @@ def single_run(argv=sys.argv[1:]):
         # for i in range(args.loops):
         eegnet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                           equal_trials=args.equal_trials)
+                           equal_trials=(not args.all_trials))
     elif args.benchmark:
         # for i in range(args.loops):
         # For now only 3-Class Classification for benchmarking

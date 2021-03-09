@@ -219,32 +219,32 @@ def check_bad_data(subjects, n_classes):
 # test = [x[i:i + m] for i in range(0, len(x), m)]
 # # test[-2:] = [test[-2] + test[-1]]
 # print(test)
-# X, y = load_n_classes_tasks(1, 1, equal_trials=True)
+X, y = load_n_classes_tasks(1, 4, equal_trials=False)
+print("X", X.shape, "Y", y.shape)
+for i in range(4):
+    print(i, ": ", len(np.where(y == i)[0]))
+#
+# X, y = mne_load_subject(1, 1, tmin=0, tmax=60)
+# trials = 21
+# CHANNELS = 64
+# X = np.squeeze(X, axis=0)
+# X_cop = np.copy(X)
 # print("X", X.shape, "Y", y.shape)
-# for i in range(4):
-#     print(i, ": ", len(np.where(y == i)[0]))
-
-X, y = mne_load_subject(1, 1, tmin=0, tmax=60)
-trials = 21
-CHANNELS = 64
-X = np.squeeze(X, axis=0)
-X_cop = np.copy(X)
-print("X", X.shape, "Y", y.shape)
-X = split_np_into_chunks(X, SAMPLES)
-X = np.delete(X, -1)
-X.resize((X.shape[0], SAMPLES, CHANNELS))
-print("X", X.shape, "Y", y.shape)
-
-missing_trials = trials - X.shape[0]
-if missing_trials > 0:
-    for m in range(missing_trials):
-        np.random.seed(m)
-        rand_start_idx = np.random.randint(0, X_cop.shape[0] - SAMPLES)
-        print("rand_start",rand_start_idx)
-        rand_x = np.zeros((1, SAMPLES, CHANNELS))
-        rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + SAMPLES)]
-        X = np.concatenate((X, rand_x))
-
-y = np.full(X.shape[0], y[0])
-
-print("X", X.shape, "Y", y)
+# X = split_np_into_chunks(X, SAMPLES)
+# X = np.delete(X, -1)
+# X.resize((X.shape[0], SAMPLES, CHANNELS))
+# print("X", X.shape, "Y", y.shape)
+#
+# missing_trials = trials - X.shape[0]
+# if missing_trials > 0:
+#     for m in range(missing_trials):
+#         np.random.seed(m)
+#         rand_start_idx = np.random.randint(0, X_cop.shape[0] - SAMPLES)
+#         print("rand_start",rand_start_idx)
+#         rand_x = np.zeros((1, SAMPLES, CHANNELS))
+#         rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + SAMPLES)]
+#         X = np.concatenate((X, rand_x))
+#
+# y = np.full(X.shape[0], y[0])
+#
+# print("X", X.shape, "Y", y)

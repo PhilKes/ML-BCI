@@ -3,8 +3,8 @@
 # from torch.nn.functional import elu
 #
 #
-# Source:
-# https://github.com/braindecode/braindecode/blob/master/braindecode/models/eegnet.py
+# #Source:
+# #https://github.com/braindecode/braindecode/blob/master/braindecode/models/eegnet.py
 # class Conv2dWithConstraint(nn.Conv2d):
 #     def __init__(self, *args, max_norm=1, **kwargs):
 #         self.max_norm = max_norm
