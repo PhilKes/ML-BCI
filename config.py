@@ -1,6 +1,8 @@
 """
 Configuration File containing global default values
 """
+from sklearn.preprocessing import MinMaxScaler
+
 PLOTS = True
 VERBOSE = False
 # Calculate the difference in accuracy between (new) Validation Dataset and known Training Dataset
@@ -33,9 +35,9 @@ LR = dict(
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 EEG_TMIN = 0
-EEG_TMAX = 4
+EEG_TMAX = 3
 SAMPLERATE = 160
-SAMPLES = (EEG_TMAX - EEG_TMIN) * SAMPLERATE + 1
+SAMPLES = (EEG_TMAX - EEG_TMIN) * SAMPLERATE
 
 # Amount of picked Trials in 1 Run of 1 Subject
 TRIALS_PER_SUBJECT_RUN = 21
@@ -105,4 +107,4 @@ MOTORIMAGERY_CHANNELS = [
 # means = -6.1795e-06
 # stds = 7.1783e-05
 # TRANSFORM = torchvision.transforms.Normalize(channel_means, channel_stds)
-TRANSFORM = lambda x: x * 1e4
+#TRANSFORM = lambda x: x * 1e4

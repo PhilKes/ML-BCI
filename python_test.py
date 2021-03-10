@@ -7,9 +7,11 @@ import math
 import mne
 import numpy as np
 import torch
+from sklearn.preprocessing import MinMaxScaler
 
 from config import MNE_CHANNELS, SAMPLES, SAMPLERATE, EEG_TMIN, EEG_TMAX
-from data_loading import load_n_classes_tasks, mne_load_subject
+from data_loading import load_n_classes_tasks, mne_load_subject, remove_n_occurence_of, normalize_data
+from embedded.get_data import get_data
 from utils import split_list_into_chunks, split_np_into_chunks
 
 print(F"Torch version:\t{torch.__version__}")
@@ -220,9 +222,37 @@ def check_bad_data(subjects, n_classes):
 # # test[-2:] = [test[-2] + test[-1]]
 # print(test)
 X, y = load_n_classes_tasks(1, 3, equal_trials=True)
-print("X", X.shape, "Y", y.shape)
-print(y)
-for i in range(4):
-    print(i, ": ", len(np.where(y == i)[0]))
+# print(y)
+# for i in range(4):
+#     print(i, ": ", len(np.where(y == i)[0]))
+# scaler = MinMaxScaler(copy=False)
+# X = scaler.fit_transform(X.reshape(-1, X.shape[-1])).reshape(X.shape)
+# print(X.shape)
 
+print(X[0:21])
 
+# X2, y2 = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', n_classes=3)
+#
+# X2 = np.swapaxes(X2, 1, 2)
+#
+# X, y, rem = remove_n_occurence_of(X, y, 21, 0)
+# X2, y2, rem2 = remove_n_occurence_of(X2, y2, 21, 0)
+#
+# print("X", X.shape, "Y", y.shape)
+# print("X2", X2.shape, "Y2", y2.shape)
+#
+# print("y", y)
+# print("y2", y2)
+#
+# X,X2= normalize_data(X), normalize_data(X2)
+# print("X", X.shape, "X2",X2.shape)
+# print(X[-1])
+# print(X2[0])
+# X = X.flatten()
+# X2 = X2.flatten()
+# print(np.all(np.in1d(X, X2)))
+# for i,n in enumerate(X):
+#     if n not in X2:
+#         print(f"{n} (idx {i}) is not present in X2")
+#         pass
+#

@@ -12,6 +12,7 @@ import torch.optim as optim  # noqa
 from mne import Epochs, pick_types
 from mne.datasets import eegbci
 from mne.io import concatenate_raws, read_raw_edf
+from sklearn.preprocessing import MinMaxScaler
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
@@ -19,7 +20,8 @@ from tqdm import tqdm
 import statistics as stats
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN, TRANSFORM
+    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN, SAMPLERATE
+from embedded.get_data import get_data
 from utils import print_subjects_ranges, split_np_into_chunks
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -123,7 +125,7 @@ class TrialsDataset(Dataset):
         # Shape of 1 Batch (list of multiple __getitem__() calls):
         # [samples (BATCH_SIZE), 1 , Timepoints (641), Channels (len(ch_names)]
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
-        X = TRANSFORM(X)
+        # X = TRANSFORM(X)
         return X, y
 
 
@@ -167,6 +169,22 @@ def get_trials_size(n_class, equal_trials):
     return trials
 
 
+# Normalize Data to [0;1] range
+scaler = MinMaxScaler(copy=False)
+normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
+
+
+# Load data using Tensorflow implementation of get_data
+def load_subjects_without_mne(subjects, n_classes):
+    X, y = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', subjects_list=subjects,
+                    n_classes=n_classes)
+    X = np.swapaxes(X, 1, 2)
+    X = X.reshape((len(subjects), n_classes * TRIALS_PER_SUBJECT_RUN, SAMPLES, len(MNE_CHANNELS)))
+    y = y.reshape((len(subjects), n_classes * TRIALS_PER_SUBJECT_RUN))
+    print("Preload Shape", X.shape)
+    return X, y
+
+
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage (~4GB)
 def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False, normalize=False):
@@ -181,7 +199,8 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Fa
             data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
         preloaded_data[i] = data
         preloaded_labels[i] = labels
-
+    if normalize:
+        preloaded_data = normalize_data(preloaded_data)
     return preloaded_data, preloaded_labels
 
 
@@ -217,15 +236,17 @@ def remove_n_occurence_of(X, y, n, label):
     return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs), len(label_idxs)
 
 
-# Loads Rest trials from the 1st baseline run
-def mne_load_rests(trials, ch_names):
-    X, y = mne_load_subject(1, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
+# Loads Rest trials from the 1st baseline run of subject
+# if baseline run is not long enough for all needed trials
+# random 3s Trials are generated from baseline run
+def mne_load_rests(subject, trials, ch_names):
+    X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     chs = len(ch_names)
+    if X.shape[0] > 1:
+        X = X[:1, :, :]
     X = np.squeeze(X, axis=0)
     X_cop = np.array(X, copy=True)
-    # print("X", X.shape, "Y", y.shape)
     X = split_np_into_chunks(X, SAMPLES)
-    # print("X", X.shape, "Y", y.shape)
 
     missing_trials = trials - X.shape[0]
     if missing_trials > 0:
@@ -256,13 +277,13 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
         tasks_event_dict = event_dict
         # for 2class classification exclude Rest events ("T0")
         # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
+        # if exclude_rest:
         tasks_event_dict = {'T1': 2, 'T2': 3}
         # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T2': 2}
         if task == 0:
-            tasks_event_dict = {'T0': 1}
-            data, labels = mne_load_rests(TRIALS_PER_SUBJECT_RUN, ch_names)
+            data, labels = mne_load_rests(subject, TRIALS_PER_SUBJECT_RUN, ch_names)
         else:
             data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
             # print("data", data.shape, "labels", labels.shape)
@@ -291,8 +312,9 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
                 labels = increase_label(labels)
         all_data = np.concatenate((all_data, data))
         all_labels = np.concatenate((all_labels, labels))
-    #all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
+    # all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
     return all_data, all_labels
+
 
 # Shuffle 2 arrays unified
 def unison_shuffled_copies(a, b):
@@ -324,7 +346,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
     #                    exclude='bads')
     picks = mne.pick_channels(raw.info['ch_names'], ch_names)
 
-    epochs = Epochs(raw, events, event_ids, tmin, tmax, picks=picks,
+    epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / SAMPLERATE), picks=picks,
                     baseline=None, preload=True)
     # [trials (84), timepoints (641), channels (len(ch_names)]
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
