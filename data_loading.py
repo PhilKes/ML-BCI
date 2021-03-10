@@ -176,7 +176,7 @@ normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).resh
 
 # Load data using Tensorflow implementation of get_data
 def load_subjects_without_mne(subjects, n_classes):
-    X, y = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', subjects_list=subjects,
+    X, y = get_data('.\\datasets\\manual\\dataset\\files\\', subjects_list=subjects,
                     n_classes=n_classes)
     X = np.swapaxes(X, 1, 2)
     X = X.reshape((len(subjects), n_classes * TRIALS_PER_SUBJECT_RUN, SAMPLES, len(MNE_CHANNELS)))
@@ -214,16 +214,21 @@ def get_runs_of_n_classes(n_classes):
 # Loads corresponding tasks for n_classes Classification
 def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
     tasks = n_classes_tasks[n_classes]
-    return load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
-                          exclude_bothfists=(n_classes == 4), ch_names=ch_names,
-                          equal_trials=equal_trials, n_class=n_classes)
+    data, labels = load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
+                                  exclude_bothfists=(n_classes == 4), ch_names=ch_names,
+                                  equal_trials=equal_trials, n_class=n_classes)
+    if n_classes == 2:
+        labels = dec_label(labels)
+    return data, labels
 
 
 # If multiple tasks are used (4classes classification)
 # labels need to be adjusted because different events from
 # different tasks have the same numbers
 inc_label = lambda label: label + 2 if label != 0 else label
+dec_label = lambda label: label - 1
 increase_label = np.vectorize(inc_label)
+decrease_label = np.vectorize(dec_label)
 
 event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
@@ -272,11 +277,7 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
     contains_rest_task = (0 in tasks)
     # Load Subject Data of all Tasks
     for i, task in enumerate(tasks):
-        # TODO always exclude Rest, use Baseline Runs for Rest trials
-        # TODO Baseline Run only contains 1 Trial
         tasks_event_dict = event_dict
-        # for 2class classification exclude Rest events ("T0")
-        # (see Paper "An Accurate EEGNet-based Motor-Imagery Brain–Computer ... ")
         # if exclude_rest:
         tasks_event_dict = {'T1': 2, 'T2': 3}
         # for 4class classification exclude both fists event of task 4 ("T1")
@@ -286,22 +287,19 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
             data, labels = mne_load_rests(subject, TRIALS_PER_SUBJECT_RUN, ch_names)
         else:
             data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
-            # print("data", data.shape, "labels", labels.shape)
             # Ensure equal amount of trials per class
             if equal_trials:
                 trials_per_subject = TRIALS_PER_SUBJECT_RUN
                 trials_idxs = np.zeros(0, dtype=np.int)
-                for cl in range(n_class):
+                classes = n_class
+                if n_class == 2:
+                    classes = 3
+                for cl in range(classes):
+                    if n_class == 0:
+                        continue
                     cl_idxs = np.where(labels == cl)[0]
-                    if cl == 0:
-                        # For 4class classification this is executed 2x, so we only pick Rest Trials from the first Task
-                        if i > 0:
-                            continue
-                        # Randomly pick  Rest "0" Trials, because there are always too many
-                        cl_idxs = np.random.choice(cl_idxs, size=trials_per_subject, replace=False)
-                    # For all other classes take the first n Trials of Class
-                    else:
-                        cl_idxs = cl_idxs[:trials_per_subject]
+
+                    cl_idxs = cl_idxs[:trials_per_subject]
                     trials_idxs = np.concatenate((trials_idxs, cl_idxs))
                 trials_idxs = np.sort(trials_idxs)
                 data, labels = data[trials_idxs], labels[trials_idxs]
@@ -335,8 +333,6 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
-    # TODO Band Pass Filter? see Paper 'Motor Imagery EEG Signal Processing and
-    # TODO Classification using Machine Learning Approach'
     if ((FREQ_FILTER_HIGHPASS is not None) | (FREQ_FILTER_LOWPASS is not None)):
         raw.filter(FREQ_FILTER_HIGHPASS, FREQ_FILTER_LOWPASS, method='iir')
     raw.rename_channels(lambda x: x.strip('.'))
@@ -350,8 +346,6 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
                     baseline=None, preload=True)
     # [trials (84), timepoints (641), channels (len(ch_names)]
     subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
-    # print("Channels", epochs.ch_names)
-    # print("Subjects data type", type(subject_data[0][0][0]))
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1
 

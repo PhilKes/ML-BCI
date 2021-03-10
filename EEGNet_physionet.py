@@ -173,8 +173,8 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         print(f"Loading pretrained model from '{trained_model_path}'")
-        model = EEGNet(n_class, chs)
-        #model = QEEGNet(T=SAMPLES, C=chs)
+        #model = EEGNet(n_class, chs)
+        model = QEEGNet(T=SAMPLES, C=chs)
         model.load_state_dict(torch.load(trained_model_path))
         model.to(device)
         model.eval()
@@ -204,6 +204,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                 preloaded_data, preloaded_labels = None, None
                 if DATA_PRELOAD:
                     print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
+                    #preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
                     preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class)
 
                 loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
