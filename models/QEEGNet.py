@@ -12,7 +12,7 @@ class QEEGNet(t.nn.Module):
     EEGNet
     """
 
-    def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.1, reg_rate=0.25,
+    def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.4, reg_rate=0.25,
                  kernLength=80, activation='elu', constrain_w=False, dropout_type='dropout',
                  permuted_flatten=False):
         """
@@ -57,7 +57,7 @@ class QEEGNet(t.nn.Module):
         self.constrain_w, self.dropout_type = (constrain_w, dropout_type)
 
         # Number of input neurons to the final fully connected layer
-        n_features = (T // 8) // 8
+        n_features = (T // 4) // 8
 
         kernel_size = (1, kernLength)
         # print("padding", get_padding(kernel_size))
@@ -73,7 +73,7 @@ class QEEGNet(t.nn.Module):
             self.conv2 = t.nn.Conv2d(F1, D * F1, (C, 1), groups=F1, bias=False)
         self.batch_norm2 = t.nn.BatchNorm2d(D * F1, momentum=0.01, eps=0.001)
         self.activation1 = t.nn.ELU(inplace=True) if activation == 'elu' else t.nn.ReLU(inplace=True)
-        self.pool1 = t.nn.AvgPool2d((1, 8))
+        self.pool1 = t.nn.AvgPool2d((1, 4))
         # self.dropout1 = dropout(p=p_dropout)
         self.dropout1 = t.nn.Dropout(p=p_dropout)
 

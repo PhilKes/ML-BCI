@@ -231,12 +231,15 @@ X, y = load_n_classes_tasks(1, 3, equal_trials=True)
 
 print(X[0:21])
 
-# X2, y2 = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', n_classes=3)
+X2, y2 = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', n_classes=3)
 #
-# X2 = np.swapaxes(X2, 1, 2)
+X2 = np.swapaxes(X2, 1, 2)
 #
-# X, y, rem = remove_n_occurence_of(X, y, 21, 0)
-# X2, y2, rem2 = remove_n_occurence_of(X2, y2, 21, 0)
+X, y, rem = remove_n_occurence_of(X, y, 21, 0)
+X2, y2, rem2 = remove_n_occurence_of(X2, y2, 21, 0)
+
+print(X)
+print(X2)
 #
 # print("X", X.shape, "Y", y.shape)
 # print("X2", X2.shape, "Y2", y2.shape)
