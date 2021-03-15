@@ -17,7 +17,6 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
-import statistics as stats
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
     MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN, SAMPLERATE
@@ -160,7 +159,7 @@ def get_trials_size(n_class, equal_trials):
     if equal_trials:
         r = len(get_runs_of_n_classes(n_class))
         if n_class == 4:
-            r -= 2
+            r -= 3
         if n_class == 2:
             r -= 1
         if n_class == 3:
@@ -186,7 +185,7 @@ def load_subjects_without_mne(subjects, n_classes):
 
 
 # Loads all Subjects Data + Labels for n_class Classification
-# Very high memory usage (~4GB)
+# Very high memory usage for ALL_SUBJECTS (~2GB)
 def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False, normalize=False):
     trials = get_trials_size(n_class, equal_trials)
     preloaded_data = np.zeros((len(subjects), trials, SAMPLES, len(ch_names)), dtype=np.float32)

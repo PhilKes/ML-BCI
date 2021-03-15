@@ -16,7 +16,7 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder
+from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX
 
 
 # Create results folder with current DateTime as name
@@ -133,28 +133,11 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Saves config + results.txt in dir_results
-def save_training_results(str_conf, n_class, accuracies, class_accuracies, class_trials, epoch_losses, elapsed,
-                          dir_results,
-                          accuracies_overfitting=None, tag=None):
-    str_elapsed = str(elapsed)
+def save_training_results(str_conf, n_class, str_res,
+                          dir_results, tag=None):
     file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
-    file_result.write(f"Elapsed Time: {str_elapsed}\n")
-    file_result.write(f"Accuracies of Splits:\n")
-    for i in range(len(accuracies)):
-        file_result.write(f"\tRun {i}: {accuracies[i]:.2f}\n")
-        if TEST_OVERFITTING:
-            file_result.write(f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n")
-    file_result.write(f"Avg. acc: {np.average(accuracies):.2f}\n")
-    if TEST_OVERFITTING:
-        file_result.write(
-            f"Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}\n")
-    file_result.write("Trials per class:\n")
-    for cl, trs in enumerate(class_trials):
-        file_result.write(f"\t[{cl}]: {int(trs)}")
-    file_result.write(f"\nClass Accuracies: ")
-    for l in range(len(class_accuracies)):
-        file_result.write(f'\t[{l}]: {class_accuracies[l]:.2f}')
+    file_result.write(str_res)
     file_result.close()
 
 
@@ -163,15 +146,11 @@ def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class)
 
 
 # Saves config + results.txt in dir_results
-def save_benchmark_results(str_conf, n_class, batch_lat, trial_inf_time, acc_avg, elapsed, model, dir_results,
+def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
                            tag=None):
     file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
-    file_result.write(f"Elapsed Time: {str(elapsed)}\n")
-    file_result.write(f"Avg. Batch Latency:{batch_lat}\n")
-    file_result.write(f"Inference time per Trial:{trial_inf_time}\n")
-    file_result.write(f"Trials per second:{(1 / trial_inf_time):.2f}\n")
-    file_result.write(f"Accuracies:{acc_avg:.2f}\n")
+    file_result.write(res_str)
     file_result.close()
     # Save trained EEGNet to results folder
     torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")
@@ -227,9 +206,37 @@ Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
 Channels: {len(config['ch_names'])} {config['ch_names']}
+EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
+###############\n\n"""
+
+
+def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed):
+    runs_str = ""
+    for i in range(len(accuracies)):
+        runs_str += f'\tRun {i}: {accuracies[i]:.2f}\n'
+        if TEST_OVERFITTING:
+            runs_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
+
+    trials_str = ""
+    for cl, trs in enumerate(class_trials):
+        trials_str += f"\t[{cl}]: {int(trs)}"
+    classes_str = ""
+    for l in range(len(class_accuracies)):
+        classes_str += f'\t[{l}]: {class_accuracies[l]:.2f}'
+
+    return f"""#### Results ####
+Elapsed Time: {elapsed}
+Accuracies of Splits:
+{runs_str}
+Avg. acc: {np.average(accuracies):.2f}
+{f'Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
+Trials per class:
+{trials_str}
+Avg. Class Accuracies:
+{classes_str}
 ###############\n\n"""
 
 
@@ -240,7 +247,22 @@ TensorRT optimized: {config['trt']} (fp{16 if bool(config['fp16']) else 32})
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Channels: {len(config['ch_names'])} {config['ch_names']}
+EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]
 Preload subjects Chunksize: {config['subjects_cs']}
 Batch Size: {config['batch_size']}
 Dataset Iterations: {config['iters']}
 ###############\n\n"""
+
+
+def benchmark_result_str(config, n_class, batch_lat_avg, trial_inf_time_avg, acc_avg, elapsed):
+    return f"""#### Results ####
+Elapsed Time: {str(elapsed)}
+Avg. Batch Latency:{batch_lat_avg}
+Inference time per Trial:{trial_inf_time_avg}
+Trials per second:{(1 / trial_inf_time_avg):.2f}
+Accuracies:{acc_avg:.2f}
+###############\n\n"""
+
+
+def list_to_string(list):
+    return ','.join([str(i) for i in list])

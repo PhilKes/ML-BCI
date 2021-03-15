@@ -69,11 +69,21 @@ MNE_CHANNELS = [
     'Po7', 'Po3', 'Poz', 'Po4', 'Po8',
     'O1', 'Oz', 'O2',
     'Iz']
-MOTORIMAGERY_CHANNELS = [
+# Selections of Channels for reduced amount of needed EEG Channels
+# Visualization:
+# https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/EEG_10-10_system_with_additional_information.svg/640px-EEG_10-10_system_with_additional_information.svg.png?1615815815740
+MOTORIMG_CHANNELS_18 = [
     'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
     'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
     'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
 ]
+MOTORIMG_CHANNELS_8 = [
+    'Fc5', 'Fc1', 'Fc2', 'Fc6',
+
+    'Cp5', 'Cp1', 'Cp2', 'Cp6',
+]
+
+MOTORIMG_CHANNELS = {8: MOTORIMG_CHANNELS_8, 18: MOTORIMG_CHANNELS_18}
 
 # # Calculated with python_test.py get_mean_std():
 # channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,
@@ -107,4 +117,4 @@ MOTORIMAGERY_CHANNELS = [
 # means = -6.1795e-06
 # stds = 7.1783e-05
 # TRANSFORM = torchvision.transforms.Normalize(channel_means, channel_stds)
-#TRANSFORM = lambda x: x * 1e4
+# TRANSFORM = lambda x: x * 1e4

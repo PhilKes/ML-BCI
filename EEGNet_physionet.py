@@ -22,7 +22,7 @@ from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
     load_subjects_without_mne
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
-    save_benchmark_results, split_list_into_chunks, save_training_numpy_data
+    save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, training_result_str
 
 
 # Torch to TensorRT for model optimizations
@@ -71,8 +71,9 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials,normalize=False)
-            #preloaded_data, preloaded_labels = load_subjects_without_mne(ALL_SUBJECTS, n_class)
+            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials,
+                                                                  normalize=False)
+            # preloaded_data, preloaded_labels = load_subjects_without_mne(ALL_SUBJECTS, n_class)
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
@@ -112,40 +113,29 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                 class_trials[cl] = len(test_class_hits[cl])
                 test_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
             class_accuracies[split] = test_class_accuracies
-        # Statistics
-        print("Accuracies on Test Dataset: ", accuracies)
-        print("Avg. Accuracy: ", np.average(accuracies))
-        if TEST_OVERFITTING:
-            print("Accuracies on Training Dataset: ", accuracies_overfitting)
-            print("Avg. Accuracy: ", np.average(accuracies_overfitting))
-            print("Avg. Accuracy difference (Test-Training): ",
-                  np.average(accuracies) - np.average(accuracies_overfitting))
-
-        matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
-                save_path=dir_results,
-                bar_plot=True, max_y=100.0)
+        elapsed = datetime.now() - start
         avg_class_accuracies = np.zeros(n_class)
         for j in range(n_class):
             avg_class_accuracies[j] = np.average([float(class_accuracies[sp][j]) for sp in range(splits)])
-
-        print("Trials per class: ", *class_trials, sep="\t")
-        print("Avg. Class Accuracies: ", avg_class_accuracies)
-        matplot(avg_class_accuracies, f"{n_class}classes Accuracies", "Class", "Accuracy in %",
+        res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed)
+        print(res_str)
+        # Plot Statistics and save as .png s
+        matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
                 save_path=dir_results,
                 bar_plot=True, max_y=100.0)
-        matplot(epoch_losses, f'{n_class}class-Losses over epochs', 'Epoch',
+        matplot(avg_class_accuracies, f"{n_class}classes Accuracies{'' if tag is None else tag}", "Class",
+                "Accuracy in %",
+                save_path=dir_results,
+                bar_plot=True, max_y=100.0)
+        matplot(epoch_losses, f"{n_class}class-Losses over epochs{'' if tag is None else tag}", 'Epoch',
                 f'loss per batch (size = {batch_size})',
                 labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
 
-        elapsed = datetime.now() - start
-        print(f"Elapsed time: {elapsed}")
-        # Store config + results in ./results/{datetime}/results.txt
-        save_training_results(training_config_str(config, n_class), n_class, accuracies, avg_class_accuracies,
-                              class_trials,
-                              epoch_losses,
-                              elapsed,
-                              dir_results, accuracies_overfitting, tag)
+        # Store config + results in ./results/{datetime}/{n_class}class_results.txt
+        save_training_results(training_config_str(config, n_class), n_class, res_str,
+                              dir_results, tag)
         save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class)
+    # Save best trained Model state
     if save_model & (best_trained_model is not None):
         torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
 
@@ -173,8 +163,8 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         print(f"Loading pretrained model from '{trained_model_path}'")
-        #model = EEGNet(n_class, chs)
-        model = QEEGNet(T=SAMPLES, C=chs)
+        # model = EEGNet(n_class, chs)
+        model = QEEGNet(N=n_class, T=SAMPLES, C=chs)
         model.load_state_dict(torch.load(trained_model_path))
         model.to(device)
         model.eval()
@@ -204,8 +194,8 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                 preloaded_data, preloaded_labels = None, None
                 if DATA_PRELOAD:
                     print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-                    #preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
-                    preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class)
+                    preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
+                    # preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class)
 
                 loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
                                                           preloaded_labels, batch_size)
@@ -225,11 +215,9 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         acc_avg = np.average(accuracies)
         batch_lat_avg = np.average(batch_lats)
         trial_inf_time_avg = np.average(trial_inf_times)
-        print(f"Batch Latency:{batch_lat_avg}")
-        print(f"Inference time per Trial:{trial_inf_time_avg}")
-        print(f"Trials per second:{(1 / trial_inf_time_avg):.2f}")
-        print(f"Elapsed Time: {str(elapsed)}")
-        save_benchmark_results(benchmark_config_str(config), n_class, batch_lat_avg, trial_inf_time_avg, acc_avg,
-                               elapsed, model,
+        # Print and store Benchmark Config + Results in /results/benchmark/{DateTime}
+        res_str = benchmark_result_str(config, n_class, batch_lat_avg, trial_inf_time_avg, acc_avg, elapsed)
+        print(res_str)
+        save_benchmark_results(benchmark_config_str(config), n_class, res_str, model,
                                dir_results, tag=tag)
         return batch_lat_avg, trial_inf_time_avg

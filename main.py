@@ -11,9 +11,10 @@ import sys
 import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMAGERY_CHANNELS
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS_18, MOTORIMG_CHANNELS_8, \
+    MOTORIMG_CHANNELS
 from data_loading import ALL_SUBJECTS
-from utils import datetime_to_folder_str
+from utils import datetime_to_folder_str, list_to_string
 
 
 def single_run(argv=sys.argv[1:]):
@@ -29,8 +30,8 @@ def single_run(argv=sys.argv[1:]):
                         help="List of n-class Classifications to run (2/3/4-Class possible)")
     parser.add_argument('--ch_names', nargs='+', type=str, default=MNE_CHANNELS,
                         help="List of EEG Channels to use (see config.py MNE_CHANNELS for all available Channels)")
-    parser.add_argument('--ch_motorimg', action='store_true',
-                        help=f"Use Predefined Motor Imagery Channels for Training ({MOTORIMAGERY_CHANNELS})")
+    parser.add_argument('--ch_motorimg', type=int, default=None,
+                        help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_string(MOTORIMG_CHANNELS.keys())} channels)")
     parser.add_argument('--all_trials', action='store_true',
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
 
@@ -60,13 +61,17 @@ def single_run(argv=sys.argv[1:]):
 
     args = parser.parse_args(argv)
     print(args)
-    if args.ch_motorimg:
-        args.ch_names = MOTORIMAGERY_CHANNELS
+    if args.ch_motorimg is not None:
+        if args.ch_motorimg not in MOTORIMG_CHANNELS:
+            parser.error(
+                f"Only {list_to_string(MOTORIMG_CHANNELS.keys())} channels are available for --ch_motorimg option")
+            pass
+        args.ch_names = MOTORIMG_CHANNELS[args.ch_motorimg]
         if args.name is None:
             start = datetime.now()
-            args.name = f"{datetime_to_folder_str(start)}_motor_img"
+            args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
         else:
-            args.name = args.name + "_motor_img"
+            args.name = args.name + f"_motor_img{args.ch_motorimg}"
     if (not args.train) & (not args.benchmark):
         parser.error("Either flag '--train' or '--benchmark' must be present!")
     if not all(((n_class >= 2) & (n_class <= 4)) for n_class in args.n_classes):
