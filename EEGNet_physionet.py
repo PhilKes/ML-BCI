@@ -24,7 +24,6 @@ from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_s
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, training_result_str
 
-
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
@@ -147,7 +146,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 # saves results in ./results/benchmark/{DateTime}
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=GPU_WARMUPS,
                      subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, name=None, tag=None,
-                     ch_names=MNE_CHANNELS, equal_trials=True):
+                     ch_names=MNE_CHANNELS, equal_trials=True, continous=False):
     config = dict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                   trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
@@ -161,7 +160,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
     else:
         dir_results = create_results_folders(path=name, type='benchmark')
 
-    class_models={}
+    class_models = {}
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         model_path = f"{trained_model_path}{n_class}class_trained_model.pt"
@@ -189,32 +188,49 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         batch_lats = np.zeros((chunks * iters))
         trial_inf_times = np.zeros((chunks * iters))
 
+        preloaded_data, preloaded_labels = None, None
         start = datetime.now()
-        # Infer over the entire Dataset multiple times
-        for i in range(iters):
-            # Benchmarking is executed per chunk of subjects
-            for ch_idx, subjects_chunk in enumerate(preload_chunks):
-                preloaded_data, preloaded_labels = None, None
-                if DATA_PRELOAD:
-                    print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-                    preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class,
-                                                                          equal_trials=equal_trials)
-                    # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
 
-                loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
-                                                          preloaded_labels, batch_size, equal_trials=equal_trials)
-                # Warm up GPU with random data
-                if device.type != 'cpu':
-                    print("Warming up GPU")
-                    for u in range(warm_ups):
-                        with torch.no_grad():
-                            data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
-                            y = class_models[n_class](data.half() if fp16 else data)
-                batch_lats[chunks * i + ch_idx], trial_inf_times[chunks * i + ch_idx], accuracies[
-                    chunks * i + ch_idx] = benchmark(class_models[n_class],
-                                                     loader_data,
-                                                     device,
-                                                     fp16)
+        # Preloads 1 chunk of Subjects and executes 1 gpu_warmup
+        if continous:
+            subjects_chunk = preload_chunks[0]
+            print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
+            preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class,
+                                                                  equal_trials=equal_trials)
+            # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
+
+            loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
+                                                      preloaded_labels, batch_size, equal_trials=equal_trials)
+            # Warm up GPU with random data
+            gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
+        # Infer multiple times
+        for i in range(iters):
+            if not continous:
+                # Benchmarking is executed per subject chunk over all Subjects
+                # Infers over 1 subject chunks, loads next subject chunk + gpu_warmup, ...
+                for ch_idx, subjects_chunk in enumerate(preload_chunks):
+                    if DATA_PRELOAD:
+                        print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
+                        preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class,
+                                                                              equal_trials=equal_trials)
+                        # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
+
+                    loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
+                                                              preloaded_labels, batch_size, equal_trials=equal_trials)
+                    # Warm up GPU with random data
+                    gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
+                    batch_lats[chunks * i + ch_idx], trial_inf_times[chunks * i + ch_idx], accuracies[
+                        chunks * i + ch_idx] = benchmark(class_models[n_class],
+                                                         loader_data,
+                                                         device,
+                                                         fp16)
+            else:
+                # Benchmarking is executed continously only over 1 subject chunk
+                # Infers over the same subject chunk i times without loading in between
+                batch_lats[i], trial_inf_times[i], accuracies[i] = benchmark(class_models[n_class],
+                                                                             loader_data,
+                                                                             device,
+                                                                             fp16)
         elapsed = datetime.now() - start
         acc_avg = np.average(accuracies)
         batch_lat_avg = np.average(batch_lats)
@@ -225,3 +241,12 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         save_benchmark_results(benchmark_config_str(config), n_class, res_str, class_models[n_class],
                                dir_results, tag=tag)
         return batch_lat_avg, trial_inf_time_avg
+
+
+def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
+    if device.type != 'cpu':
+        print("Warming up GPU")
+        for u in range(warm_ups):
+            with torch.no_grad():
+                data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
+                y = model(data.half() if fp16 else data)

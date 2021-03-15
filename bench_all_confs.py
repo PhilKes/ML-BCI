@@ -17,6 +17,10 @@ parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')
 parser.add_argument('--bs', nargs='+', type=int, default=[BATCH_SIZE],
                     help=f'Trial Batch Size (default:{BATCH_SIZE})')
+parser.add_argument('--continous', action='store_true',
+                    help=f'If present, will only loop benchmarking over 1 subject chunk, without loading other Subjects in between')
+parser.add_argument('--iters', type=int, default=1,
+                    help=f'Number of benchmark iterations over the Dataset in a loop (default:1, if --continous:10)')
 args = parser.parse_args()
 
 if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
@@ -26,18 +30,23 @@ if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
 # otherwise Error at outputs=net(inputs)(RuntimeError: NNPACK SpatialConvolution_updateOutput failed)
 # maybe related to: https://github.com/pytorch/pytorch/pull/49464
 all_confs = [
-   # ['--device', 'cpu'],
-   # ['--device', 'gpu', '--trt', '--fp16', '--ch_motorimg', '8'],
+    # ['--device', 'cpu'],
+    # ['--device', 'gpu', '--trt', '--fp16', '--ch_motorimg', '8'],
     ['--device', 'gpu'],
     ['--device', 'gpu', '--trt'],
     ['--device', 'gpu', '--trt', '--fp16'],
 ]
+if args.continous:
+    for conf in all_confs:
+        conf.append('--continous')
+    if args.iters == 1:
+        args.iters = 10
 
 start = datetime.now()
 parent_folder = f"{datetime_to_folder_str(start)}-all_confs"
 
 default_options = ['-benchmark',
-                   '--iters', '1',
+                   '--iters', str(args.iters),
                    '--subjects_cs', str(SUBJECTS_CS)]
 batch_lat_avgs, trial_inf_time_avgs = np.zeros((len(all_confs), len(args.bs))), np.zeros((len(all_confs), len(args.bs)))
 
