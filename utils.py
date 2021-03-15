@@ -101,7 +101,7 @@ def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save
         """Attach a text label above each bar in *rects*, displaying its height."""
         for rect in rects:
             height = rect.get_height()
-            ax.annotate(f"{height:.4f}",
+            ax.annotate(f"{height:.6f}",
                         xy=(rect.get_x() + rect.get_width() / 2, height),
                         xytext=(0, 3),  # 3 points vertical offset
                         textcoords="offset points",
@@ -153,6 +153,7 @@ def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
     file_result.write(res_str)
     file_result.close()
     # Save trained EEGNet to results folder
+
     torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")
 
 
@@ -206,7 +207,7 @@ Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
 Channels: {len(config['ch_names'])} {config['ch_names']}
-EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]
+EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
@@ -247,7 +248,7 @@ TensorRT optimized: {config['trt']} (fp{16 if bool(config['fp16']) else 32})
 Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Channels: {len(config['ch_names'])} {config['ch_names']}
-EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]
+EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
 Preload subjects Chunksize: {config['subjects_cs']}
 Batch Size: {config['batch_size']}
 Dataset Iterations: {config['iters']}

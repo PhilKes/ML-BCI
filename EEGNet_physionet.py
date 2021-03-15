@@ -28,11 +28,11 @@ from utils import training_config_str, create_results_folders, matplot, save_tra
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
-# if torch.cuda.is_available():
-#     import ctypes
-#     from torch2trt import torch2trt
-#
-#     _cudart = ctypes.CDLL('libcudart.so')
+if torch.cuda.is_available():
+    import ctypes
+    from torch2trt import torch2trt
+
+    _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs EEGNet Training + Testing
@@ -147,7 +147,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 # saves results in ./results/benchmark/{DateTime}
 def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=GPU_WARMUPS,
                      subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, name=None, tag=None,
-                     ch_names=MNE_CHANNELS):
+                     ch_names=MNE_CHANNELS, equal_trials=True):
     config = dict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                   trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
@@ -161,25 +161,26 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
     else:
         dir_results = create_results_folders(path=name, type='benchmark')
 
+    class_models={}
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         model_path = f"{trained_model_path}{n_class}class_trained_model.pt"
         print(f"Loading pretrained model from '{model_path}'")
         # model = EEGNet(n_class, chs)
-        model = QEEGNet(N=n_class, T=SAMPLES, C=chs)
-        model.load_state_dict(torch.load(model_path))
-        model.to(device)
-        model.eval()
+        class_models[n_class] = QEEGNet(N=n_class, T=SAMPLES, C=chs)
+        class_models[n_class].load_state_dict(torch.load(model_path))
+        class_models[n_class].to(device)
+        class_models[n_class].eval()
         # Get optimized model with TensorRT
-        # if tensorRT:
-        #     t = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
-        #     # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
-        #     # TensorRT either with fp16 ("half") or fp32
-        #     if fp16:
-        #         t = t.half()
-        #         model = model.half()
-        #     model = torch2trt(model, [t], max_batch_size=batch_size, fp16_mode=fp16)
-        #     print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
+        if tensorRT:
+            t = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
+            # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
+            # TensorRT either with fp16 ("half") or fp32
+            if fp16:
+                t = t.half()
+                class_models[n_class] = class_models[n_class].half()
+            class_models[n_class] = torch2trt(class_models[n_class], [t], max_batch_size=batch_size, fp16_mode=fp16)
+            print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
         preload_chunks = split_list_into_chunks(ALL_SUBJECTS, subjects_cs)
@@ -196,20 +197,21 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                 preloaded_data, preloaded_labels = None, None
                 if DATA_PRELOAD:
                     print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-                    preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
-                    # preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class)
+                    preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class,
+                                                                          equal_trials=equal_trials)
+                    # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
 
                 loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
-                                                          preloaded_labels, batch_size)
+                                                          preloaded_labels, batch_size, equal_trials=equal_trials)
                 # Warm up GPU with random data
                 if device.type != 'cpu':
                     print("Warming up GPU")
                     for u in range(warm_ups):
                         with torch.no_grad():
                             data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
-                            y = model(data.half() if fp16 else data)
+                            y = class_models[n_class](data.half() if fp16 else data)
                 batch_lats[chunks * i + ch_idx], trial_inf_times[chunks * i + ch_idx], accuracies[
-                    chunks * i + ch_idx] = benchmark(model,
+                    chunks * i + ch_idx] = benchmark(class_models[n_class],
                                                      loader_data,
                                                      device,
                                                      fp16)
@@ -220,6 +222,6 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         # Print and store Benchmark Config + Results in /results/benchmark/{DateTime}
         res_str = benchmark_result_str(config, n_class, batch_lat_avg, trial_inf_time_avg, acc_avg, elapsed)
         print(res_str)
-        save_benchmark_results(benchmark_config_str(config), n_class, res_str, model,
+        save_benchmark_results(benchmark_config_str(config), n_class, res_str, class_models[n_class],
                                dir_results, tag=tag)
         return batch_lat_avg, trial_inf_time_avg

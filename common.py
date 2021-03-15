@@ -147,8 +147,10 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
         print(f"Batches:{num_batches} Trials:{len(data_loader.dataset)}")
         # batch_lat = (stop - start) / num_batches
         # Inference time for 1 Trial
-        print(f"Batch Latency:\t\t{batch_lat:.5f}")
-        print(f"Trial Inf. Time:\t{trial_inf_time}")
+        print(f"Batch Latency: {batch_lat:.5f}")
+        print(f"Trial Inf. Time: {trial_inf_time}")
+        print(f"Trials per second: {(1 / trial_inf_time): .2f}")
+
         # trial_inf_time = (stop - start) / len(data_loader.dataset)
 
     print("Inference finished ######")

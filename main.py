@@ -112,7 +112,7 @@ def single_run(argv=sys.argv[1:]):
         # for i in range(args.loops):
         return eegnet_benchmark(n_classes=args.n_classes, device=device, subjects_cs=args.subjects_cs, name=args.name,
                                 tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
-                                tag=args.tag, ch_names=args.ch_names)
+                                tag=args.tag, ch_names=args.ch_names, equal_trials=(not args.all_trials))
 
 
 ########################################################################################

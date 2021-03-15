@@ -127,7 +127,12 @@ class QEEGNet(t.nn.Module):
         x = self.dropout2(x)
 
         # Classification
-        x = self.flatten(x)  # output dim: (s, F2 * (T // 64))
+        # torch.nn.Flatten is not supported by TensorRT -> use view()/reshape()
+        # https://discuss.pytorch.org/t/what-is-the-difference-of-flatten-and-view-1-in-pytorch/51790/5
+        # https://discuss.pytorch.org/t/mat1-dim-doesnt-matches-the-mat2-dim/93256
+        # x = self.flatten(x)  # output dim: (s, F2 * (T // 64))
+        #x = x.view(-1, int(self.F2 * (self.T // 64)))
+        x = x.reshape(x.size(0), -1)
         x = self.fc(x)  # output dim: (s, N)
 
         return x
