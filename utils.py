@@ -3,8 +3,10 @@ Utility functions for printing Statistics, Plotting,
 Saving results, etc.
 """
 import errno
+import glob
 import math
 import os
+import shutil
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -16,7 +18,8 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX
+from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
+    trained_model_path, trained_model_name
 
 
 # Create results folder with current DateTime as name
@@ -74,7 +77,7 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple']
 
 
 # Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
-def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save_path=None):
+def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylabel="", save_path=None):
     x = np.arange(len(configs_data))  # the label locations
     width = (1.0 / len(batch_sizes)) - 0.1  # the width of the bars
 
@@ -88,7 +91,7 @@ def matplot_grouped_configs(configs_data, batch_sizes, title="", ylabel="", save
             conf_data = configs_data[conf_idx]
             print(conf_data)
             bs_rects[bs_idx].append(ax.bar((conf_idx) - width / len(batch_sizes) + bs_idx * width,
-                                           conf_data[bs_idx], width, color=colors[bs_idx]))
+                                           conf_data[bs_idx][class_idx], width, color=colors[bs_idx]))
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel(ylabel)
@@ -154,7 +157,7 @@ def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
     file_result.close()
     # Save trained EEGNet to results folder
 
-    torch.save(model.state_dict(), f"{dir_results}/trained_model.pt")
+    torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
 def datetime_to_folder_str(datetime):
@@ -174,6 +177,19 @@ def create_results_folders(path=None, datetime=None, type='train'):
             raise
         pass
     return results
+
+
+# Copy all Training results.txt from ./benchmarking_model folder to new benchmark results folder
+def copy_config_txts(path):
+    full_path = f"{benchmark_results_folder}/{path}"
+    try:
+        os.makedirs(full_path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+        print(e)
+    for file in glob.glob(os.path.join(trained_model_path, "*")):
+        shutil.copy2(file, full_path)
 
 
 str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]

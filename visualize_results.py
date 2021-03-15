@@ -26,17 +26,23 @@ if (not (os.path.exists(args.folder))):
 # batch_lat_avgs: (config idx, batch size idx)
 # trial_inf_time_avgs: (config idx, batch size idx)
 results = np.load(f"{args.folder}/results.npz")
-batch_sizes, batch_lat_avgs, trial_inf_time_avgs = results['batch_sizes'], results['batch_lat_avgs'], results['trial_inf_time_avgs']
+batch_sizes, batch_lat_avgs, trial_inf_time_avgs, n_classes = results['batch_sizes'], results['batch_lat_avgs'], \
+                                                              results[
+                                                                  'trial_inf_time_avgs'], results['n_classes']
 # matplot(batch_lat_avgs, title='Average Batch Latencies', xlabel='Config',
 #         ylabel='Latency in sec', labels=[f"Conf {i}" for i in range(len(batch_lat_avgs))],
 #         save_path=args.folder, bar_plot=True)
-matplot_grouped_configs(configs_data=batch_lat_avgs,
-                        batch_sizes=batch_sizes,
-                        title='Batch Latencies',
-                        ylabel='Latency in Sec.',
-                        save_path=args.folder)
-matplot_grouped_configs(configs_data=trial_inf_time_avgs,
-                        batch_sizes=batch_sizes,
-                        title='Trial Inference time',
-                        ylabel='Inference Time in Sec.',
-                        save_path=args.folder)
+for class_idx, n_class in enumerate(n_classes):
+    matplot_grouped_configs(configs_data=batch_lat_avgs,
+                            batch_sizes=batch_sizes,
+                            class_idx=class_idx,
+                            title=f'{n_class}class Batch Latencies',
+                            ylabel='Latency in Sec.',
+                            save_path=args.folder)
+    matplot_grouped_configs(configs_data=trial_inf_time_avgs,
+                            batch_sizes=batch_sizes,
+                            class_idx=class_idx,
+                            title=f'{n_class}class Trial Inference times',
+                            ylabel='Inference Time in Sec.',
+                            save_path=args.folder)
+print(f"Plotted Benchmarking Statistics to '{args.folder}'")

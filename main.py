@@ -49,7 +49,7 @@ def single_run(argv=sys.argv[1:]):
                         help=f'Number of benchmark iterations over the Dataset in a loop (default:1)')
     parser.add_argument('--bs', type=int, default=BATCH_SIZE,
                         help=f'Trial Batch Size (default:{BATCH_SIZE})')
-    parser.add_argument('--continous', action='store_true',
+    parser.add_argument('--continuous', action='store_true',
                         help=f'If present, will only loop benchmarking over 10 Subjects Data, without loading other Subjects in between')
 
     # parser.add_argument('--loops', type=int, default=1,
@@ -115,7 +115,7 @@ def single_run(argv=sys.argv[1:]):
         return eegnet_benchmark(n_classes=args.n_classes, device=device, subjects_cs=args.subjects_cs, name=args.name,
                                 tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
                                 tag=args.tag, ch_names=args.ch_names, equal_trials=(not args.all_trials),
-                                continous=args.continous)
+                                continuous=args.continuous)
 
 
 ########################################################################################
