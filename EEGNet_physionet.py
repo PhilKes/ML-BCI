@@ -66,7 +66,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
     # Split Data into training + test  (84 Subjects Training, 21 Testing)
     cv = GroupKFold(n_splits=splits)
 
-    best_trained_model = None
+    best_trained_model = {}
     for i, n_class in enumerate(n_classes):
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
@@ -102,9 +102,9 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
             if TEST_OVERFITTING:
                 print("## Validation on Training Dataset ##")
                 accuracies_overfitting[split], train_class_hits = test(model, loader_train, device, n_class)
-            if save_model & (n_class == 3):
+            if save_model:
                 if accuracies[split] >= accuracies.max():
-                    best_trained_model = model
+                    best_trained_model[n_class] = model
 
             accuracies[split] = test_accuracy
             test_class_accuracies = np.zeros(n_class)
@@ -136,8 +136,9 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                               dir_results, tag)
         save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class)
     # Save best trained Model state
-    if save_model & (best_trained_model is not None):
-        torch.save(best_trained_model.state_dict(), f"{dir_results}/trained_model.pt")
+    if save_model:
+        for cl in best_trained_model:
+            torch.save(best_trained_model[cl].state_dict(), f"{dir_results}/{cl}class_trained_model.pt")
 
 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
@@ -162,10 +163,11 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
 
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
-        print(f"Loading pretrained model from '{trained_model_path}'")
+        model_path = f"{trained_model_path}{n_class}class_trained_model.pt"
+        print(f"Loading pretrained model from '{model_path}'")
         # model = EEGNet(n_class, chs)
         model = QEEGNet(N=n_class, T=SAMPLES, C=chs)
-        model.load_state_dict(torch.load(trained_model_path))
+        model.load_state_dict(torch.load(model_path))
         model.to(device)
         model.eval()
         # Get optimized model with TensorRT
