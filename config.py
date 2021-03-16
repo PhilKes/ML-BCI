@@ -74,9 +74,12 @@ MNE_CHANNELS = [
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:
 # https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/EEG_10-10_system_with_additional_information.svg/640px-EEG_10-10_system_with_additional_information.svg.png?1615815815740
+
+#Source:
+# https://www.researchgate.net/publication/324826717_Motor_Imagery_EEG_Signal_Processing_and_Classification_using_Machine_Learning_Approach
 MOTORIMG_CHANNELS_18 = [
     'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
-    'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
+    'C5',  'C3',  'C1',  'C2',  'C4',  'C6',
     'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
 ]
 MOTORIMG_CHANNELS_8 = [
@@ -84,8 +87,40 @@ MOTORIMG_CHANNELS_8 = [
 
     'Cp5', 'Cp1', 'Cp2', 'Cp6',
 ]
+MOTORIMG_CHANNELS_8_2 = [
+        'Fc3',           'Fc4',
+    'C5',     'C1', 'C2',       'C6',
+        'Cp3',           'Cp4'
+]
+MOTORIMG_CHANNELS_8_3 = [
+            'Fc1', 'Fc2',
+    'C5','C3',          'C4','C6',
+             'Cp1','Cp2'
+]
+MOTORIMG_CHANNELS_8_4 = [
+    'Fc3',         'Fc4',
+    'C3','C1','C2','C4',
+    'Cp3',         'Cp4'
+]
+MOTORIMG_CHANNELS_8_5 = [
+    'Fc5',                   'Fc6',
+         'C3','C1', 'C2','C4',
+    'Cp5',                   'Cp6'
+]
+MOTORIMG_CHANNELS_8_6 = [
+    'Fc5',                    'Fc6',
+    'C5','C3','C1', 'C2','C4','C6'
+]
+# source:
+# https://www.mdpi.com/1424-8220/17/7/1557/htm
+MOTORIMG_CHANNELS_5 = [
+    "C3", "Cz", "C4", "Cp3", "Cp4"
+]
 
-MOTORIMG_CHANNELS = {8: MOTORIMG_CHANNELS_8, 18: MOTORIMG_CHANNELS_18}
+MOTORIMG_CHANNELS = {'8': MOTORIMG_CHANNELS_8, '8_2': MOTORIMG_CHANNELS_8_2,
+                     '8_3': MOTORIMG_CHANNELS_8_3,'8_4': MOTORIMG_CHANNELS_8_4,
+                     '8_5': MOTORIMG_CHANNELS_8_5,'8_6': MOTORIMG_CHANNELS_8_6,
+                     '5': MOTORIMG_CHANNELS_5, '18': MOTORIMG_CHANNELS_18}
 
 # # Calculated with python_test.py get_mean_std():
 # channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,

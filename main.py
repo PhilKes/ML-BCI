@@ -30,7 +30,7 @@ def single_run(argv=sys.argv[1:]):
                         help="List of n-class Classifications to run (2/3/4-Class possible)")
     parser.add_argument('--ch_names', nargs='+', type=str, default=MNE_CHANNELS,
                         help="List of EEG Channels to use (see config.py MNE_CHANNELS for all available Channels)")
-    parser.add_argument('--ch_motorimg', type=int, default=None,
+    parser.add_argument('--ch_motorimg', type=str, default=None,
                         help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_string(MOTORIMG_CHANNELS.keys())} channels)")
     parser.add_argument('--all_trials', action='store_true',
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
