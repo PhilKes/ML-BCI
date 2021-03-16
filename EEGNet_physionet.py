@@ -12,15 +12,11 @@ import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from models.EEGNet_model import EEGNet
-from models.EEGNet_model_v2 import EEGNetv2
-from models.ERDS_PyTorch_EEGNet import ERDS_EEGNet
-from models.QEEGNet import QEEGNet
+from models.EEGNet import EEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
     trained_model_path, SAMPLES, GPU_WARMUPS, MNE_CHANNELS, trained_model_name
-from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
-    load_subjects_without_mne
+from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, training_result_str, \
     copy_config_txts
@@ -74,7 +70,6 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
             print("PRELOADING ALL DATA IN MEMORY")
             preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials,
                                                                   normalize=False)
-            # preloaded_data, preloaded_labels = load_subjects_without_mne(ALL_SUBJECTS, n_class)
 
         cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
         start = datetime.now()
@@ -93,7 +88,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                                                                    batch_size, ch_names, equal_trials)
 
             # model = EEGNet(n_class, chs)
-            model = QEEGNet(N=n_class, C=chs, T=SAMPLES)
+            model = EEGNet(N=n_class, C=chs, T=SAMPLES)
             model.to(device)
 
             epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
@@ -170,7 +165,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         model_path = f"{trained_model_path}{n_class}class_{trained_model_name}"
         print(f"Loading pretrained model from '{model_path}'")
         # model = EEGNet(n_class, chs)
-        class_models[n_class] = QEEGNet(N=n_class, T=SAMPLES, C=chs)
+        class_models[n_class] = EEGNet(N=n_class, T=SAMPLES, C=chs)
         class_models[n_class].load_state_dict(torch.load(model_path))
         class_models[n_class].to(device)
         class_models[n_class].eval()
@@ -201,7 +196,6 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
             print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
             preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
                                                                   equal_trials=equal_trials)
-            # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
 
             loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
                                                       preloaded_labels, batch_size, equal_trials=equal_trials)

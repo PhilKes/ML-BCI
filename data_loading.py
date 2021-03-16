@@ -20,7 +20,6 @@ from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
     MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN, SAMPLERATE
-from embedded.get_data import get_data
 from utils import print_subjects_ranges, split_np_into_chunks
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
@@ -171,17 +170,6 @@ def get_trials_size(n_class, equal_trials):
 # Normalize Data to [0;1] range
 scaler = MinMaxScaler(copy=False)
 normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
-
-
-# Load data using Tensorflow implementation of get_data
-def load_subjects_without_mne(subjects, n_classes):
-    X, y = get_data('.\\datasets\\manual\\dataset\\files\\', subjects_list=subjects,
-                    n_classes=n_classes)
-    X = np.swapaxes(X, 1, 2)
-    X = X.reshape((len(subjects), n_classes * TRIALS_PER_SUBJECT_RUN, SAMPLES, len(MNE_CHANNELS)))
-    y = y.reshape((len(subjects), n_classes * TRIALS_PER_SUBJECT_RUN))
-    print("Preload Shape", X.shape)
-    return X, y
 
 
 # Loads all Subjects Data + Labels for n_class Classification

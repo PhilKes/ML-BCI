@@ -1,13 +1,18 @@
-import numpy as np
-import torch as t
-import torch.nn.functional as F
+from functools import reduce
+from operator import __add__
 
-from models.EEGNet_model_v2 import get_padding
+import numpy as np
+import torch  # noqa
+import torch as t
+import torch.nn.functional as F  # noqa
+import torch.optim as optim  # noqa
+from torch import nn, Tensor  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
 
 # Source
 # https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
-class QEEGNet(t.nn.Module):
+class EEGNet(t.nn.Module):
     """
     EEGNet
     """
@@ -30,7 +35,7 @@ class QEEGNet(t.nn.Module):
         dropout_type: string, either 'dropout', 'SpatialDropout2d' or 'TimeDropout2D'
         permuted_flatten: bool, if True, use the permuted flatten to make the model keras compliant
         """
-        super(QEEGNet, self).__init__()
+        super(EEGNet, self).__init__()
 
         # prepare network constants
         if F2 is None:
@@ -294,3 +299,9 @@ class PermutedFlatten(t.nn.Flatten):
 
     def forward(self, input):
         return input.permute(0, 2, 3, 1).flatten(self.start_dim, self.end_dim)
+
+# Source:
+# https://stackoverflow.com/questions/58307036/is-there-really-no-padding-same-option-for-pytorchs-conv2d
+# Calculates correct Padding for Conv2d Layer for given kernel size
+def get_padding(kernel_size):
+    return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
