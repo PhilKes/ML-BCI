@@ -12,9 +12,9 @@ import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS_18, MOTORIMG_CHANNELS_8, \
-    MOTORIMG_CHANNELS
+    MOTORIMG_CHANNELS, trained_model_path
 from data_loading import ALL_SUBJECTS
-from utils import datetime_to_folder_str, list_to_string
+from utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
 
 
 def single_run(argv=sys.argv[1:]):
@@ -49,8 +49,8 @@ def single_run(argv=sys.argv[1:]):
                         help=f'Number of benchmark iterations over the Dataset in a loop (default:1)')
     parser.add_argument('--bs', type=int, default=BATCH_SIZE,
                         help=f'Trial Batch Size (default:{BATCH_SIZE})')
-    parser.add_argument('--continuous', action='store_true',
-                        help=f'If present, will only loop benchmarking over 10 Subjects Data, without loading other Subjects in between')
+    parser.add_argument('--all', dest='continuous', action='store_false',
+                        help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
 
     # parser.add_argument('--loops', type=int, default=1,
     #                     help=f'Number of loops of Training/Benchmarking is run (default:1)')
@@ -111,6 +111,7 @@ def single_run(argv=sys.argv[1:]):
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
                            equal_trials=(not args.all_trials))
     elif args.benchmark:
+        args.ch_names = load_chs_from_txt(trained_model_path)
         # for i in range(args.loops):
         return eegnet_benchmark(n_classes=args.n_classes, device=device, subjects_cs=args.subjects_cs, name=args.name,
                                 tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,

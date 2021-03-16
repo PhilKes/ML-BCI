@@ -16,6 +16,8 @@
 # *                                                                            *
 # * Authors: Batuhan Toemekce, Burak Kaya, Michael Hersche                     *
 # *----------------------------------------------------------------------------*
+# source:
+# https://github.com/MHersche/eegnet-based-embedded-bci
 
 # !/usr/bin/env python3
 

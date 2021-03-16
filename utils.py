@@ -19,7 +19,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
-    trained_model_path, trained_model_name
+    trained_model_path, trained_model_name, chs_names_txt
 
 
 # Create results folder with current DateTime as name
@@ -144,8 +144,14 @@ def save_training_results(str_conf, n_class, str_res,
     file_result.close()
 
 
-def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class):
+def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class, ch_names):
     np.savez(f"{save_path}/{n_class}class-results.npz", accs=accs, losses=losses, class_accs=class_accuracies)
+    np.savetxt(f"{save_path}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
+
+
+# Loads list of ch_names from training results folder
+def load_chs_from_txt(txt_folder):
+    return np.genfromtxt(f"{txt_folder}{chs_names_txt}", dtype='str')
 
 
 # Saves config + results.txt in dir_results

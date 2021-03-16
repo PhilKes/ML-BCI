@@ -9,7 +9,7 @@ results can be visualized with visualize_results.py (provide --folder {parent_fo
 import argparse
 from datetime import datetime
 import numpy as np
-from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES
+from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES, MNE_CHANNELS
 from main import single_run
 from utils import datetime_to_folder_str, copy_config_txts
 
@@ -17,8 +17,8 @@ parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')
 parser.add_argument('--bs', nargs='+', type=int, default=[BATCH_SIZE],
                     help=f'Trial Batch Size (default:{BATCH_SIZE})')
-parser.add_argument('--continuous', action='store_true',
-                    help=f'If present, will only loop benchmarking over 1 subject chunk, without loading other Subjects in between')
+parser.add_argument('--all', dest='continuous', action='store_false',
+                    help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
 parser.add_argument('--iters', type=int, default=1,
                     help=f'Number of benchmark iterations over the Dataset in a loop (default:1, if --continuous:10)')
 parser.add_argument('--tag', type=str, default=None,
@@ -41,10 +41,11 @@ all_confs = [
     ['--device', 'gpu', '--trt', '--fp16'],
 ]
 if args.continuous:
-    for conf in all_confs:
-        conf.append('--continuous')
     if args.iters == 1:
         args.iters = 10
+else:
+    for conf in all_confs:
+        conf.append('--all')
 
 start = datetime.now()
 parent_folder = f"{datetime_to_folder_str(start)}{f'_{args.tag}' if args.tag is not None else ''}-all_confs"

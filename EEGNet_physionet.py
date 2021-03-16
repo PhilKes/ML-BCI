@@ -25,6 +25,7 @@ from utils import training_config_str, create_results_folders, matplot, save_tra
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, training_result_str, \
     copy_config_txts
 
+
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
@@ -134,7 +135,7 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         # Store config + results in ./results/{datetime}/{n_class}class_results.txt
         save_training_results(training_config_str(config, n_class), n_class, res_str,
                               dir_results, tag)
-        save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class)
+        save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class, ch_names)
     # Save best trained Model state
     if save_model:
         for cl in best_trained_model:
@@ -198,7 +199,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         if continuous:
             subjects_chunk = preload_chunks[0]
             print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-            preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class,
+            preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
                                                                   equal_trials=equal_trials)
             # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
 
@@ -215,7 +216,7 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
                 for ch_idx, subjects_chunk in enumerate(preload_chunks):
                     if DATA_PRELOAD:
                         print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-                        preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class,
+                        preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
                                                                               equal_trials=equal_trials)
                         # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
 
@@ -241,7 +242,8 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
         batch_lat_avgs[class_idx] = np.average(batch_lats)
         trial_inf_time_avgs[class_idx] = np.average(trial_inf_times)
         # Print and store Benchmark Config + Results in /results/benchmark/{DateTime}
-        res_str = benchmark_result_str(config, n_class, batch_lat_avgs[class_idx], trial_inf_time_avgs[class_idx], acc_avg, elapsed)
+        res_str = benchmark_result_str(config, n_class, batch_lat_avgs[class_idx], trial_inf_time_avgs[class_idx],
+                                       acc_avg, elapsed)
         print(res_str)
         save_benchmark_results(benchmark_config_str(config), n_class, res_str, class_models[n_class],
                                dir_results, tag=tag)
@@ -249,8 +251,8 @@ def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.de
 
 
 def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
-        print("Warming up GPU")
-        for u in range(warm_ups):
-            with torch.no_grad():
-                data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
-                y = model(data.half() if fp16 else data)
+    print("Warming up GPU")
+    for u in range(warm_ups):
+        with torch.no_grad():
+            data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
+            y = model(data.half() if fp16 else data)

@@ -90,10 +90,10 @@ class QEEGNet(t.nn.Module):
         self.dropout2 = dropout(p=p_dropout)
 
         # Fully connected layer (classifier)
-        if permuted_flatten:
-            self.flatten = PermutedFlatten()
-        else:
-            self.flatten = t.nn.Flatten()
+        # if permuted_flatten:
+        #     self.flatten = PermutedFlatten()
+        # else:
+        #     self.flatten = t.nn.Flatten()
         if constrain_w:
             self.fc = ConstrainedLinear(F2 * n_features, N, bias=True, max_weight=reg_rate)
         else:

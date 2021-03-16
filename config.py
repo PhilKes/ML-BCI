@@ -21,6 +21,7 @@ benchmark_results_folder = f"{results_folder}/benchmark"
 # (copy any results/training/ folder content into ./benchmarking_model
 trained_model_path = "./benchmarking_model/"
 trained_model_name = "trained_model.pt"
+chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to
 # on initial Run MNE needs to download the Dataset
 datasets_folder = './datasets/'
