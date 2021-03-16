@@ -14,13 +14,13 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from models.EEGNet import EEGNet
 from common import train, test, benchmark
-from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, \
-    trained_model_path, SAMPLES, GPU_WARMUPS, MNE_CHANNELS, trained_model_name
+from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
+    MNE_CHANNELS, trained_model_name, training_results_folder, \
+    benchmark_results_folder
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
 from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
-    save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, training_result_str, \
-    copy_config_txts
-
+    save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, save_config, \
+    training_result_str
 
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
@@ -35,7 +35,7 @@ if torch.cuda.is_available():
 # Runs EEGNet Training + Testing
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
-# Saves Accuracies + Epochs in ./results/training/{DateTime}
+# Saves Accuracies + Epochs in ./results/{DateTime/name}/training
 # save_model: Saves trained model with highest accuracy in results folder
 def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
                        save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
@@ -127,10 +127,10 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
                 f'loss per batch (size = {batch_size})',
                 labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
 
-        # Store config + results in ./results/{datetime}/{n_class}class_results.txt
-        save_training_results(training_config_str(config, n_class), n_class, res_str,
-                              dir_results, tag)
-        save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class, ch_names)
+        # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
+        save_config(training_config_str(config, n_class), ch_names, dir_results, tag)
+        save_training_results(n_class, res_str, dir_results, tag)
+        save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class)
     # Save best trained Model state
     if save_model:
         for cl in best_trained_model:
@@ -140,29 +140,26 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
 # with Physionet Dataset (3class-Classification)
 # Returns Batch Latency + Time per EEG Trial inference
-# saves results in ./results/benchmark/{DateTime}
-def eegnet_benchmark(batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"), warm_ups=GPU_WARMUPS,
-                     subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, name=None, tag=None,
-                     ch_names=MNE_CHANNELS, equal_trials=True, continuous=False):
+# saves results in model_path/benchmark
+def eegnet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"),
+                     warm_ups=GPU_WARMUPS,
+                     subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
+                     ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
     config = dict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                   trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
 
-    start = datetime.now()
     print(benchmark_config_str(config))
-    if name is None:
-        dir_results = create_results_folders(datetime=start, type='benchmark')
-    else:
-        dir_results = create_results_folders(path=name, type='benchmark')
+    dir_results = create_results_folders(path=f"{model_path}", name=name, type='benchmark')
 
     class_models = {}
     batch_lat_avgs = np.zeros((len(n_classes)))
     trial_inf_time_avgs = np.zeros((len(n_classes)))
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
-        model_path = f"{trained_model_path}{n_class}class_{trained_model_name}"
+        model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
         print(f"Loading pretrained model from '{model_path}'")
         # model = EEGNet(n_class, chs)
         class_models[n_class] = EEGNet(N=n_class, T=SAMPLES, C=chs)

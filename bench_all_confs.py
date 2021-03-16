@@ -15,6 +15,8 @@ from utils import datetime_to_folder_str, copy_config_txts
 
 parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')
+parser.add_argument('--model', type=str, default=None,
+                    help='Relative Folder path of model used to benchmark (in ./results folder)')
 parser.add_argument('--bs', nargs='+', type=int, default=[BATCH_SIZE],
                     help=f'Trial Batch Size (default:{BATCH_SIZE})')
 parser.add_argument('--all', dest='continuous', action='store_false',
@@ -27,6 +29,8 @@ parser.add_argument('--n_classes', nargs='+', type=int, default=N_CLASSES,
                     help="List of n-class Classifications to run (2/3/4-Class possible)")
 args = parser.parse_args()
 
+if args.model is None:
+    parser.error("You have to specify a model to use for benchmarking (from ./results)")
 if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
     parser.error("Batchsizes (--bs) must be a list of integers > 0")
 
@@ -46,12 +50,12 @@ else:
     for conf in all_confs:
         conf.append('--all')
 
-start = datetime.now()
-parent_folder = f"{datetime_to_folder_str(start)}{f'_{args.tag}' if args.tag is not None else ''}-all_confs"
+parent_folder = f"{args.model}{benchmark_results_folder}"
 
-copy_config_txts(parent_folder)
+# copy_config_txts(parent_folder)
 
 default_options = ['-benchmark',
+                   '--model', str(args.model),
                    '--iters', str(args.iters),
                    '--subjects_cs', str(SUBJECTS_CS),
                    '--n_classes'] + [str(i) for i in args.n_classes]
@@ -65,7 +69,7 @@ for i, conf in enumerate(all_confs):
         # Make sure that batch_size !> 15 if CPU is used
         batch_size = str(15) if (conf[1] == 'cpu') & (bs > 15) else str(bs)
         batch_lat_avgs[i][bs_idx], trial_inf_time_avgs[i][bs_idx] = single_run(default_options + conf +
-                                                                               ['--name', f"{parent_folder}/conf_{i}",
+                                                                               ['--name', f"conf_{i}",
                                                                                 '--tag', f"bs_{bs}",
                                                                                 '--bs', batch_size])
 # Save all results with numpy
@@ -74,7 +78,7 @@ for i, conf in enumerate(all_confs):
 # batch_lat_avgs: (config idx, batch size idx)
 # trial_inf_time_avgs: (config idx, batch size idx)
 # n_classes: (len(args.n_classes)
-np.savez(f"{benchmark_results_folder}/{parent_folder}/results.npz",
+np.savez(f"{parent_folder}/results.npz",
          batch_sizes=np.array(args.bs, dtype=np.int),
          batch_lat_avgs=batch_lat_avgs,
          trial_inf_time_avgs=trial_inf_time_avgs,

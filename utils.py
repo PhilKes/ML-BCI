@@ -19,7 +19,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
-    trained_model_path, trained_model_name, chs_names_txt
+    trained_model_name, chs_names_txt, results_folder
 
 
 # Create results folder with current DateTime as name
@@ -136,28 +136,33 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Saves config + results.txt in dir_results
-def save_training_results(str_conf, n_class, str_res,
+def save_training_results(n_class, str_res,
                           dir_results, tag=None):
-    file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
-    file_result.write(str_conf)
+    file_result = open(f"{dir_results}/{n_class}class-training{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_res)
     file_result.close()
 
 
-def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class, ch_names):
-    np.savez(f"{save_path}/{n_class}class-results.npz", accs=accs, losses=losses, class_accs=class_accuracies)
-    np.savetxt(f"{save_path}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
+def save_config(str_conf, ch_names, dir_results, tag=None):
+    file_result = open(f"{dir_results}/config{'' if tag is None else f'_{tag}'}.txt", "w+")
+    file_result.write(str_conf)
+    file_result.close()
+    np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
+
+
+def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class):
+    np.savez(f"{save_path}/{n_class}class-training.npz", accs=accs, losses=losses, class_accs=class_accuracies)
 
 
 # Loads list of ch_names from training results folder
 def load_chs_from_txt(txt_folder):
-    return np.genfromtxt(f"{txt_folder}{chs_names_txt}", dtype='str')
+    return np.genfromtxt(f"{txt_folder}/{training_results_folder}/{chs_names_txt}", dtype='str')
 
 
 # Saves config + results.txt in dir_results
 def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
                            tag=None):
-    file_result = open(f"{dir_results}/{n_class}class-results{'' if tag is None else f'_{tag}'}.txt", "w+")
+    file_result = open(f"{dir_results}/{n_class}class-benchmark{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
     file_result.write(res_str)
     file_result.close()
@@ -170,32 +175,25 @@ def datetime_to_folder_str(datetime):
     return datetime.strftime("%Y-%m-%d %H_%M_%S")
 
 
-def create_results_folders(path=None, datetime=None, type='train'):
+def create_results_folders(path=None, name=None, datetime=None, type='train'):
     if path is not None:
-        results = f"{training_results_folder if type == 'train' else benchmark_results_folder}/{path}"
+        if type == 'train':
+            folder = f"{results_folder}/{path}{training_results_folder}"
+        else:
+            folder = f"{path}{benchmark_results_folder}{'' if name is None else f'/{name}'}"
     else:
         now_string = datetime_to_folder_str(datetime)
-        results = f"{training_results_folder if type == 'train' else benchmark_results_folder}/{now_string}"
-    try:
-        os.makedirs(results)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-        pass
-    return results
+        folder = f"{results_folder}/{now_string}{training_results_folder}"
+    makedir(folder)
+    return folder
 
 
 # Copy all Training results.txt from ./benchmarking_model folder to new benchmark results folder
-def copy_config_txts(path):
-    full_path = f"{benchmark_results_folder}/{path}"
-    try:
-        os.makedirs(full_path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-        print(e)
-    for file in glob.glob(os.path.join(trained_model_path, "*")):
-        shutil.copy2(file, full_path)
+# def copy_config_txts(path):
+#     full_path = f"{benchmark_results_folder}/{path}"
+#     makedir(full_path)
+#     for file in glob.glob(os.path.join(trained_model_path, "*")):
+#         shutil.copy2(file, full_path)
 
 
 str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]
@@ -289,3 +287,12 @@ Accuracies:{acc_avg:.2f}
 
 def list_to_string(list):
     return ','.join([str(i) for i in list])
+
+
+def makedir(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+        pass

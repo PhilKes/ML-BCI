@@ -15,11 +15,9 @@ FREQ_FILTER_HIGHPASS = None
 FREQ_FILTER_LOWPASS = None
 
 results_folder = './results'
-training_results_folder = f"{results_folder}/training"
-benchmark_results_folder = f"{results_folder}/benchmark"
-# Path to default trained model for benchmarking mode
-# (copy any results/training/ folder content into ./benchmarking_model
-trained_model_path = "./benchmarking_model/"
+training_results_folder = f"/training"
+benchmark_results_folder = f"/benchmark"
+
 trained_model_name = "trained_model.pt"
 chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to

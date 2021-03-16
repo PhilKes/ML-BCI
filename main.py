@@ -12,7 +12,7 @@ import torch
 
 from EEGNet_physionet import eegnet_training_cv, eegnet_benchmark
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS_18, MOTORIMG_CHANNELS_8, \
-    MOTORIMG_CHANNELS, trained_model_path
+    MOTORIMG_CHANNELS, trained_model_path, results_folder
 from data_loading import ALL_SUBJECTS
 from utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
 
@@ -36,9 +36,11 @@ def single_run(argv=sys.argv[1:]):
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
 
     parser.add_argument('-benchmark',
-                        help="Runs Benchmarking with Physionet Dataset with trained model (./benchmarking_model/trained_model.pt)",
+                        help="Runs Benchmarking with Physionet Dataset with specified trained model",
                         action='store_true', required=False)
     # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
+    parser.add_argument('--model', type=str, default=None,
+                        help='Relative Folder path of model used to benchmark (in ./results folder)')
     parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
                         help=f"Chunk size for preloading subjects in memory (only for benchmark, default:{SUBJECTS_CS}, lower for less memory usage )")
     parser.add_argument('--trt', action='store_true',
@@ -93,6 +95,8 @@ def single_run(argv=sys.argv[1:]):
     if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):
         print(args.ch_names)
         parser.error("Channel names (--ch_names) must be a list of EEG Channels (see config.py MNE_CHANNELS)")
+    if args.benchmark & (args.model is None):
+        parser.error("You have to use --model to specify which model to benchmark with")
     # Slice channels from the 64 available EEG Channels from the start to given chs
     # ch_names = MNE_CHANNELS[:args.chs]
 
@@ -111,12 +115,14 @@ def single_run(argv=sys.argv[1:]):
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
                            equal_trials=(not args.all_trials))
     elif args.benchmark:
-        args.ch_names = load_chs_from_txt(trained_model_path)
+        model_path = f"{args.model}"
+        args.ch_names = load_chs_from_txt(model_path)
         # for i in range(args.loops):
-        return eegnet_benchmark(n_classes=args.n_classes, device=device, subjects_cs=args.subjects_cs, name=args.name,
+        return eegnet_benchmark(model_path, name=args.name, n_classes=args.n_classes, device=device,
+                                subjects_cs=args.subjects_cs,
                                 tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
                                 tag=args.tag, ch_names=args.ch_names, equal_trials=(not args.all_trials),
-                                continuous=args.continuous)
+                                continuous=args.continuous, )
 
 
 ########################################################################################
