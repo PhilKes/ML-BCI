@@ -19,7 +19,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
-    trained_model_name, chs_names_txt, results_folder
+    trained_model_name, chs_names_txt, results_folder, global_config
 
 
 # Create results folder with current DateTime as name
@@ -220,21 +220,26 @@ def get_str_n_classes(n_classes):
     return f'Classes: {[str_n_classes[i] for i in n_classes]}'
 
 
-def training_config_str(config, n_class=None):
+def training_config_str(config):
+
     return f"""#### Config ####
 Device: {config['device']}
-Nr. of classes: {config['n_classes'] if n_class is None else n_class}
-{get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
+Nr. of classes: {config['n_classes'] }
+{get_str_n_classes(config['n_classes'])}
 Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
 Channels: {len(config['ch_names'])} {config['ch_names']}
 EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
+Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
+Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
+Early Stopping: {config['early_stop']}
 Batch Size: {config['batch_size']}
 Epochs: {config['num_epochs']}
 Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
 ###############\n\n"""
 
 
-def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed):
+def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
+                        best_valid_losses, best_split, early_stop=True):
     runs_str = ""
     for i in range(len(accuracies)):
         runs_str += f'\tRun {i}: {accuracies[i]:.2f}\n'
@@ -247,6 +252,11 @@ def training_result_str(accuracies, accuracies_overfitting, class_trials, class_
     classes_str = ""
     for l in range(len(class_accuracies)):
         classes_str += f'\t[{l}]: {class_accuracies[l]:.2f}'
+    best_epochs_str = ""
+    if early_stop:
+        best_epochs_str += "Best Validation Loss Epochs of Splits:\n"
+        for sp in range(best_valid_epochs.shape[0]):
+            best_epochs_str += f'Split {sp}{" [Best]" if sp == best_split else ""}: {best_valid_epochs[sp]} (loss: {best_valid_losses[sp]:.5f})\n'
 
     return f"""#### Results ####
 Elapsed Time: {elapsed}
@@ -258,6 +268,7 @@ Trials per class:
 {trials_str}
 Avg. Class Accuracies:
 {classes_str}
+{best_epochs_str}
 ###############\n\n"""
 
 
@@ -269,6 +280,8 @@ Nr. of classes: {config['n_classes'] if n_class is None else n_class}
 {get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
 Channels: {len(config['ch_names'])} {config['ch_names']}
 EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
+Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
+Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
 Preload subjects Chunksize: {config['subjects_cs']}
 Batch Size: {config['batch_size']}
 Dataset Iterations: {config['iters']}
@@ -296,3 +309,4 @@ def makedir(path):
         if e.errno != errno.EEXIST:
             raise e
         pass
+

@@ -7,11 +7,9 @@ Creates results.npz file containing all Batch Latency Avgs and Inference Time pe
 results can be visualized with visualize_results.py (provide --folder {parent_folder}
 """
 import argparse
-from datetime import datetime
 import numpy as np
-from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES, MNE_CHANNELS
+from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES
 from main import single_run
-from utils import datetime_to_folder_str, copy_config_txts
 
 parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')

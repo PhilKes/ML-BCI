@@ -7,7 +7,7 @@ import os
 
 import numpy as np
 
-from utils import matplot_grouped_configs
+from util.utils import matplot_grouped_configs
 
 parser = argparse.ArgumentParser(
     description='Visualizer Script for Benchmark results.npz files')

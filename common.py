@@ -20,19 +20,28 @@ from config import LR
 
 # Training
 # see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
-def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
-    net.train()
+# In every epoch: After Inference + Calc Loss + Backpropagation on Test Dataset
+# a Test Dataset of 1 Subject is used to calculate test_loss on trained model of current epoch
+# to determine best model with loweset test_loss
+# loss_values: Loss value of every Epoch on Training Dataset (data_loader)
+# loss_values_test: Loss value of every Epoch on Test Dataset (loader_test_loss)
+# best_model: state_dict() of epoch model with lowest test_loss
+# best_epoch: best_epoch with lowest test_loss
+def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=True):
+    model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr['start'])
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=lr['milestones'], gamma=lr['gamma'])
+    optimizer = optim.Adam(model.parameters(), lr=LR['start'])
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=LR['milestones'], gamma=LR['gamma'])
     print("###### Training started")
-    loss_values = np.zeros((epochs))
+    loss_values_train, loss_values_valid = np.full((epochs), fill_value=np.inf), np.full((epochs), fill_value=np.inf)
+    best_epoch = 0
+    best_model = model.state_dict().copy()
     for epoch in range(epochs):
         print(f"## Epoch {epoch} ")
-        running_loss = 0.0
+        running_loss_train, running_loss_valid = 0.0, 0.0
         # Wrap in tqdm for Progressbar in Console
-        pbar = tqdm(data_loader, file=sys.stdout)
+        pbar = tqdm(loader_train, file=sys.stdout)
         # Training in batches from the DataLoader
         for idx_batch, (inputs, labels) in enumerate(pbar):
             # Convert to correct types + put on GPU
@@ -40,41 +49,66 @@ def train(net, data_loader, epochs=1, device=torch.device("cpu"), lr=LR):
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward + backward + optimize
-            outputs = net(inputs)
-            #print("out",outputs.shape,"labels",labels.shape)
+            outputs = model(inputs)
+            # print("out",outputs.shape,"labels",labels.shape)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
+            running_loss_train += loss.item()
         pbar.close()
+        if early_stop:
+            with torch.no_grad():
+                model.eval()
+                # Validation loss on 1 Subject of Test Dataset to determine best model state
+                for idx_batch, (inputs, labels) in enumerate(loader_valid):
+                    # Convert to correct types + put on GPU
+                    inputs, labels = inputs, labels.long().to(device)
+                    # zero the parameter gradients
+                    # optimizer.zero_grad()
+                    # forward + backward + optimize
+                    outputs = model(inputs)
+                    # print("out",outputs.shape,"labels",labels.shape)
+                    loss = criterion(outputs, labels)
+                    # loss.backward()
+                    # optimizer.step()
+                    running_loss_valid += loss.item()
+        model.train()
         lr_scheduler.step()
         # Loss of entire epoch / amount of batches
-        loss_values[epoch] = (running_loss / len(data_loader))
-        print('[%3d] Total loss: %f' %
-              (epoch, running_loss))
-        if math.isnan(loss_values[epoch]):
-            print("loss_values[epoch]", loss_values[epoch])
-            print("running_loss", running_loss)
-            print("len(data_loader)", len(data_loader))
+        loss_values_train[epoch] = (running_loss_train / len(loader_train))
+        if early_stop:
+            # Determine if epoch (validation loss) is lower than all epochs before
+            epoch_valid_loss = (running_loss_valid / len(loader_valid))
+            if epoch_valid_loss < loss_values_valid.min():
+                best_model = model.state_dict().copy()
+                best_epoch = epoch
+            loss_values_valid[epoch] = epoch_valid_loss
+            print('[%3d] Training loss/batch: %f\tValidation loss/batch: %f' %
+                  (epoch, loss_values_train[epoch], epoch_valid_loss))
+        else:
+            print('[%3d] Training loss/batch: %f' % (epoch, loss_values_train[epoch]))
+        if math.isnan(loss_values_train[epoch]):
+            print("loss_values[epoch]", loss_values_train[epoch])
+            print("running_loss", running_loss_train)
+            print("len(data_loader)", len(loader_train))
             break
     print("Training finished ######")
 
-    return loss_values
+    return loss_values_train, loss_values_valid, best_model, best_epoch
 
 
 # Tests labeled data with trained net
-def test(net, data_loader, device=torch.device("cpu"), classes=3):
+def test(model, data_loader, device=torch.device("cpu"), classes=3):
     print("###### Testing started")
-    total = 0.0
-    correct = 0.0
+    total, correct = 0.0, 0.0
     class_hits = [[] for i in range(classes)]
     with torch.no_grad():
-        net.eval()
+        model.eval()
         for data in data_loader:
             inputs, labels = data
             inputs, labels = inputs, labels.float()
-            outputs = net(inputs)
+            outputs = model(inputs)
             _, predicted = torch.max(outputs.data.cpu(), 1)
             # For BCELOSS:
             #   revert np.eye -> [0 0 1] = 2, [1 0 0] = 0
@@ -103,18 +137,17 @@ def test(net, data_loader, device=torch.device("cpu"), classes=3):
 
 
 # Benchmarks net on Inference Time in Batches
-def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
+def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
     # TODO Correct way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
     # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
     print("###### Inference started")
-    net.eval()
+    model.eval()
     num_batches = len(data_loader)
     # https://deci.ai/the-correct-way-to-measure-inference-time-of-deep-neural-networks/?utm_referrer=https%3A%2F%2Fwww.google.com%2F
     timings = np.zeros((num_batches))
     # start = time.perf_counter()
-    total = 0.0
-    correct = 0.0
+    total, correct = 0.0, 0.0
     with torch.no_grad():
         for i, data in enumerate(data_loader):
             inputs, labels = data
@@ -122,7 +155,7 @@ def benchmark(net, data_loader, device=torch.device("cpu"), fp16=False):
                 inputs = inputs.half()
             # starter.record()
             start = time.perf_counter()
-            outputs = net(inputs)
+            outputs = model(inputs)
             # ender.record()
             # WAIT FOR GPU SYNC
             # torch.cuda.synchronize()

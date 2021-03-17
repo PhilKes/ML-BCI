@@ -1,0 +1,29 @@
+#### Results ####
+Elapsed Time: 0:41:20.498484
+Accuracies of Splits:
+	Run 0: 76.07
+		Overfitting (Test-Training): -8.87
+	Run 1: 80.33
+		Overfitting (Test-Training): -3.88
+	Run 2: 82.21
+		Overfitting (Test-Training): -1.88
+	Run 3: 77.69
+		Overfitting (Test-Training): -6.83
+	Run 4: 83.46
+		Overfitting (Test-Training): -0.19
+
+Avg. acc: 79.95
+Avg. Overfitting difference: -4.33
+Trials per class:
+	[0]: 399	[1]: 399
+Avg. Class Accuracies:
+	[0]: 78.15	[1]: 81.75
+Best Validation Loss Epochs of Splits:
+Split 0: 5 (loss: 0.41479)
+Split 1: 5 (loss: 0.41329)
+Split 2: 9 (loss: 0.41355)
+Split 3 [Best]: 24 (loss: 0.40799)
+Split 4: 3 (loss: 0.40876)
+
+###############
+

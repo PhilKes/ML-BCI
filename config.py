@@ -1,7 +1,8 @@
 """
 Configuration File containing global default values
 """
-from sklearn.preprocessing import MinMaxScaler
+
+from util.dot_dict import DotDict
 
 PLOTS = True
 VERBOSE = False
@@ -9,10 +10,9 @@ VERBOSE = False
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
-# for -benchmark: decrease --subjects (see main.py) to decrease memory usage when benchmarking
+# for -benchmark: decrease --subjects_cs (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
-FREQ_FILTER_HIGHPASS = None
-FREQ_FILTER_LOWPASS = None
+global_config = DotDict(FREQ_FILTER_HIGHPASS=None, FREQ_FILTER_LOWPASS=None, USE_NOTCH_FILTER=False)
 
 results_folder = './results'
 training_results_folder = f"/training"
@@ -45,6 +45,7 @@ TRIALS_PER_SUBJECT_RUN = 21
 # Training Settings
 EPOCHS = 100
 SPLITS = 5
+VALIDATION_SUBJECTS = 10
 N_CLASSES = [2, 3, 4]
 
 BATCH_SIZE = 16
@@ -73,11 +74,11 @@ MNE_CHANNELS = [
 # Visualization:
 # https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/EEG_10-10_system_with_additional_information.svg/640px-EEG_10-10_system_with_additional_information.svg.png?1615815815740
 
-#Source:
+# Source:
 # https://www.researchgate.net/publication/324826717_Motor_Imagery_EEG_Signal_Processing_and_Classification_using_Machine_Learning_Approach
 MOTORIMG_CHANNELS_18 = [
     'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
-    'C5',  'C3',  'C1',  'C2',  'C4',  'C6',
+    'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
     'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
 ]
 MOTORIMG_CHANNELS_8 = [
@@ -86,28 +87,28 @@ MOTORIMG_CHANNELS_8 = [
     'Cp5', 'Cp1', 'Cp2', 'Cp6',
 ]
 MOTORIMG_CHANNELS_8_2 = [
-        'Fc3',           'Fc4',
-    'C5',     'C1', 'C2',       'C6',
-        'Cp3',           'Cp4'
+    'Fc3', 'Fc4',
+    'C5', 'C1', 'C2', 'C6',
+    'Cp3', 'Cp4'
 ]
 MOTORIMG_CHANNELS_8_3 = [
-            'Fc1', 'Fc2',
-    'C5','C3',          'C4','C6',
-             'Cp1','Cp2'
+    'Fc1', 'Fc2',
+    'C5', 'C3', 'C4', 'C6',
+    'Cp1', 'Cp2'
 ]
 MOTORIMG_CHANNELS_8_4 = [
-    'Fc3',         'Fc4',
-    'C3','C1','C2','C4',
-    'Cp3',         'Cp4'
+    'Fc3', 'Fc4',
+    'C3', 'C1', 'C2', 'C4',
+    'Cp3', 'Cp4'
 ]
 MOTORIMG_CHANNELS_8_5 = [
-    'Fc5',                   'Fc6',
-         'C3','C1', 'C2','C4',
-    'Cp5',                   'Cp6'
+    'Fc5', 'Fc6',
+    'C3', 'C1', 'C2', 'C4',
+    'Cp5', 'Cp6'
 ]
 MOTORIMG_CHANNELS_8_6 = [
-    'Fc5',                    'Fc6',
-    'C5','C3','C1', 'C2','C4','C6'
+    'Fc5', 'Fc6',
+    'C5', 'C3', 'C1', 'C2', 'C4', 'C6'
 ]
 # source:
 # https://www.mdpi.com/1424-8220/17/7/1557/htm
@@ -116,8 +117,8 @@ MOTORIMG_CHANNELS_5 = [
 ]
 
 MOTORIMG_CHANNELS = {'8': MOTORIMG_CHANNELS_8, '8_2': MOTORIMG_CHANNELS_8_2,
-                     '8_3': MOTORIMG_CHANNELS_8_3,'8_4': MOTORIMG_CHANNELS_8_4,
-                     '8_5': MOTORIMG_CHANNELS_8_5,'8_6': MOTORIMG_CHANNELS_8_6,
+                     '8_3': MOTORIMG_CHANNELS_8_3, '8_4': MOTORIMG_CHANNELS_8_4,
+                     '8_5': MOTORIMG_CHANNELS_8_5, '8_6': MOTORIMG_CHANNELS_8_6,
                      '5': MOTORIMG_CHANNELS_5, '18': MOTORIMG_CHANNELS_18}
 
 # # Calculated with python_test.py get_mean_std():

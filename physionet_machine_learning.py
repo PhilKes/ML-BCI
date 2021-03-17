@@ -12,24 +12,24 @@ import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from models.EEGNet import EEGNet
+from models.eegnet import EEGNet
 from common import train, test, benchmark
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
-    MNE_CHANNELS, trained_model_name, training_results_folder, \
-    benchmark_results_folder
+    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
-from utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
+from util.utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str
+
 
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
-if torch.cuda.is_available():
-    import ctypes
-    from torch2trt import torch2trt
-
-    _cudart = ctypes.CDLL('libcudart.so')
+# if torch.cuda.is_available():
+#     import ctypes
+#     from torch2trt import torch2trt
+#
+#     _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs EEGNet Training + Testing
@@ -37,11 +37,11 @@ if torch.cuda.is_available():
 # Can run 2/3/4-Class Classifications
 # Saves Accuracies + Epochs in ./results/{DateTime/name}/training
 # save_model: Saves trained model with highest accuracy in results folder
-def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
-                       save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                       equal_trials=False):
+def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
+                          save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
+                          equal_trials=False, early_stop=True):
     config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
-                  n_classes=n_classes, ch_names=ch_names)
+                  n_classes=n_classes, ch_names=ch_names,early_stop=early_stop)
     chs = len(ch_names)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
@@ -54,13 +54,25 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
     else:
         dir_results = create_results_folders(path=name)
 
+    save_config(training_config_str(config), ch_names, dir_results, tag)
+
+    if early_stop:
+        # 76 Subjects for Train + 19 for Test (get split in 5 different Splits)
+        used_subjects = ALL_SUBJECTS[:(len(ALL_SUBJECTS) - VALIDATION_SUBJECTS)]
+        # 10 Subjects for Validation (always the same)
+        validation_subjects = ALL_SUBJECTS[(len(ALL_SUBJECTS) - VALIDATION_SUBJECTS):]
+        print(f"Validation Subjects: [{validation_subjects[0]}-{validation_subjects[-1]}]")
+    else:
+        # 84 Subjects for Train + 21 for Test (get split in 5 different Splits)
+        used_subjects = ALL_SUBJECTS
+        validation_subjects = []
     # Group labels (subjects in same group need same group label)
-    groups = np.zeros(len(ALL_SUBJECTS), dtype=np.int)
-    group_size = int(len(ALL_SUBJECTS) / splits)
+    groups = np.zeros(len(used_subjects), dtype=np.int)
+    group_size = int(len(used_subjects) / splits)
     for i in range(splits):
         groups[group_size * i:(group_size * (i + 1))] = i
 
-    # Split Data into training + test  (84 Subjects Training, 21 Testing)
+    # Split Data into training + test
     cv = GroupKFold(n_splits=splits)
 
     best_trained_model = {}
@@ -68,40 +80,55 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, n_class, ch_names, equal_trials,
+            preloaded_data, preloaded_labels = load_subjects_data(used_subjects + validation_subjects, n_class,
+                                                                  ch_names, equal_trials,
                                                                   normalize=False)
 
-        cv_split = cv.split(X=ALL_SUBJECTS, groups=groups)
+        cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
         accuracies = np.zeros((splits))
+        best_valid_losses, best_valid_epochs = np.full((splits), fill_value=np.inf), np.zeros((splits), dtype=np.int)
+        best_split = -1
         class_accuracies = np.zeros((splits, n_class))
         class_trials = np.zeros(n_class)
         accuracies_overfitting = np.zeros((splits)) if TEST_OVERFITTING else None
-        epoch_losses = np.zeros((splits, num_epochs))
+        epoch_losses_train, epoch_losses_valid = np.zeros((splits, num_epochs)), np.zeros((splits, num_epochs))
         # Training of the 5 different splits-combinations
         for split in range(splits):
             print(f"############ RUN {split} ############")
-            # Next Splits Combination of Train/Test Datasets
-            loader_train, loader_test = create_loaders_from_splits(next(cv_split), n_class, device,
-                                                                   preloaded_data, preloaded_labels,
-                                                                   batch_size, ch_names, equal_trials)
+            # Next Splits Combination of Train/Test Datasets + Validation Set Loader
+            loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
+                                                 preloaded_labels, batch_size, ch_names, equal_trials)
+            loader_train, loader_test, loader_valid = loaders
 
-            # model = EEGNet(n_class, chs)
-            model = EEGNet(N=n_class, C=chs, T=SAMPLES)
-            model.to(device)
+            model = get_model(n_class, chs, device)
 
-            epoch_losses[split] = train(model, loader_train, epochs=num_epochs, device=device)
-            print("## Validation ##")
+            train_results = train(model, loader_train, loader_valid, num_epochs, device, early_stop)
+            epoch_losses_train[split], epoch_losses_valid[split], best_model, best_valid_epochs[split] = train_results
+
+            # Load best model state of this split to Test accuracy
+            if early_stop:
+                model.load_state_dict(best_model)
+                best_epoch_valid_loss = epoch_losses_valid[split][best_valid_epochs[split]]
+                print(
+                    f"Best Epoch: {best_valid_epochs[split]} with loss on Validation Data: {best_epoch_valid_loss}")
+                # Determine Split with lowest test_loss on best epoch of split
+                if best_epoch_valid_loss < best_valid_losses.min():
+                    best_trained_model[n_class] = best_model
+                    best_split = split
+                best_valid_losses[split] = best_epoch_valid_loss
+
+            print("## Testing ##")
             test_accuracy, test_class_hits = test(model, loader_test, device, n_class)
             # Test overfitting by validating on Training Dataset
             if TEST_OVERFITTING:
-                print("## Validation on Training Dataset ##")
+                print("## Testing on Training Dataset ##")
                 accuracies_overfitting[split], train_class_hits = test(model, loader_train, device, n_class)
-            if save_model:
-                if accuracies[split] >= accuracies.max():
-                    best_trained_model[n_class] = model
-
+            # If not using early stopping, determine which split has the highest accuracy
+            if not early_stop & (test_accuracy >= accuracies.max()):
+                best_trained_model[n_class] = model.state_dict().copy()
+                best_split = split
             accuracies[split] = test_accuracy
             test_class_accuracies = np.zeros(n_class)
             print("Trials for classes:")
@@ -113,38 +140,33 @@ def eegnet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, 
         avg_class_accuracies = np.zeros(n_class)
         for j in range(n_class):
             avg_class_accuracies[j] = np.average([float(class_accuracies[sp][j]) for sp in range(splits)])
-        res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed)
+        res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed,
+                                      best_valid_epochs, best_valid_losses, best_split, early_stop=early_stop)
         print(res_str)
-        # Plot Statistics and save as .png s
-        matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
-                save_path=dir_results,
-                bar_plot=True, max_y=100.0)
-        matplot(avg_class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
-                "Accuracy in %",
-                save_path=dir_results,
-                bar_plot=True, max_y=100.0)
-        matplot(epoch_losses, f"{n_class}class Losses{'' if tag is None else tag}", 'Epoch',
-                f'loss per batch (size = {batch_size})',
-                labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
-        save_config(training_config_str(config, n_class), ch_names, dir_results, tag)
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(accuracies, class_accuracies, epoch_losses, dir_results, n_class)
+        save_training_numpy_data(accuracies, class_accuracies, epoch_losses_train, dir_results, n_class)
+        # Plot Statistics and save as .png s
+        plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
+                                 epoch_losses_valid,
+                                 best_split, batch_size, splits, early_stop)
     # Save best trained Model state
+    # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
+    # else: Model state after epochs of Split with the highest accuracy on Training Set
     if save_model:
         for cl in best_trained_model:
-            torch.save(best_trained_model[cl].state_dict(), f"{dir_results}/{cl}class_{trained_model_name}")
+            torch.save(best_trained_model[cl], f"{dir_results}/{cl}class_{trained_model_name}")
 
 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
 # with Physionet Dataset (3class-Classification)
 # Returns Batch Latency + Time per EEG Trial inference
 # saves results in model_path/benchmark
-def eegnet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"),
-                     warm_ups=GPU_WARMUPS,
-                     subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
-                     ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
+def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"),
+                        warm_ups=GPU_WARMUPS,
+                        subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
+                        ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
     config = dict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                   trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
@@ -155,16 +177,12 @@ def eegnet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_C
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='benchmark')
 
     class_models = {}
-    batch_lat_avgs = np.zeros((len(n_classes)))
-    trial_inf_time_avgs = np.zeros((len(n_classes)))
+    batch_lat_avgs, trial_inf_time_avgs = np.zeros((len(n_classes))), np.zeros((len(n_classes)))
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
         print(f"Loading pretrained model from '{model_path}'")
-        # model = EEGNet(n_class, chs)
-        class_models[n_class] = EEGNet(N=n_class, T=SAMPLES, C=chs)
-        class_models[n_class].load_state_dict(torch.load(model_path))
-        class_models[n_class].to(device)
+        class_models[n_class] = get_model(n_class, chs, device, model_path)
         class_models[n_class].eval()
         # Get optimized model with TensorRT
         if tensorRT:
@@ -193,9 +211,8 @@ def eegnet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_C
             print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
             preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
                                                                   equal_trials=equal_trials)
-
             loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
-                                                      preloaded_labels, batch_size, equal_trials=equal_trials)
+                                                      preloaded_labels, batch_size, ch_names, equal_trials)
             # Warm up GPU with random data
             if device.type != 'cpu':
                 gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
@@ -209,25 +226,19 @@ def eegnet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_C
                         print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
                         preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
                                                                               equal_trials=equal_trials)
-                        # preloaded_data, preloaded_labels = load_subjects_without_mne(subjects_chunk, n_class)
-
                     loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
                                                               preloaded_labels, batch_size, equal_trials=equal_trials)
                     # Warm up GPU with random data
                     if device.type != 'cpu':
                         gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
-                    batch_lats[chunks * i + ch_idx], trial_inf_times[chunks * i + ch_idx], accuracies[
-                        chunks * i + ch_idx] = benchmark(class_models[n_class],
-                                                         loader_data,
-                                                         device,
-                                                         fp16)
+                    idx = chunks * i + ch_idx
+                    bench_results = benchmark(class_models[n_class], loader_data, device, fp16)
+                    batch_lats[idx], trial_inf_times[idx], accuracies[idx] = bench_results
             else:
                 # Benchmarking is executed continuously only over 1 subject chunk
                 # Infers over the same subject chunk i times without loading in between
-                batch_lats[i], trial_inf_times[i], accuracies[i] = benchmark(class_models[n_class],
-                                                                             loader_data,
-                                                                             device,
-                                                                             fp16)
+                bench_results = benchmark(class_models[n_class], loader_data, device, fp16)
+                batch_lats[i], trial_inf_times[i], accuracies[i] = bench_results
         elapsed = datetime.now() - start
         acc_avg = np.average(accuracies)
         batch_lat_avgs[class_idx] = np.average(batch_lats)
@@ -247,3 +258,38 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
         with torch.no_grad():
             data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
             y = model(data.half() if fp16 else data)
+
+
+# Plots Losses, Accuracies of Training, Validation, Testing
+def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
+                             epoch_losses_valid,
+                             best_split, batch_size, splits, early_stop):
+    matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
+            save_path=dir_results,
+            bar_plot=True, max_y=100.0)
+    matplot(avg_class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
+            "Accuracy in %",
+            save_path=dir_results,
+            bar_plot=True, max_y=100.0)
+    matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
+            f'loss per batch (size = {batch_size})',
+            labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
+    # Plot Test loss during Training if early stopping is used
+    if early_stop:
+        matplot(epoch_losses_valid, f"{n_class}class Validation Losses{'' if tag is None else tag}", 'Epoch',
+                f'loss per batch (size = {batch_size})',
+                labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
+        train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
+        train_valid_data[0] = epoch_losses_train[best_split]
+        train_valid_data[1] = epoch_losses_valid[best_split]
+        matplot(train_valid_data,
+                f"Train & Valid. Losses of best Split", 'Epoch', f'loss per batch (size = {batch_size})',
+                labels=['Training Loss', 'Validation Loss'], save_path=dir_results, max_y=train_valid_data[0][0] + 0.1)
+
+
+def get_model(n_class, chs, device, state_path=None):
+    model = EEGNet(N=n_class, T=SAMPLES, C=chs)
+    if state_path is not None:
+        model.load_state_dict(torch.load(state_path))
+    model.to(device)
+    return model

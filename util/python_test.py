@@ -7,12 +7,9 @@ import math
 import mne
 import numpy as np
 import torch
-from sklearn.preprocessing import MinMaxScaler
 
-from config import MNE_CHANNELS, SAMPLES, SAMPLERATE, EEG_TMIN, EEG_TMAX
-from data_loading import load_n_classes_tasks, mne_load_subject, remove_n_occurence_of, normalize_data
+from data_loading import load_n_classes_tasks, remove_n_occurence_of
 from embedded.get_data import get_data
-from utils import split_list_into_chunks, split_np_into_chunks
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")

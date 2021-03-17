@@ -9,7 +9,7 @@ import numpy as np
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
-from mne import Epochs, pick_types
+from mne import Epochs
 from mne.datasets import eegbci
 from mne.io import concatenate_raws, read_raw_edf
 from sklearn.preprocessing import MinMaxScaler
@@ -19,8 +19,9 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, FREQ_FILTER_LOWPASS, FREQ_FILTER_HIGHPASS, N_CLASSES, TRIALS_PER_SUBJECT_RUN, SAMPLERATE
-from utils import print_subjects_ranges, split_np_into_chunks
+    MNE_CHANNELS, global_config, TRIALS_PER_SUBJECT_RUN, SAMPLERATE
+
+from util.utils import print_subjects_ranges, split_np_into_chunks
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
 excluded_subjects = [88, 92, 100, 104]
@@ -129,17 +130,23 @@ class TrialsDataset(Dataset):
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
-def create_loaders_from_splits(splits, n_class, device, preloaded_data=None,
+# also returns Validtion Loader containing validation_subjects subject for loss calculation
+def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
                                equal_trials=False):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
     subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
+    validation_loader = None
+    if len(validation_subjects) > 0:
+        validation_loader = create_loader_from_subjects(validation_subjects, n_class, device, preloaded_data,
+                                                        preloaded_labels, bs, ch_names, equal_trials)
     return create_loader_from_subjects(subjects_train, n_class, device,
                                        preloaded_data, preloaded_labels, bs, ch_names, equal_trials), \
            create_loader_from_subjects(subjects_test, n_class, device,
-                                       preloaded_data, preloaded_labels, bs, ch_names, equal_trials)
+                                       preloaded_data, preloaded_labels, bs, ch_names, equal_trials), \
+           validation_loader
 
 
 # Creates DataLoader with Random Sampling from subject list
@@ -174,7 +181,9 @@ normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).resh
 
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage for ALL_SUBJECTS (~2GB)
-def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False, normalize=False):
+def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False,
+                       normalize=False):
+    subjects.sort()
     trials = get_trials_size(n_class, equal_trials)
     preloaded_data = np.zeros((len(subjects), trials, SAMPLES, len(ch_names)), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
@@ -320,14 +329,20 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
     raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
-    if ((FREQ_FILTER_HIGHPASS is not None) | (FREQ_FILTER_LOWPASS is not None)):
-        raw.filter(FREQ_FILTER_HIGHPASS, FREQ_FILTER_LOWPASS, method='iir')
     raw.rename_channels(lambda x: x.strip('.'))
+
+    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+    if global_config.USE_NOTCH_FILTER:
+        raw.notch_filter(60.0, picks=picks, filter_length='auto',
+                         phase='zero')
+    if ((global_config.FREQ_FILTER_HIGHPASS is not None) | (global_config.FREQ_FILTER_LOWPASS is not None)):
+        # If method=”iir”, 4th order Butterworth will be used
+        raw.filter(global_config.FREQ_FILTER_HIGHPASS, global_config.FREQ_FILTER_LOWPASS)
+        #raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
     # https://mne.tools/0.11/auto_tutorials/plot_info.html
     # picks = pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
     #                    exclude='bads')
-    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
 
     epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / SAMPLERATE), picks=picks,
                     baseline=None, preload=True)
