@@ -221,20 +221,20 @@ def get_str_n_classes(n_classes):
 
 
 def training_config_str(config):
-
     return f"""#### Config ####
-Device: {config['device']}
-Nr. of classes: {config['n_classes'] }
-{get_str_n_classes(config['n_classes'])}
-Dataset split in {config['splits']} Subject Groups, {config['splits'] - 1} for Training, {1} for Testing (Cross Validation)
-Channels: {len(config['ch_names'])} {config['ch_names']}
+Device: {config.device}
+Nr. of classes: {config.n_classes}
+{get_str_n_classes(config.n_classes)}
+Dataset split in {config.splits} Subject Groups, {config.splits - 1} for Training, {1} for Testing (Cross Validation)
+{f'Excluded Subjects:{config["excluded"]}' if len(config["excluded"]) > 0 else ""}
+Channels: {len(config.ch_names)} {config.ch_names}
 EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
-Early Stopping: {config['early_stop']}
-Batch Size: {config['batch_size']}
-Epochs: {config['num_epochs']}
-Learning Rate: initial = {config['lr']['start']}, Epoch milestones = {config['lr']['milestones']}, gamma = {config['lr']['gamma']}
+Early Stopping: {config.early_stop}
+Batch Size: {config.batch_size}
+Epochs: {config.num_epochs}
+Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
 ###############\n\n"""
 
 
@@ -274,17 +274,17 @@ Avg. Class Accuracies:
 
 def benchmark_config_str(config, n_class=None):
     return f"""#### Config ####
-Device: {config['device']}
-TensorRT optimized: {config['trt']} (fp{16 if bool(config['fp16']) else 32})
-Nr. of classes: {config['n_classes'] if n_class is None else n_class}
-{get_str_n_classes(config['n_classes'] if n_class is None else [n_class])}
-Channels: {len(config['ch_names'])} {config['ch_names']}
+Device: {config.device}
+TensorRT optimized: {config.trt} (fp{16 if bool(config.fp16) else 32})
+Nr. of classes: {config.n_classes if n_class is None else n_class}
+{get_str_n_classes(config.n_classes if n_class is None else [n_class])}
+Channels: {len(config.ch_names)} {config.ch_names}
 EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
-Preload subjects Chunksize: {config['subjects_cs']}
-Batch Size: {config['batch_size']}
-Dataset Iterations: {config['iters']}
+Preload subjects Chunksize: {config.subjects_cs}
+Batch Size: {config.batch_size}
+Dataset Iterations: {config.iters}
 ###############\n\n"""
 
 
@@ -309,4 +309,3 @@ def makedir(path):
         if e.errno != errno.EEXIST:
             raise e
         pass
-

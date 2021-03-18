@@ -31,8 +31,8 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LR['start'])
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=LR['milestones'], gamma=LR['gamma'])
+    optimizer = optim.Adam(model.parameters(), lr=LR.start)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=LR.milestones, gamma=LR.gamma)
     print("###### Training started")
     loss_values_train, loss_values_valid = np.full((epochs), fill_value=np.inf), np.full((epochs), fill_value=np.inf)
     best_epoch = 0

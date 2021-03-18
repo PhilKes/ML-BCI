@@ -17,7 +17,9 @@ from common import train, test, benchmark
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
     MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
-from util.utils import training_config_str, create_results_folders, matplot, save_training_results, benchmark_config_str, \
+from util.dot_dict import DotDict
+from util.utils import training_config_str, create_results_folders, matplot, save_training_results, \
+    benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str
 
@@ -39,33 +41,31 @@ from util.utils import training_config_str, create_results_folders, matplot, sav
 # save_model: Saves trained model with highest accuracy in results folder
 def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
                           save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                          equal_trials=False, early_stop=True):
-    config = dict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
-                  n_classes=n_classes, ch_names=ch_names,early_stop=early_stop)
+                          equal_trials=False, early_stop=True, excluded=[]):
+    config = DotDict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
+                  n_classes=n_classes, ch_names=ch_names, early_stop=early_stop,excluded=excluded)
     chs = len(ch_names)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
-
     start = datetime.now()
     print(training_config_str(config))
-
     if name is None:
         dir_results = create_results_folders(datetime=start)
     else:
         dir_results = create_results_folders(path=name)
-
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
+    available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
+    # 84 Subjects for Train + 21 for Test (get split in 5 different Splits)
+    used_subjects = available_subjects
+    validation_subjects = []
     if early_stop:
-        # 76 Subjects for Train + 19 for Test (get split in 5 different Splits)
-        used_subjects = ALL_SUBJECTS[:(len(ALL_SUBJECTS) - VALIDATION_SUBJECTS)]
-        # 10 Subjects for Validation (always the same)
-        validation_subjects = ALL_SUBJECTS[(len(ALL_SUBJECTS) - VALIDATION_SUBJECTS):]
+        # 76 Subjects (~72%) for Train + 19 (~18%) for Test (get split in 5 different Splits)
+        used_subjects = available_subjects[:(len(available_subjects) - VALIDATION_SUBJECTS)]
+        # 10 (~10%) Subjects for Validation (always the same)
+        validation_subjects = available_subjects[(len(available_subjects) - VALIDATION_SUBJECTS):]
         print(f"Validation Subjects: [{validation_subjects[0]}-{validation_subjects[-1]}]")
-    else:
-        # 84 Subjects for Train + 21 for Test (get split in 5 different Splits)
-        used_subjects = ALL_SUBJECTS
-        validation_subjects = []
+
     # Group labels (subjects in same group need same group label)
     groups = np.zeros(len(used_subjects), dtype=np.int)
     group_size = int(len(used_subjects) / splits)
@@ -167,7 +167,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
                         warm_ups=GPU_WARMUPS,
                         subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
                         ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
-    config = dict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
+    config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                   trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
     # Dont print MNE loading logs
@@ -283,7 +283,7 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
         train_valid_data[0] = epoch_losses_train[best_split]
         train_valid_data[1] = epoch_losses_valid[best_split]
         matplot(train_valid_data,
-                f"Train & Valid. Losses of best Split", 'Epoch', f'loss per batch (size = {batch_size})',
+                f"{n_class}class Train-Valid Losses of best Split", 'Epoch', f'loss per batch (size = {batch_size})',
                 labels=['Training Loss', 'Validation Loss'], save_path=dir_results, max_y=train_valid_data[0][0] + 0.1)
 
 

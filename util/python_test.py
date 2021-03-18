@@ -8,8 +8,7 @@ import mne
 import numpy as np
 import torch
 
-from data_loading import load_n_classes_tasks, remove_n_occurence_of
-from embedded.get_data import get_data
+from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -218,7 +217,7 @@ def check_bad_data(subjects, n_classes):
 # test = [x[i:i + m] for i in range(0, len(x), m)]
 # # test[-2:] = [test[-2] + test[-1]]
 # print(test)
-X, y = load_n_classes_tasks(1, 3, equal_trials=True)
+# X, y = load_n_classes_tasks(1, 3, equal_trials=True)
 # print(y)
 # for i in range(4):
 #     print(i, ": ", len(np.where(y == i)[0]))
@@ -226,17 +225,18 @@ X, y = load_n_classes_tasks(1, 3, equal_trials=True)
 # X = scaler.fit_transform(X.reshape(-1, X.shape[-1])).reshape(X.shape)
 # print(X.shape)
 
-print(X[0:21])
-
-X2, y2 = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', n_classes=3)
+# print(X[0:21])
 #
-X2 = np.swapaxes(X2, 1, 2)
+# X2, y2 = get_data('..\\EEGNet_Tensorflow\\eegnet-based-embedded-bci\\dataset\\files\\', n_classes=3)
+# #
+# X2 = np.swapaxes(X2, 1, 2)
+# #
+# X
+# , y, rem = remove_n_occurence_of(X, y, 21, 0)
+# X2, y2, rem2 = remove_n_occurence_of(X2, y2, 21, 0)
 #
-X, y, rem = remove_n_occurence_of(X, y, 21, 0)
-X2, y2, rem2 = remove_n_occurence_of(X2, y2, 21, 0)
-
-print(X)
-print(X2)
+# print(X)
+# print(X2)
 #
 # print("X", X.shape, "Y", y.shape)
 # print("X2", X2.shape, "Y2", y2.shape)
@@ -256,3 +256,5 @@ print(X2)
 #         print(f"{n} (idx {i}) is not present in X2")
 #         pass
 #
+raw, picks = mne_load_subject_raw(2, [4],fmin=2,fmax=60)
+raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)

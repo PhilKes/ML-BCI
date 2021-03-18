@@ -337,8 +337,9 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
                          phase='zero')
     if ((global_config.FREQ_FILTER_HIGHPASS is not None) | (global_config.FREQ_FILTER_LOWPASS is not None)):
         # If method=”iir”, 4th order Butterworth will be used
-        raw.filter(global_config.FREQ_FILTER_HIGHPASS, global_config.FREQ_FILTER_LOWPASS)
-        #raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
+        raw.filter(global_config.FREQ_FILTER_HIGHPASS, global_config.FREQ_FILTER_LOWPASS,method='iir')
+        # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
+
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
     # https://mne.tools/0.11/auto_tutorials/plot_info.html
     # picks = pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
@@ -352,3 +353,23 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
     subject_labels = epochs.events[:, -1] - 1
 
     return subject_data, subject_labels
+
+
+def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, ch_names=MNE_CHANNELS):
+    if VERBOSE:
+        print(f"MNE loading Subject {subject}")
+    raw_fnames = eegbci.load_data(subject, runs, path=datasets_folder)
+    raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
+    raw = concatenate_raws(raw_files)
+    raw.rename_channels(lambda x: x.strip('.'))
+
+    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+    if global_config.USE_NOTCH_FILTER:
+        raw.notch_filter(60.0, picks=picks, filter_length='auto',
+                         phase='zero')
+    if ((fmin is not None) | (fmax is not None)):
+        # If method=”iir”, 4th order Butterworth will be used
+        raw.filter(fmin, fmax,method='iir')
+        # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
+
+    return raw, picks

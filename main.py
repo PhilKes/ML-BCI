@@ -12,7 +12,7 @@ import torch
 
 from physionet_machine_learning import physionet_training_cv, physionet_benchmark
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS
-from data_loading import ALL_SUBJECTS
+from data_loading import ALL_SUBJECTS, excluded_subjects
 from util.utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
 
 
@@ -35,6 +35,8 @@ def single_run(argv=sys.argv[1:]):
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
     parser.add_argument('--no_early_stop', dest='early_stop', action='store_false',
                         help=f'If present, will NOT early stop to determine best model state according to lowest Validation loss epoch')
+    parser.add_argument('--excluded', nargs='+', type=int, default=[],
+                        help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
 
     parser.add_argument('-benchmark',
                         help="Runs Benchmarking with Physionet Dataset with specified trained model",
@@ -114,7 +116,7 @@ def single_run(argv=sys.argv[1:]):
         # for i in range(args.loops):
         physionet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                               name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                              equal_trials=(not args.all_trials), early_stop=args.early_stop)
+                              equal_trials=(not args.all_trials), early_stop=args.early_stop, excluded=args.excluded)
     elif args.benchmark:
         model_path = f"{args.model}"
         args.ch_names = load_chs_from_txt(model_path)
