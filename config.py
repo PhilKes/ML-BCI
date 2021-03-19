@@ -12,8 +12,7 @@ TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
 # for -benchmark: decrease --subjects_cs (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
-global_config = DotDict(FREQ_FILTER_HIGHPASS=60, FREQ_FILTER_LOWPASS=2, USE_NOTCH_FILTER=True)
-
+global_config = DotDict(FREQ_FILTER_HIGHPASS=None, FREQ_FILTER_LOWPASS=None, USE_NOTCH_FILTER=False)
 results_folder = './results'
 training_results_folder = f"/training"
 benchmark_results_folder = f"/benchmark"

@@ -8,8 +8,9 @@ import mne
 import numpy as np
 import torch
 
-from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject
-
+from config import SAMPLERATE, MNE_CHANNELS, EEG_TMAX, EEG_TMIN
+from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject, \
+    load_task_runs
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
 print(F"Current Device:\t{torch.cuda.get_device_name(0)}\t(Device {torch.cuda.current_device()})")
@@ -256,5 +257,53 @@ def check_bad_data(subjects, n_classes):
 #         print(f"{n} (idx {i}) is not present in X2")
 #         pass
 #
-raw, picks = mne_load_subject_raw(2, [4],fmin=2,fmax=60)
-raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
+tdelta = 8
+
+
+def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
+    if (time - tdelta) < 0:
+        raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
+    raw1 = raw.copy()
+    raw1.pick_channels(ch_names)
+    raw1.crop(time - tdelta, time)
+    data, times = raw1[:, :]
+    return data, times, raw1.annotations
+
+
+def get_label_at_idx(times, annot, idx):
+    time = times[idx]
+    onsets = annot.onset
+    # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)
+    # find index where time would be inserted
+    # -> index of label is sorted_idx-1
+    sorted_idx = np.searchsorted(onsets, [time])[0]
+    label = annot.description[sorted_idx - 1][0]
+    print(f"Label for time: {time} is: {label}")
+
+
+def get_label_at_time(raw, times, time):
+    idx = raw.time_as_index(time)
+    return get_label_at_idx(times,raw.annotations,idx)
+
+
+raw = mne_load_subject_raw(1, [4])
+X, times, annot = crop_time_and_label(raw, 8)
+#get_label_at_idx( times, annot, 10)
+get_label_at_time(raw,raw.times, 50)
+
+# raw.plot(n_channels=1)
+
+# X, y = mne_load_subject(1, 2)
+# print(X.shape)
+# X = np.swapaxes(X, 1, 2)
+# print(X[0][1])
+# for tr in range(X.shape[0]):
+#     for ch in range(X.shape[1]):
+#         ch_data = X[tr][ch]
+#         X[tr][ch] = preprocess_data(ch_data,sample_rate=SAMPLERATE,
+#                                     artifact_removal=True,notch=True,
+#                                     bp_filter=True)
+# X = np.swapaxes(X, 2, 1)
+# print("PREPROCESSED.-------------------------------------------------")
+# print(X[0][1])
+# print(X.shape)

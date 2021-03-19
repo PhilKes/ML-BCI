@@ -186,7 +186,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
         class_models[n_class].eval()
         # Get optimized model with TensorRT
         if tensorRT:
-            t = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
+            t = torch.randn((batch_size, 1, chs,SAMPLES)).to(device)
             # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
             # TensorRT either with fp16 ("half") or fp32
             if fp16:
@@ -256,7 +256,7 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
     print("Warming up GPU")
     for u in range(warm_ups):
         with torch.no_grad():
-            data = torch.randn((batch_size, 1, SAMPLES, chs)).to(device)
+            data = torch.randn((batch_size, 1, chs,SAMPLES)).to(device)
             y = model(data.half() if fp16 else data)
 
 

@@ -185,7 +185,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Fa
                        normalize=False):
     subjects.sort()
     trials = get_trials_size(n_class, equal_trials)
-    preloaded_data = np.zeros((len(subjects), trials, SAMPLES, len(ch_names)), dtype=np.float32)
+    preloaded_data = np.zeros((len(subjects), trials, len(ch_names), SAMPLES), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
     print("Preload Shape", preloaded_data.shape)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
@@ -242,6 +242,7 @@ def remove_n_occurence_of(X, y, n, label):
 # random 3s Trials are generated from baseline run
 def mne_load_rests(subject, trials, ch_names):
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
+    X = np.swapaxes(X, 2, 1)
     chs = len(ch_names)
     if X.shape[0] > 1:
         X = X[:1, :, :]
@@ -255,12 +256,12 @@ def mne_load_rests(subject, trials, ch_names):
             np.random.seed(m)
             rand_start_idx = np.random.randint(0, X_cop.shape[0] - SAMPLES)
             # print("rand_start", rand_start_idx)
-            rand_x = np.zeros((1, SAMPLES, chs))
+            rand_x = np.zeros((1, SAMPLES,chs))
             rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + SAMPLES)]
             X = np.concatenate((X, rand_x))
     y = np.full(X.shape[0], y[0])
-
     # print("X", X.shape, "Y", y)
+    X = np.swapaxes(X, 2, 1)
     return X, y
 
 
@@ -268,7 +269,7 @@ def mne_load_rests(subject, trials, ch_names):
 def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
                    equal_trials=False):
     global map_label
-    all_data = np.zeros((0, SAMPLES, len(ch_names)))
+    all_data = np.zeros((0, len(ch_names), SAMPLES))
     all_labels = np.zeros((0), dtype=np.int)
     contains_rest_task = (0 in tasks)
     # Load Subject Data of all Tasks
@@ -337,7 +338,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
                          phase='zero')
     if ((global_config.FREQ_FILTER_HIGHPASS is not None) | (global_config.FREQ_FILTER_LOWPASS is not None)):
         # If method=”iir”, 4th order Butterworth will be used
-        raw.filter(global_config.FREQ_FILTER_HIGHPASS, global_config.FREQ_FILTER_LOWPASS,method='iir')
+        raw.filter(global_config.FREQ_FILTER_HIGHPASS, global_config.FREQ_FILTER_LOWPASS, method='iir')
         # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
 
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
@@ -347,15 +348,16 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
 
     epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / SAMPLERATE), picks=picks,
                     baseline=None, preload=True)
+    # TODO for equal_trials: https://mne.tools/stable/generated/mne.Epochs.html#mne.Epochs.equalize_event_counts
     # [trials (84), timepoints (641), channels (len(ch_names)]
-    subject_data = np.swapaxes(epochs.get_data().astype('float32'), 2, 1)
+    subject_data = epochs.get_data().astype('float32')
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1
-
+    # subject_data = preprocess_mne_data(subject_data)
     return subject_data, subject_labels
 
 
-def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, ch_names=MNE_CHANNELS):
+def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, notch=False, ch_names=MNE_CHANNELS):
     if VERBOSE:
         print(f"MNE loading Subject {subject}")
     raw_fnames = eegbci.load_data(subject, runs, path=datasets_folder)
@@ -364,12 +366,11 @@ def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, ch_names=MNE_CHANN
     raw.rename_channels(lambda x: x.strip('.'))
 
     picks = mne.pick_channels(raw.info['ch_names'], ch_names)
-    if global_config.USE_NOTCH_FILTER:
+    if notch:
         raw.notch_filter(60.0, picks=picks, filter_length='auto',
                          phase='zero')
     if ((fmin is not None) | (fmax is not None)):
         # If method=”iir”, 4th order Butterworth will be used
-        raw.filter(fmin, fmax,method='iir')
+        raw.filter(fmin, fmax, method='iir')
         # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
-
-    return raw, picks
+    return raw

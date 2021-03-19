@@ -107,7 +107,7 @@ class EEGNet(t.nn.Module):
     def forward(self, x):
 
         # reshape vector from (s,1,T, C) to (s, 1, C, T)
-        x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
+        #x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
         # print("x",x.shape)
 
         # input dimensions: (s, 1, C, T)
