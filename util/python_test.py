@@ -8,9 +8,10 @@ import mne
 import numpy as np
 import torch
 
-from config import SAMPLERATE, MNE_CHANNELS, EEG_TMAX, EEG_TMIN
+from config import SAMPLERATE, MNE_CHANNELS, EEG_TMAX, EEG_TMIN, SAMPLES
 from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject, \
     load_task_runs
+
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
 print(F"Current Device:\t{torch.cuda.get_device_name(0)}\t(Device {torch.cuda.current_device()})")
@@ -257,7 +258,7 @@ def check_bad_data(subjects, n_classes):
 #         print(f"{n} (idx {i}) is not present in X2")
 #         pass
 #
-tdelta = 8
+tdelta = EEG_TMAX - EEG_TMIN
 
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
@@ -270,26 +271,49 @@ def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
     return data, times, raw1.annotations
 
 
-def get_label_at_idx(times, annot, idx):
-    time = times[idx]
+def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
+    raw1 = raw.copy()
+    raw1.pick_channels(ch_names)
+    data, times = raw1[:, :]
+    return data
+
+
+def get_label_at_idx(times, annot, sample):
+    now_time = times[sample]
+    if sample < SAMPLES:
+        return None,now_time
+    middle_sample_of_window = int(sample - (SAMPLES / 2))
+    time = times[middle_sample_of_window]
     onsets = annot.onset
     # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)
     # find index where time would be inserted
     # -> index of label is sorted_idx-1
     sorted_idx = np.searchsorted(onsets, [time])[0]
-    label = annot.description[sorted_idx - 1][0]
-    print(f"Label for time: {time} is: {label}")
+    # Determine if majority of samples lies in
+    # get label of sample_idx in the middle of the window
+    label = annot.description[sorted_idx - 1]
+    return label, now_time
 
 
 def get_label_at_time(raw, times, time):
     idx = raw.time_as_index(time)
-    return get_label_at_idx(times,raw.annotations,idx)
+    return get_label_at_idx(times, raw.annotations, idx)
 
 
+
+# is constantly increased -> simulate "live"
+# current_sample = 0
 raw = mne_load_subject_raw(1, [4])
-X, times, annot = crop_time_and_label(raw, 8)
-#get_label_at_idx( times, annot, 10)
-get_label_at_time(raw,raw.times, 50)
+max_sample = raw.n_times
+# X, times, annot = crop_time_and_label(raw, 8)
+X = get_data_from_raw(raw)
+last_label = None
+for sample in range(max_sample):
+    # get_label_at_idx( times, annot, 10)
+    label, now = get_label_at_idx(raw.times, raw.annotations, sample)
+    if last_label != label:
+        print(f"Label from {now} is: {label}")
+    last_label = label
 
 # raw.plot(n_channels=1)
 

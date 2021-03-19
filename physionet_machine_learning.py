@@ -110,7 +110,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
             train_results = train(model, loader_train, loader_test, num_epochs, device, early_stop)
             epoch_losses_train[split], epoch_losses_valid[split], best_model, best_epochs_valid[split] = train_results
 
-            # Load best model state of this split to Test accuracy
+            # Load best model state of this split to Test global accuracy
             if early_stop:
                 model.load_state_dict(best_model)
                 best_epoch_loss_valid = epoch_losses_valid[split][best_epochs_valid[split]]
@@ -124,7 +124,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
 
             print("## Testing ##")
             test_accuracy, test_class_hits = test(model, loader_test, device, n_class)
-            # Test overfitting by validating on Training Dataset
+            # Test overfitting by testing on Training Dataset
             if TEST_OVERFITTING:
                 print("## Testing on Training Dataset ##")
                 accuracies_overfitting[split], train_class_hits = test(model, loader_train, device, n_class)
@@ -142,8 +142,8 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
         elapsed = datetime.now() - start
         # Calculate average accuracies per class
         avg_class_accuracies = np.zeros(n_class)
-        for j in range(n_class):
-            avg_class_accuracies[j] = np.average([float(class_accuracies[sp][j]) for sp in range(splits)])
+        for cl in range(n_class):
+            avg_class_accuracies[cl] = np.average([float(class_accuracies[sp][cl]) for sp in range(splits)])
         res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed,
                                       best_epochs_valid, best_losses_valid, best_split, early_stop=early_stop)
         print(res_str)
