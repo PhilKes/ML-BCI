@@ -23,8 +23,8 @@ from config import LR
 # In every epoch: After Inference + Calc Loss + Backpropagation on Test Dataset
 # a Test Dataset of 1 Subject is used to calculate test_loss on trained model of current epoch
 # to determine best model with loweset test_loss
-# loss_values: Loss value of every Epoch on Training Dataset (data_loader)
-# loss_values_test: Loss value of every Epoch on Test Dataset (loader_test_loss)
+# loss_values_train: Loss value of every Epoch on Training Dataset (data_loader)
+# loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
 # best_model: state_dict() of epoch model with lowest test_loss
 # best_epoch: best_epoch with lowest test_loss
 def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=True):
@@ -57,42 +57,39 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
 
             running_loss_train += loss.item()
         pbar.close()
-        if early_stop:
-            with torch.no_grad():
-                model.eval()
-                # Validation loss on 1 Subject of Test Dataset to determine best model state
-                for idx_batch, (inputs, labels) in enumerate(loader_valid):
-                    # Convert to correct types + put on GPU
-                    inputs, labels = inputs, labels.long().to(device)
-                    # zero the parameter gradients
-                    # optimizer.zero_grad()
-                    # forward + backward + optimize
-                    outputs = model(inputs)
-                    # print("out",outputs.shape,"labels",labels.shape)
-                    loss = criterion(outputs, labels)
-                    # loss.backward()
-                    # optimizer.step()
-                    running_loss_valid += loss.item()
+        with torch.no_grad():
+            model.eval()
+            # Validation loss on 1 Subject of Test Dataset to determine best model state
+            for idx_batch, (inputs, labels) in enumerate(loader_valid):
+                # Convert to correct types + put on GPU
+                inputs, labels = inputs, labels.long().to(device)
+                # zero the parameter gradients
+                # optimizer.zero_grad()
+                # forward + backward + optimize
+                outputs = model(inputs)
+                # print("out",outputs.shape,"labels",labels.shape)
+                loss = criterion(outputs, labels)
+                # loss.backward()
+                # optimizer.step()
+                running_loss_valid += loss.item()
         model.train()
         lr_scheduler.step()
         # Loss of entire epoch / amount of batches
-        loss_values_train[epoch] = (running_loss_train / len(loader_train))
+        epoch_loss_train = (running_loss_train / len(loader_train))
+        epoch_loss_valid = (running_loss_valid / len(loader_valid))
+        # Determine if epoch (validation loss) is lower than all epochs before -> current best model
         if early_stop:
-            # Determine if epoch (validation loss) is lower than all epochs before
-            epoch_valid_loss = (running_loss_valid / len(loader_valid))
-            if epoch_valid_loss < loss_values_valid.min():
+            if epoch_loss_valid < loss_values_valid.min():
                 best_model = model.state_dict().copy()
                 best_epoch = epoch
-            loss_values_valid[epoch] = epoch_valid_loss
             print('[%3d] Training loss/batch: %f\tValidation loss/batch: %f' %
-                  (epoch, loss_values_train[epoch], epoch_valid_loss))
+                  (epoch, epoch_loss_train, epoch_loss_valid))
         else:
-            print('[%3d] Training loss/batch: %f' % (epoch, loss_values_train[epoch]))
-        if math.isnan(loss_values_train[epoch]):
-            print("loss_values[epoch]", loss_values_train[epoch])
-            print("running_loss", running_loss_train)
-            print("len(data_loader)", len(loader_train))
-            break
+            # Validation Set = Testing Set
+            print('[%3d] Training loss/batch: %f\tTesting loss/batch: %f' %
+                  (epoch, epoch_loss_train, epoch_loss_valid))
+        loss_values_train[epoch] = epoch_loss_train
+        loss_values_valid[epoch] = epoch_loss_valid
     print("Training finished ######")
 
     return loss_values_train, loss_values_valid, best_model, best_epoch

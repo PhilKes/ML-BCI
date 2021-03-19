@@ -43,7 +43,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
                           save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
                           equal_trials=False, early_stop=True, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
-                  n_classes=n_classes, ch_names=ch_names, early_stop=early_stop,excluded=excluded)
+                     n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
     chs = len(ch_names)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
@@ -59,7 +59,10 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
     # 84 Subjects for Train + 21 for Test (get split in 5 different Splits)
     used_subjects = available_subjects
     validation_subjects = []
-    if early_stop:
+    # Currently if early_stop=true:
+    # Validation Set = Test Set
+    # 0 validation subjects, train() evaluates valid_loss on loader_test
+    if early_stop & (VALIDATION_SUBJECTS > 0):
         # 76 Subjects (~72%) for Train + 19 (~18%) for Test (get split in 5 different Splits)
         used_subjects = available_subjects[:(len(available_subjects) - VALIDATION_SUBJECTS)]
         # 10 (~10%) Subjects for Validation (always the same)
@@ -88,7 +91,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
         accuracies = np.zeros((splits))
-        best_valid_losses, best_valid_epochs = np.full((splits), fill_value=np.inf), np.zeros((splits), dtype=np.int)
+        best_losses_valid, best_epochs_valid = np.full((splits), fill_value=np.inf), np.zeros((splits), dtype=np.int)
         best_split = -1
         class_accuracies = np.zeros((splits, n_class))
         class_trials = np.zeros(n_class)
@@ -104,20 +107,20 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
 
             model = get_model(n_class, chs, device)
 
-            train_results = train(model, loader_train, loader_valid, num_epochs, device, early_stop)
-            epoch_losses_train[split], epoch_losses_valid[split], best_model, best_valid_epochs[split] = train_results
+            train_results = train(model, loader_train, loader_test, num_epochs, device, early_stop)
+            epoch_losses_train[split], epoch_losses_valid[split], best_model, best_epochs_valid[split] = train_results
 
             # Load best model state of this split to Test accuracy
             if early_stop:
                 model.load_state_dict(best_model)
-                best_epoch_valid_loss = epoch_losses_valid[split][best_valid_epochs[split]]
+                best_epoch_loss_valid = epoch_losses_valid[split][best_epochs_valid[split]]
                 print(
-                    f"Best Epoch: {best_valid_epochs[split]} with loss on Validation Data: {best_epoch_valid_loss}")
+                    f"Best Epoch: {best_epochs_valid[split]} with loss on Validation Data: {best_epoch_loss_valid}")
                 # Determine Split with lowest test_loss on best epoch of split
-                if best_epoch_valid_loss < best_valid_losses.min():
+                if best_epoch_loss_valid < best_losses_valid.min():
                     best_trained_model[n_class] = best_model
                     best_split = split
-                best_valid_losses[split] = best_epoch_valid_loss
+                best_losses_valid[split] = best_epoch_loss_valid
 
             print("## Testing ##")
             test_accuracy, test_class_hits = test(model, loader_test, device, n_class)
@@ -130,18 +133,19 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
                 best_trained_model[n_class] = model.state_dict().copy()
                 best_split = split
             accuracies[split] = test_accuracy
-            test_class_accuracies = np.zeros(n_class)
+            split_class_accuracies = np.zeros(n_class)
             print("Trials for classes:")
             for cl in range(n_class):
                 class_trials[cl] = len(test_class_hits[cl])
-                test_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
-            class_accuracies[split] = test_class_accuracies
+                split_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
+            class_accuracies[split] = split_class_accuracies
         elapsed = datetime.now() - start
+        # Calculate average accuracies per class
         avg_class_accuracies = np.zeros(n_class)
         for j in range(n_class):
             avg_class_accuracies[j] = np.average([float(class_accuracies[sp][j]) for sp in range(splits)])
         res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed,
-                                      best_valid_epochs, best_valid_losses, best_split, early_stop=early_stop)
+                                      best_epochs_valid, best_losses_valid, best_split, early_stop=early_stop)
         print(res_str)
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
@@ -149,8 +153,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
         save_training_numpy_data(accuracies, class_accuracies, epoch_losses_train, dir_results, n_class)
         # Plot Statistics and save as .png s
         plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
-                                 epoch_losses_valid,
-                                 best_split, batch_size, splits, early_stop)
+                                 epoch_losses_valid, best_split, batch_size, splits, early_stop)
     # Save best trained Model state
     # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
     # else: Model state after epochs of Split with the highest accuracy on Training Set
@@ -168,7 +171,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
                         subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
                         ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
     config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
-                  trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
+                     trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
@@ -186,7 +189,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
         class_models[n_class].eval()
         # Get optimized model with TensorRT
         if tensorRT:
-            t = torch.randn((batch_size, 1, chs,SAMPLES)).to(device)
+            t = torch.randn((batch_size, 1, chs, SAMPLES)).to(device)
             # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
             # TensorRT either with fp16 ("half") or fp32
             if fp16:
@@ -256,7 +259,7 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
     print("Warming up GPU")
     for u in range(warm_ups):
         with torch.no_grad():
-            data = torch.randn((batch_size, 1, chs,SAMPLES)).to(device)
+            data = torch.randn((batch_size, 1, chs, SAMPLES)).to(device)
             y = model(data.half() if fp16 else data)
 
 
@@ -275,16 +278,15 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             f'loss per batch (size = {batch_size})',
             labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
-    if early_stop:
-        matplot(epoch_losses_valid, f"{n_class}class Validation Losses{'' if tag is None else tag}", 'Epoch',
-                f'loss per batch (size = {batch_size})',
-                labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
-        train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
-        train_valid_data[0] = epoch_losses_train[best_split]
-        train_valid_data[1] = epoch_losses_valid[best_split]
-        matplot(train_valid_data,
-                f"{n_class}class Train-Valid Losses of best Split", 'Epoch', f'loss per batch (size = {batch_size})',
-                labels=['Training Loss', 'Validation Loss'], save_path=dir_results, max_y=train_valid_data[0][0] + 0.1)
+    matplot(epoch_losses_valid, f"{n_class}class {'Validation' if early_stop else 'Training'} Losses{'' if tag is None else tag}", 'Epoch',
+            f'loss per batch (size = {batch_size})',
+            labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
+    train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
+    train_valid_data[0] = epoch_losses_train[best_split]
+    train_valid_data[1] = epoch_losses_valid[best_split]
+    matplot(train_valid_data,
+            f"{n_class}class Train-{'Valid' if early_stop else 'Test'} Losses of best Split", 'Epoch', f'loss per batch (size = {batch_size})',
+            labels=['Training Loss', f'{"Validation" if early_stop else "Testing"} Loss'], save_path=dir_results)
 
 
 def get_model(n_class, chs, device, state_path=None):

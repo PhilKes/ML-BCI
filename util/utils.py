@@ -240,11 +240,11 @@ Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milest
 
 def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
                         best_valid_losses, best_split, early_stop=True):
-    runs_str = ""
+    splits_str = ""
     for i in range(len(accuracies)):
-        runs_str += f'\tRun {i}: {accuracies[i]:.2f}\n'
+        splits_str += f'\tSplit {i} {"[Best]" if i==best_split else ""}:\t{accuracies[i]:.2f}\n'
         if TEST_OVERFITTING:
-            runs_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
+            splits_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
 
     trials_str = ""
     for cl, trs in enumerate(class_trials):
@@ -261,7 +261,7 @@ def training_result_str(accuracies, accuracies_overfitting, class_trials, class_
     return f"""#### Results ####
 Elapsed Time: {elapsed}
 Accuracies of Splits:
-{runs_str}
+{splits_str}
 Avg. acc: {np.average(accuracies):.2f}
 {f'Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
 Trials per class:

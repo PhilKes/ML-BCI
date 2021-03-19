@@ -33,8 +33,8 @@ def single_run(argv=sys.argv[1:]):
                         help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_string(MOTORIMG_CHANNELS.keys())} channels)")
     parser.add_argument('--all_trials', action='store_true',
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
-    parser.add_argument('--no_early_stop', dest='early_stop', action='store_false',
-                        help=f'If present, will NOT early stop to determine best model state according to lowest Validation loss epoch')
+    parser.add_argument('--early_stop', action='store_true',
+                        help=f'If present, will determine the model with the lowest loss on the validation set')
     parser.add_argument('--excluded', nargs='+', type=int, default=[],
                         help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
 
