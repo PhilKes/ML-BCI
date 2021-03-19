@@ -36,6 +36,8 @@ runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both 
 runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 
 n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}
+# Sample run for n_class live_sim mode
+n_classes_live_run = {2: runs_t2[0], 3: runs_t2[0], 4: runs_t2[0]}
 
 # Maximum available trials
 trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}
@@ -256,7 +258,7 @@ def mne_load_rests(subject, trials, ch_names):
             np.random.seed(m)
             rand_start_idx = np.random.randint(0, X_cop.shape[0] - SAMPLES)
             # print("rand_start", rand_start_idx)
-            rand_x = np.zeros((1, SAMPLES,chs))
+            rand_x = np.zeros((1, SAMPLES, chs))
             rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + SAMPLES)]
             X = np.concatenate((X, rand_x))
     y = np.full(X.shape[0], y[0])
@@ -374,3 +376,46 @@ def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, notch=False, ch_na
         raw.filter(fmin, fmax, method='iir')
         # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
     return raw
+
+
+# Methods for live_sim MODE
+tdelta = EEG_TMAX - EEG_TMIN
+
+
+def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
+    if (time - tdelta) < 0:
+        raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
+    raw1 = raw.copy()
+    raw1.pick_channels(ch_names)
+    raw1.crop(time - tdelta, time)
+    data, times = raw1[:, :]
+    return data, times, raw1.annotations
+
+
+def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
+    #raw1 = raw.copy()
+    raw.pick_channels(ch_names)
+    data, times = raw[:, :]
+    return data
+
+
+def get_label_at_idx(times, annot, sample):
+    now_time = times[sample]
+    if sample < SAMPLES:
+        return None, now_time
+    middle_sample_of_window = int(sample - (SAMPLES / 2))
+    time = times[middle_sample_of_window]
+    onsets = annot.onset
+    # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)
+    # find index where time would be inserted
+    # -> index of label is sorted_idx-1
+    sorted_idx = np.searchsorted(onsets, [time])[0]
+    # Determine if majority of samples lies in
+    # get label of sample_idx in the middle of the window
+    label = annot.description[sorted_idx - 1]
+    return label, now_time
+
+
+def get_label_at_time(raw, times, time):
+    idx = raw.time_as_index(time)
+    return get_label_at_idx(times, raw.annotations, idx)

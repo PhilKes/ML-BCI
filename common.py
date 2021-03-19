@@ -185,3 +185,13 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
 
     print("Inference finished ######")
     return batch_lat, trial_inf_time, acc
+
+
+def predict(model, X, device=torch.device("cpu")):
+    with torch.no_grad():
+        X = torch.as_tensor(X[None,None, ...], device=device, dtype=torch.float32)
+        output = model(X)
+        #print("Out",output)
+        _, predicted = torch.max(output.data.cpu(), 1)
+    return predicted[0]
+

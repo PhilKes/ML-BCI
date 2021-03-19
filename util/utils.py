@@ -19,7 +19,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
-    trained_model_name, chs_names_txt, results_folder, global_config
+    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder
 
 
 # Create results folder with current DateTime as name
@@ -179,8 +179,11 @@ def create_results_folders(path=None, name=None, datetime=None, type='train'):
     if path is not None:
         if type == 'train':
             folder = f"{results_folder}/{path}{training_results_folder}"
-        else:
+        elif type=='benchmark':
             folder = f"{path}{benchmark_results_folder}{'' if name is None else f'/{name}'}"
+        elif type=='live_sim':
+            folder = f"{path}{live_sim_results_folder}{'' if name is None else f'/{name}'}"
+
     else:
         now_string = datetime_to_folder_str(datetime)
         folder = f"{results_folder}/{now_string}{training_results_folder}"
@@ -285,6 +288,18 @@ Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
 Preload subjects Chunksize: {config.subjects_cs}
 Batch Size: {config.batch_size}
 Dataset Iterations: {config.iters}
+###############\n\n"""
+
+def live_sim_config_str(config, n_class=None):
+    return f"""#### Config ####
+Device: {config.device}
+Nr. of classes: {config.n_classes if n_class is None else n_class}
+{get_str_n_classes(config.n_classes if n_class is None else [n_class])}
+Channels: {len(config.ch_names)} {config.ch_names}
+EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
+Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
+Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
+Subject: {config.subject}
 ###############\n\n"""
 
 

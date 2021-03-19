@@ -10,7 +10,7 @@ import sys
 
 import torch
 
-from physionet_machine_learning import physionet_training_cv, physionet_benchmark
+from physionet_machine_learning import physionet_training_cv, physionet_benchmark, physionet_live_sim
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS
 from data_loading import ALL_SUBJECTS, excluded_subjects
 from util.utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
@@ -18,8 +18,8 @@ from util.utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
 
 def single_run(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
-        description=' Main script to run either Training (+Cross Validation) or Benchmarking'
-                    ' of EEGNet on Physionet Motor Imagery Dataset')
+        description=' Main script to run either Training (5-Fold CV), Benchmarking on Inference or Live Simulation'
+                    ' of EEG classification with the EEGNet on Physionet Motor Imagery Dataset')
     parser.add_argument('-train',
                         help="Runs Training with Cross Validation with Physionet Dataset",
                         action='store_true', required=False)
@@ -57,6 +57,12 @@ def single_run(argv=sys.argv[1:]):
     parser.add_argument('--all', dest='continuous', action='store_false',
                         help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
 
+    parser.add_argument('-live_sim',
+                        help="Simulate live usage of a subject with n_class classification on 1 single run",
+                        action='store_true', required=False)
+    parser.add_argument('--subject', type=int, default=1,
+                        help=f'Subject to simulate live_sim on')
+
     # parser.add_argument('--loops', type=int, default=1,
     #                     help=f'Number of loops of Training/Benchmarking is run (default:1)')
     parser.add_argument('--name', type=str, default=None,
@@ -79,8 +85,10 @@ def single_run(argv=sys.argv[1:]):
             args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
         else:
             args.name = args.name + f"_motor_img{args.ch_motorimg}"
-    if (not args.train) & (not args.benchmark):
-        parser.error("Either flag '--train' or '--benchmark' must be present!")
+    if (not args.train) & (not args.benchmark) & (not args.live_sim):
+        parser.error("Either flag '--train', '--benchmark' or '--live_sim' must be present!")
+    if args.live_sim & (args.subject not in ALL_SUBJECTS):
+        parser.error(f"Subject {args.subject} does not exist!")
     if not all(((n_class >= 2) & (n_class <= 4)) for n_class in args.n_classes):
         parser.error("Invalid n-class Classification specified (2/3/4-Class possible)")
     if args.subjects_cs > len(ALL_SUBJECTS):
@@ -126,6 +134,12 @@ def single_run(argv=sys.argv[1:]):
                                    tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
                                    tag=args.tag, ch_names=args.ch_names, equal_trials=(not args.all_trials),
                                    continuous=args.continuous)
+    elif args.live_sim:
+        model_path = f"{args.model}"
+        args.ch_names = load_chs_from_txt(model_path)
+        return physionet_live_sim(model_path, subject=args.subject, name=args.name, ch_names=args.ch_names,
+                                  n_classes=args.n_classes,
+                                  device=device, tag=args.tag, equal_trials=(not args.all_trials))
 
 
 ########################################################################################

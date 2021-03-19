@@ -12,16 +12,19 @@ import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from models.eegnet import EEGNet
-from common import train, test, benchmark
+
+from common import train, test, benchmark, predict
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
-    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS
-from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects
+    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, live_sim_results_folder, \
+    global_config
+from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
+    mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run
+from models.eegnet import EEGNet
 from util.dot_dict import DotDict
 from util.utils import training_config_str, create_results_folders, matplot, save_training_results, \
     benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, save_config, \
-    training_result_str
+    training_result_str, live_sim_config_str
 
 
 # Torch to TensorRT for model optimizations
@@ -255,6 +258,45 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
     return batch_lat_avgs, trial_inf_time_avgs
 
 
+def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
+                       n_classes=N_CLASSES,
+                       device=torch.device("cpu"), tag=None, equal_trials=True):
+    config = DotDict(subject=subject, device=device.type, n_classes=n_classes, ch_names=ch_names)
+    chs = len(ch_names)
+    # Dont print MNE loading logs
+    mne.set_log_level('WARNING')
+
+    print(live_sim_config_str(config))
+    dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
+
+    class_models = {}
+    for class_idx, n_class in enumerate(n_classes):
+        print(f"######### {n_class}Class-Classification Live Simulation")
+        model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
+        print(f"Loading pretrained model from '{model_path}'")
+        class_models[n_class] = get_model(n_class, chs, device, model_path)
+        class_models[n_class].eval()
+
+        raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], fmin=global_config.FREQ_FILTER_HIGHPASS,
+                                   fmax=global_config.FREQ_FILTER_LOWPASS,notch=global_config.USE_NOTCH_FILTER,
+                                   ch_names=ch_names)
+        max_sample = raw.n_times
+        # X, times, annot = crop_time_and_label(raw, 8)
+        X = get_data_from_raw(raw)
+        last_label = None
+        for now_sample in range(max_sample):
+            if now_sample < SAMPLES:
+                continue
+            # get_label_at_idx( times, annot, 10)
+            label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
+            pred = predict(class_models[n_class], X[:, (now_sample - SAMPLES):now_sample])
+            #if last_label != label:
+            print(f"Label from {now_time} is: {label}, pred: {pred}")
+            last_label = label
+
+    return
+
+
 def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
     print("Warming up GPU")
     for u in range(warm_ups):
@@ -278,14 +320,16 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             f'loss per batch (size = {batch_size})',
             labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
-    matplot(epoch_losses_valid, f"{n_class}class {'Validation' if early_stop else 'Training'} Losses{'' if tag is None else tag}", 'Epoch',
+    matplot(epoch_losses_valid,
+            f"{n_class}class {'Validation' if early_stop else 'Training'} Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
             labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
     train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
     train_valid_data[0] = epoch_losses_train[best_split]
     train_valid_data[1] = epoch_losses_valid[best_split]
     matplot(train_valid_data,
-            f"{n_class}class Train-{'Valid' if early_stop else 'Test'} Losses of best Split", 'Epoch', f'loss per batch (size = {batch_size})',
+            f"{n_class}class Train-{'Valid' if early_stop else 'Test'} Losses of best Split", 'Epoch',
+            f'loss per batch (size = {batch_size})',
             labels=['Training Loss', f'{"Validation" if early_stop else "Testing"} Loss'], save_path=dir_results)
 
 

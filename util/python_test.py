@@ -10,7 +10,8 @@ import torch
 
 from config import SAMPLERATE, MNE_CHANNELS, EEG_TMAX, EEG_TMIN, SAMPLES
 from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject, \
-    load_task_runs
+    load_task_runs, get_data_from_raw, get_label_at_idx
+from physionet_machine_learning import physionet_live_sim
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -258,76 +259,20 @@ def check_bad_data(subjects, n_classes):
 #         print(f"{n} (idx {i}) is not present in X2")
 #         pass
 #
-tdelta = EEG_TMAX - EEG_TMIN
-
-
-def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
-    if (time - tdelta) < 0:
-        raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
-    raw1 = raw.copy()
-    raw1.pick_channels(ch_names)
-    raw1.crop(time - tdelta, time)
-    data, times = raw1[:, :]
-    return data, times, raw1.annotations
-
-
-def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
-    raw1 = raw.copy()
-    raw1.pick_channels(ch_names)
-    data, times = raw1[:, :]
-    return data
-
-
-def get_label_at_idx(times, annot, sample):
-    now_time = times[sample]
-    if sample < SAMPLES:
-        return None,now_time
-    middle_sample_of_window = int(sample - (SAMPLES / 2))
-    time = times[middle_sample_of_window]
-    onsets = annot.onset
-    # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)
-    # find index where time would be inserted
-    # -> index of label is sorted_idx-1
-    sorted_idx = np.searchsorted(onsets, [time])[0]
-    # Determine if majority of samples lies in
-    # get label of sample_idx in the middle of the window
-    label = annot.description[sorted_idx - 1]
-    return label, now_time
-
-
-def get_label_at_time(raw, times, time):
-    idx = raw.time_as_index(time)
-    return get_label_at_idx(times, raw.annotations, idx)
-
 
 
 # is constantly increased -> simulate "live"
 # current_sample = 0
-raw = mne_load_subject_raw(1, [4])
-max_sample = raw.n_times
-# X, times, annot = crop_time_and_label(raw, 8)
-X = get_data_from_raw(raw)
-last_label = None
-for sample in range(max_sample):
-    # get_label_at_idx( times, annot, 10)
-    label, now = get_label_at_idx(raw.times, raw.annotations, sample)
-    if last_label != label:
-        print(f"Label from {now} is: {label}")
-    last_label = label
+# raw = mne_load_subject_raw(1, [4])
+# max_sample = raw.n_times
+# # X, times, annot = crop_time_and_label(raw, 8)
+# X = get_data_from_raw(raw)
+# last_label = None
+# for now_sample in range(max_sample):
+#     # get_label_at_idx( times, annot, 10)
+#     label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
+#     if last_label != label:
+#         print(f"Label from {now_time} is: {label}")
+#     last_label = label
 
-# raw.plot(n_channels=1)
-
-# X, y = mne_load_subject(1, 2)
-# print(X.shape)
-# X = np.swapaxes(X, 1, 2)
-# print(X[0][1])
-# for tr in range(X.shape[0]):
-#     for ch in range(X.shape[1]):
-#         ch_data = X[tr][ch]
-#         X[tr][ch] = preprocess_data(ch_data,sample_rate=SAMPLERATE,
-#                                     artifact_removal=True,notch=True,
-#                                     bp_filter=True)
-# X = np.swapaxes(X, 2, 1)
-# print("PREPROCESSED.-------------------------------------------------")
-# print(X[0][1])
-# print(X.shape)
+physionet_live_sim("../results/2021-03-19 01_40_41_batch_training_ALL/conf_no_es_bp_None_60",n_classes=[3])
