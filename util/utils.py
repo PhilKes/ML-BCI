@@ -228,7 +228,7 @@ def training_config_str(config):
 Device: {config.device}
 Nr. of classes: {config.n_classes}
 {get_str_n_classes(config.n_classes)}
-Dataset split in {config.splits} Subject Groups, {config.splits - 1} for Training, {1} for Testing (Cross Validation)
+Dataset split in {config.folds} Subject Groups, {config.folds - 1} for Training, {1} for Testing (Cross Validation)
 {f'Excluded Subjects:{config["excluded"]}' if len(config["excluded"]) > 0 else ""}
 Channels: {len(config.ch_names)} {config.ch_names}
 EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
@@ -242,12 +242,12 @@ Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milest
 
 
 def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
-                        best_valid_losses, best_split, early_stop=True):
-    splits_str = ""
+                        best_valid_losses, best_fold, early_stop=True):
+    folds_str = ""
     for i in range(len(accuracies)):
-        splits_str += f'\tSplit {i} {"[Best]" if i==best_split else ""}:\t{accuracies[i]:.2f}\n'
+        folds_str += f'\tFold {i} {"[Best]" if i == best_fold else ""}:\t{accuracies[i]:.2f}\n'
         if TEST_OVERFITTING:
-            splits_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
+            folds_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
 
     trials_str = ""
     for cl, trs in enumerate(class_trials):
@@ -257,14 +257,14 @@ def training_result_str(accuracies, accuracies_overfitting, class_trials, class_
         classes_str += f'\t[{l}]: {class_accuracies[l]:.2f}'
     best_epochs_str = ""
     if early_stop:
-        best_epochs_str += "Best Validation Loss Epochs of Splits:\n"
+        best_epochs_str += "Best Validation Loss Epochs of Folds:\n"
         for sp in range(best_valid_epochs.shape[0]):
-            best_epochs_str += f'Split {sp}{" [Best]" if sp == best_split else ""}: {best_valid_epochs[sp]} (loss: {best_valid_losses[sp]:.5f})\n'
+            best_epochs_str += f'Fold {sp}{" [Best]" if sp == best_fold else ""}: {best_valid_epochs[sp]} (loss: {best_valid_losses[sp]:.5f})\n'
 
     return f"""#### Results ####
 Elapsed Time: {elapsed}
-Accuracies of Splits:
-{splits_str}
+Accuracies of Folds:
+{folds_str}
 Avg. acc: {np.average(accuracies):.2f}
 {f'Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
 Trials per class:

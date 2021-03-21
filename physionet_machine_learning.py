@@ -42,10 +42,10 @@ from util.utils import training_config_str, create_results_folders, matplot, sav
 # Can run 2/3/4-Class Classifications
 # Saves Accuracies + Epochs in ./results/{DateTime/name}/training
 # save_model: Saves trained model with highest accuracy in results folder
-def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLITS, lr=LR, n_classes=N_CLASSES,
+def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
                           save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
                           equal_trials=False, early_stop=True, excluded=[]):
-    config = DotDict(num_epochs=num_epochs, batch_size=batch_size, splits=splits, lr=lr, device=device,
+    config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
     chs = len(ch_names)
     # Dont print MNE loading logs
@@ -74,14 +74,14 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
 
     # Group labels (subjects in same group need same group label)
     groups = np.zeros(len(used_subjects), dtype=np.int)
-    group_size = int(len(used_subjects) / splits)
-    for i in range(splits):
+    group_size = int(len(used_subjects) / folds)
+    for i in range(folds):
         groups[group_size * i:(group_size * (i + 1))] = i
 
     # Split Data into training + test
-    cv = GroupKFold(n_splits=splits)
+    cv = GroupKFold(n_splits=folds)
 
-    best_trained_model = {}
+    best_n_class_models = {}
     for i, n_class in enumerate(n_classes):
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
@@ -93,16 +93,16 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
         cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
-        accuracies = np.zeros((splits))
-        best_losses_valid, best_epochs_valid = np.full((splits), fill_value=np.inf), np.zeros((splits), dtype=np.int)
-        best_split = -1
-        class_accuracies = np.zeros((splits, n_class))
+        accuracies = np.zeros((folds))
+        best_losses_valid, best_epochs_valid = np.full((folds), fill_value=np.inf), np.zeros((folds), dtype=np.int)
+        best_fold = -1
+        class_accuracies = np.zeros((folds, n_class))
         class_trials = np.zeros(n_class)
-        accuracies_overfitting = np.zeros((splits)) if TEST_OVERFITTING else None
-        epoch_losses_train, epoch_losses_valid = np.zeros((splits, num_epochs)), np.zeros((splits, num_epochs))
-        # Training of the 5 different splits-combinations
-        for split in range(splits):
-            print(f"############ RUN {split} ############")
+        accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
+        epoch_losses_train, epoch_losses_valid = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
+        # Training of the 5 Folds with the different splits
+        for fold in range(folds):
+            print(f"############ RUN {fold} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
             loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
                                                  preloaded_labels, batch_size, ch_names, equal_trials)
@@ -111,44 +111,44 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
             model = get_model(n_class, chs, device)
 
             train_results = train(model, loader_train, loader_test, num_epochs, device, early_stop)
-            epoch_losses_train[split], epoch_losses_valid[split], best_model, best_epochs_valid[split] = train_results
+            epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train_results
 
-            # Load best model state of this split to Test global accuracy
+            # Load best model state of this fold to Test global accuracy
             if early_stop:
                 model.load_state_dict(best_model)
-                best_epoch_loss_valid = epoch_losses_valid[split][best_epochs_valid[split]]
+                best_epoch_loss_valid = epoch_losses_valid[fold][best_epochs_valid[fold]]
                 print(
-                    f"Best Epoch: {best_epochs_valid[split]} with loss on Validation Data: {best_epoch_loss_valid}")
-                # Determine Split with lowest test_loss on best epoch of split
+                    f"Best Epoch: {best_epochs_valid[fold]} with loss on Validation Data: {best_epoch_loss_valid}")
+                # Determine Fold with lowest test_loss on best epoch of fold
                 if best_epoch_loss_valid < best_losses_valid.min():
-                    best_trained_model[n_class] = best_model
-                    best_split = split
-                best_losses_valid[split] = best_epoch_loss_valid
+                    best_n_class_models[n_class] = best_model
+                    best_fold = fold
+                best_losses_valid[fold] = best_epoch_loss_valid
 
             print("## Testing ##")
             test_accuracy, test_class_hits = test(model, loader_test, device, n_class)
             # Test overfitting by testing on Training Dataset
             if TEST_OVERFITTING:
                 print("## Testing on Training Dataset ##")
-                accuracies_overfitting[split], train_class_hits = test(model, loader_train, device, n_class)
-            # If not using early stopping, determine which split has the highest accuracy
+                accuracies_overfitting[fold], train_class_hits = test(model, loader_train, device, n_class)
+            # If not using early stopping, determine which fold has the highest accuracy
             if not early_stop & (test_accuracy >= accuracies.max()):
-                best_trained_model[n_class] = model.state_dict().copy()
-                best_split = split
-            accuracies[split] = test_accuracy
-            split_class_accuracies = np.zeros(n_class)
+                best_n_class_models[n_class] = model.state_dict().copy()
+                best_fold = fold
+            accuracies[fold] = test_accuracy
+            fold_class_accuracies = np.zeros(n_class)
             print("Trials for classes:")
             for cl in range(n_class):
                 class_trials[cl] = len(test_class_hits[cl])
-                split_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
-            class_accuracies[split] = split_class_accuracies
+                fold_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
+            class_accuracies[fold] = fold_class_accuracies
         elapsed = datetime.now() - start
         # Calculate average accuracies per class
         avg_class_accuracies = np.zeros(n_class)
         for cl in range(n_class):
-            avg_class_accuracies[cl] = np.average([float(class_accuracies[sp][cl]) for sp in range(splits)])
+            avg_class_accuracies[cl] = np.average([float(class_accuracies[sp][cl]) for sp in range(folds)])
         res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed,
-                                      best_epochs_valid, best_losses_valid, best_split, early_stop=early_stop)
+                                      best_epochs_valid, best_losses_valid, best_fold, early_stop=early_stop)
         print(res_str)
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
@@ -156,17 +156,16 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, splits=SPLIT
         save_training_numpy_data(accuracies, class_accuracies, epoch_losses_train, dir_results, n_class)
         # Plot Statistics and save as .png s
         plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
-                                 epoch_losses_valid, best_split, batch_size, splits, early_stop)
-    # Save best trained Model state
-    # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
-    # else: Model state after epochs of Split with the highest accuracy on Training Set
-    if save_model:
-        for cl in best_trained_model:
-            torch.save(best_trained_model[cl], f"{dir_results}/{cl}class_{trained_model_name}")
+                                 epoch_losses_valid, best_fold, batch_size, folds, early_stop)
+        # Save best trained Model state
+        # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
+        # else: Model state after epochs of Fold with the highest accuracy on Training Set
+        if save_model:
+            torch.save(best_n_class_models[n_class], f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
-# with Physionet Dataset (3class-Classification)
+# with Physionet Dataset
 # Returns Batch Latency + Time per EEG Trial inference
 # saves results in model_path/benchmark
 def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"),
@@ -308,8 +307,8 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
 # Plots Losses, Accuracies of Training, Validation, Testing
 def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
                              epoch_losses_valid,
-                             best_split, batch_size, splits, early_stop):
-    matplot(accuracies, f"{n_class}class Cross Validation", "Splits Iteration", "Accuracy in %",
+                             best_fold, batch_size, folds, early_stop):
+    matplot(accuracies, f"{n_class}class Cross Validation", "Folds Iteration", "Accuracy in %",
             save_path=dir_results,
             bar_plot=True, max_y=100.0)
     matplot(avg_class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
@@ -318,17 +317,17 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             bar_plot=True, max_y=100.0)
     matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
-            labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
+            labels=[f"Run {i}" for i in range(folds)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
     matplot(epoch_losses_valid,
             f"{n_class}class {'Validation' if early_stop else 'Training'} Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
-            labels=[f"Run {i}" for i in range(splits)], save_path=dir_results)
+            labels=[f"Run {i}" for i in range(folds)], save_path=dir_results)
     train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
-    train_valid_data[0] = epoch_losses_train[best_split]
-    train_valid_data[1] = epoch_losses_valid[best_split]
+    train_valid_data[0] = epoch_losses_train[best_fold]
+    train_valid_data[1] = epoch_losses_valid[best_fold]
     matplot(train_valid_data,
-            f"{n_class}class Train-{'Valid' if early_stop else 'Test'} Losses of best Split", 'Epoch',
+            f"{n_class}class Train-{'Valid' if early_stop else 'Test'} Losses of best Fold", 'Epoch',
             f'loss per batch (size = {batch_size})',
             labels=['Training Loss', f'{"Validation" if early_stop else "Testing"} Loss'], save_path=dir_results)
 

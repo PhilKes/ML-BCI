@@ -6,10 +6,10 @@ from config import global_config
 
 from util.utils import datetime_to_folder_str
 
-default_options = ['-train', '--n_classes', '2']
+default_options = ['-train', '--n_classes', '2', '3', '4']
 start = datetime.now()
-#folder = f"{datetime_to_folder_str(start)}_batch_training_ALL"
-folder="2021-03-19 01_40_41_batch_training_ALL"
+folder = f"{datetime_to_folder_str(start)}_batch_training_ALL"
+# folder="2021-03-19 01_40_41_batch_training_ALL"
 global_config.USE_NOTCH_FILTER = False
 # global_config.FREQ_FILTER_LOWPASS = None
 # global_config.FREQ_FILTER_HIGHPASS = None
@@ -34,7 +34,7 @@ global_config.USE_NOTCH_FILTER = False
 # global_config.FREQ_FILTER_LOWPASS = 40
 # # single_run(default_options + ['--name', f"{folder}/conf_no_es_bp_2_40", "--no_early_stop"])
 # single_run(default_options + ['--name', f"{folder}/conf_es_bp_2_40"])
-global_config.USE_NOTCH_FILTER = True
+global_config.USE_NOTCH_FILTER = False
 global_config.FREQ_FILTER_HIGHPASS = None
 global_config.FREQ_FILTER_LOWPASS = None
 single_run(default_options + ['--name', f"{folder}/conf_no_es_bp_None_notch"])
