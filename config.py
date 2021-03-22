@@ -4,7 +4,7 @@ Configuration File containing global default values
 
 from util.dot_dict import DotDict
 
-PLOTS = True
+PLOT_TO_PDF = False
 VERBOSE = False
 # Calculate the difference in accuracy between (new) Validation Dataset and known Training Dataset
 # if True the differences are stored in the results.txt

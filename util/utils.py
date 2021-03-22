@@ -19,7 +19,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
-    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder
+    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, PLOT_TO_PDF
 
 
 # Create results folder with current DateTime as name
@@ -40,6 +40,10 @@ def print_subjects_ranges(train, test):
 # save_path: if plot + data array should be saved, declare save location
 # bar_plot: Plot as bars with average line (for Accuracies)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False):
+    # use LaTeX fonts in the plot
+    plt.rc('text', usetex=False)
+    plt.rc('font', family='serif')
+
     fig, ax = plt.subplots()
     plt.title(title)
     plt.xlabel(xlabel)
@@ -67,8 +71,12 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
             plt.grid()
     if save_path is not None:
         fig = plt.gcf()
-        fig.savefig(f"{save_path}/{title}.png")
         # np.save(f"{save_path}/{title}.npy", data)
+        # save as PDF
+        if PLOT_TO_PDF:
+            fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
+        else:
+            fig.savefig(f"{save_path}/{title}.png")
     # fig.tight_layout()
     plt.show()
 
@@ -80,6 +88,10 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple']
 def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylabel="", save_path=None):
     x = np.arange(len(configs_data))  # the label locations
     width = (1.0 / len(batch_sizes)) - 0.1  # the width of the bars
+
+    # use LaTeX fonts in the plot
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
 
     fig, ax = plt.subplots()
     bs_rects = []
@@ -119,7 +131,11 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
     plt.show()
     if save_path is not None:
         fig = plt.gcf()
-        fig.savefig(f"{save_path}/{title}.png")
+        # save as PDF
+        if PLOT_TO_PDF:
+            fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
+        else:
+            fig.savefig(f"{save_path}/{title}.png")
 
 
 # Create Plot from numpy file

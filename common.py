@@ -57,9 +57,12 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
 
             running_loss_train += loss.item()
         pbar.close()
+        # Loss of entire epoch / amount of batches
+        epoch_loss_train = (running_loss_train / len(loader_train))
+        # Validation loss on Test Dataset to determine
+        # if early_stop=True: Used to determine best model state
         with torch.no_grad():
             model.eval()
-            # Validation loss on 1 Subject of Test Dataset to determine best model state
             for idx_batch, (inputs, labels) in enumerate(loader_valid):
                 # Convert to correct types + put on GPU
                 inputs, labels = inputs, labels.long().to(device)
@@ -74,8 +77,7 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
                 running_loss_valid += loss.item()
         model.train()
         lr_scheduler.step()
-        # Loss of entire epoch / amount of batches
-        epoch_loss_train = (running_loss_train / len(loader_train))
+
         epoch_loss_valid = (running_loss_valid / len(loader_valid))
         # Determine if epoch (validation loss) is lower than all epochs before -> current best model
         if early_stop:
@@ -96,10 +98,10 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
 
 
 # Tests labeled data with trained net
-def test(model, data_loader, device=torch.device("cpu"), classes=3):
+def test(model, data_loader, device=torch.device("cpu"), n_class=3):
     print("###### Testing started")
     total, correct = 0.0, 0.0
-    class_hits = [[] for i in range(classes)]
+    class_hits = [[] for i in range(n_class)]
     with torch.no_grad():
         model.eval()
         for data in data_loader:
@@ -121,9 +123,9 @@ def test(model, data_loader, device=torch.device("cpu"), classes=3):
                     class_hits[label].append(0)
 
     acc = (100 * correct / total)
-    class_accuracies = np.zeros(classes)
+    class_accuracies = np.zeros(n_class)
     print("Trials for classes:")
-    for i in range(classes):
+    for i in range(n_class):
         print(len(class_hits[i]))
         class_accuracies[i] = (100 * (sum(class_hits[i]) / len(class_hits[i])))
     print(F'Accuracy on the {len(data_loader.dataset)} test trials: %0.2f %%' % (
@@ -187,7 +189,7 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
     return batch_lat, trial_inf_time, acc
 
 
-def predict(model, X, device=torch.device("cpu")):
+def predict_single(model, X, device=torch.device("cpu")):
     with torch.no_grad():
         X = torch.as_tensor(X[None,None, ...], device=device, dtype=torch.float32)
         output = model(X)

@@ -13,7 +13,7 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
-from common import train, test, benchmark, predict
+from common import train, test, benchmark, predict_single
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
     MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, live_sim_results_folder, \
     global_config
@@ -110,8 +110,12 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
 
             model = get_model(n_class, chs, device)
 
-            train_results = train(model, loader_train, loader_test, num_epochs, device, early_stop)
-            epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train_results
+            epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train(model,
+                                                                                                            loader_train,
+                                                                                                            loader_test,
+                                                                                                            num_epochs,
+                                                                                                            device,
+                                                                                                            early_stop)
 
             # Load best model state of this fold to Test global accuracy
             if early_stop:
@@ -237,13 +241,14 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
                     if device.type != 'cpu':
                         gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
                     idx = chunks * i + ch_idx
-                    bench_results = benchmark(class_models[n_class], loader_data, device, fp16)
-                    batch_lats[idx], trial_inf_times[idx], accuracies[idx] = bench_results
+                    batch_lats[idx], trial_inf_times[idx], accuracies[idx] = benchmark(class_models[n_class],
+                                                                                       loader_data, device, fp16)
+
             else:
                 # Benchmarking is executed continuously only over 1 subject chunk
                 # Infers over the same subject chunk i times without loading in between
-                bench_results = benchmark(class_models[n_class], loader_data, device, fp16)
-                batch_lats[i], trial_inf_times[i], accuracies[i] = bench_results
+                batch_lats[i], trial_inf_times[i], accuracies[i] = benchmark(class_models[n_class], loader_data, device,
+                                                                             fp16)
         elapsed = datetime.now() - start
         acc_avg = np.average(accuracies)
         batch_lat_avgs[class_idx] = np.average(batch_lats)
@@ -277,7 +282,7 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         class_models[n_class].eval()
 
         raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], fmin=global_config.FREQ_FILTER_HIGHPASS,
-                                   fmax=global_config.FREQ_FILTER_LOWPASS,notch=global_config.USE_NOTCH_FILTER,
+                                   fmax=global_config.FREQ_FILTER_LOWPASS, notch=global_config.USE_NOTCH_FILTER,
                                    ch_names=ch_names)
         max_sample = raw.n_times
         # X, times, annot = crop_time_and_label(raw, 8)
@@ -288,8 +293,8 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
                 continue
             # get_label_at_idx( times, annot, 10)
             label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
-            pred = predict(class_models[n_class], X[:, (now_sample - SAMPLES):now_sample])
-            #if last_label != label:
+            pred = predict_single(class_models[n_class], X[:, (now_sample - SAMPLES):now_sample])
+            # if last_label != label:
             print(f"Label from {now_time} is: {label}, pred: {pred}")
             last_label = label
 
