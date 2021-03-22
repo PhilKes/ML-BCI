@@ -12,7 +12,7 @@ TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
 # for -benchmark: decrease --subjects_cs (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
-global_config = DotDict(FREQ_FILTER_HIGHPASS=None, FREQ_FILTER_LOWPASS=60, USE_NOTCH_FILTER=False)
+global_config = DotDict(FREQ_FILTER_HIGHPASS=None, FREQ_FILTER_LOWPASS=None, USE_NOTCH_FILTER=False)
 results_folder = './results'
 training_results_folder = f"/training"
 benchmark_results_folder = f"/benchmark"
@@ -76,10 +76,53 @@ MNE_CHANNELS = [
 
 # Source:
 # https://www.researchgate.net/publication/324826717_Motor_Imagery_EEG_Signal_Processing_and_Classification_using_Machine_Learning_Approach
+MOTORIMG_CHANNELS_21 = [
+    'Fc5', 'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4', 'Fc6',
+    'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
+    'Cp5', 'Cp3', 'Cp1', 'Cpz', 'Cp2', 'Cp4', 'Cp6',
+]
 MOTORIMG_CHANNELS_18 = [
     'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
     'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
     'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
+]
+MOTORIMG_CHANNELS_16_openbci = [
+    'F3', 'Fz', 'F4',
+    'Fc5', 'Fc1', 'Fc2', 'Fc6',
+    'T7', 'C3', 'Cz', 'C4', 'T8',
+    'Cp5', 'Cp1', 'Cp2', 'Cp6',
+]
+MOTORIMG_CHANNELS_16 = [
+    'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
+    'C3', 'C1', 'C2', 'C4',
+    'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
+]
+MOTORIMG_CHANNELS_14 = [
+    'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',
+    'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
+    'Cp3', 'Cp4',
+]
+MOTORIMG_CHANNELS_14_2 = [
+    'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',
+    'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
+    'Cp1', 'Cp2',
+]
+MOTORIMG_CHANNELS_14_3 = [
+    'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
+    'C3', 'C1', 'C2', 'C4',
+    'Cp3', 'Cp1', 'Cp2', 'Cp4',
+]
+MOTORIMG_CHANNELS_14_4 = [
+    'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
+    'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
+    'Cp1', 'Cp2'
+]
+# Source:
+# https://www.researchgate.net/publication/43407016_Exploring_Large_Virtual_Environments_by_Thoughts_Using_a_Brain-Computer_Interface_Based_on_Motor_Imagery_and_High-Level_Commands/figures?lo=1
+MOTORIMG_CHANNELS_12 = [
+    'Fc3', 'Fcz', 'Fc4',
+    'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
+    'Cp3', 'Cpz', 'Cp4',
 ]
 MOTORIMG_CHANNELS_8 = [
     'Fc5', 'Fc1', 'Fc2', 'Fc6',
@@ -116,10 +159,15 @@ MOTORIMG_CHANNELS_5 = [
     "C3", "Cz", "C4", "Cp3", "Cp4"
 ]
 
-MOTORIMG_CHANNELS = {'8': MOTORIMG_CHANNELS_8, '8_2': MOTORIMG_CHANNELS_8_2,
-                     '8_3': MOTORIMG_CHANNELS_8_3, '8_4': MOTORIMG_CHANNELS_8_4,
-                     '8_5': MOTORIMG_CHANNELS_8_5, '8_6': MOTORIMG_CHANNELS_8_6,
-                     '5': MOTORIMG_CHANNELS_5, '18': MOTORIMG_CHANNELS_18}
+MOTORIMG_CHANNELS = {
+    '5': MOTORIMG_CHANNELS_5, '8': MOTORIMG_CHANNELS_8,
+    '8_2': MOTORIMG_CHANNELS_8_2, '8_3': MOTORIMG_CHANNELS_8_3,
+    '8_4': MOTORIMG_CHANNELS_8_4, '8_5': MOTORIMG_CHANNELS_8_5,
+    '8_6': MOTORIMG_CHANNELS_8_6, '12': MOTORIMG_CHANNELS_12,
+    '14': MOTORIMG_CHANNELS_14, '14_2': MOTORIMG_CHANNELS_14_2,
+    '14_3': MOTORIMG_CHANNELS_14_3, '14_4': MOTORIMG_CHANNELS_14_4,
+    '16': MOTORIMG_CHANNELS_16,'16_openbci': MOTORIMG_CHANNELS_16_openbci,
+    '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21}
 
 # # Calculated with python_test.py get_mean_std():
 # channel_means = [-4.4257e-06, -3.6615e-06, -3.5425e-06, -3.1105e-06, -1.9982e-06,
