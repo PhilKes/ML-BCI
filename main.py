@@ -127,7 +127,7 @@ def single_run(argv=sys.argv[1:]):
 
     if args.train:
         # for i in range(args.loops):
-        physionet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
+        return physionet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                               name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
                               equal_trials=(not args.all_trials), early_stop=args.early_stop, excluded=args.excluded)
     elif args.train:

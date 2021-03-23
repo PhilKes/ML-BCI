@@ -91,6 +91,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
     cv = GroupKFold(n_splits=folds)
 
     best_n_class_models = {}
+    n_class_accuracy, n_class_overfitting_diff = np.zeros(len(n_classes)), np.zeros(len(n_classes))
     for i, n_class in enumerate(n_classes):
         preloaded_data, preloaded_labels = None, None
         if DATA_PRELOAD:
@@ -169,6 +170,10 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         # else: Model state after epochs of Fold with the highest accuracy on Training Set
         if save_model:
             torch.save(best_n_class_models[n_class], f"{dir_results}/{n_class}class_{trained_model_name}")
+
+        n_class_accuracy[i] = np.average(accuracies)
+        n_class_overfitting_diff[i] = np.average(accuracies) - np.average(accuracies_overfitting)
+    return n_class_accuracy, n_class_overfitting_diff
 
 
 def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
@@ -350,7 +355,8 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
                 continue
             # get_label_at_idx( times, annot, 10)
             label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
-            pred = predict_single(class_models[n_class], X[:, (now_sample - eeg_config.SAMPLES):now_sample], device=device)
+            pred = predict_single(class_models[n_class], X[:, (now_sample - eeg_config.SAMPLES):now_sample],
+                                  device=device)
             # if last_label != label:
             print(f"Label from\t{now_time:.3f}: {label}\tpred: {pred}")
             last_label = label
@@ -364,8 +370,6 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
         with torch.no_grad():
             data = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
             y = model(data.half() if fp16 else data)
-
-
 
 
 def get_model(n_class, chs, device, state_path=None):

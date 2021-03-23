@@ -3,9 +3,11 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
+import os
 
 import mne
 import numpy as np
+import pandas
 import torch
 
 from data_loading import load_n_classes_tasks
@@ -281,4 +283,25 @@ def check_bad_data(subjects, n_classes):
 # preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 3)
 # preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 4)
 
-physionet_training_ss(1, "./results/excluded_test", device=device,n_classes=[2])
+#physionet_training_ss(1, "./results/excluded_test", device=device,n_classes=[2])
+
+
+
+def save_pd(arr,i):
+    with open(os.path.join(f"./results/test", f'batch_training_results{i}.txt'),
+              'w') as outfile:
+        df = pandas.DataFrame(data=arr, columns=['2clAcc','2clOF','3clAcc','3clOF'])
+        df.to_string(outfile)
+
+arr2= np.asarray([[['r1cl2Acc','r1cl3Acc'],['r1cl2Of','r1cl3OF']],
+                 [['r2cl2Acc','r2cl3Acc'],['r2cl2Of','r2cl3OF']]])
+#print(arr)
+arr= arr2.copy().reshape((2,2*2),order='C')
+print(arr)
+save_pd(arr,1)
+arr= arr2.copy().reshape((2,2*2),order='F')
+print(arr)
+save_pd(arr,2)
+arr= arr2.copy().reshape((2,2*2),order='A')
+print(arr)
+save_pd(arr,3)

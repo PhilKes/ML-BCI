@@ -140,7 +140,7 @@ def training_config_str(config):
 {get_default_config_str(config)}
 Dataset split in {config.folds} Subject Groups, {config.folds - 1} for Training, {1} for Testing (Cross Validation)
 {f'Excluded Subjects:{config["excluded"]}' if len(config["excluded"]) > 0 else ""}
-{global_config_str}
+{get_global_config_str()}
 Early Stopping: {config.early_stop}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
@@ -152,7 +152,7 @@ def training_ss_config_str(config):
 {get_default_config_str(config)}
 Subject: {config.subject}
 Subject Dataset with {config.train_share * 100}% Training, {config.test_share * 100}% Test Subsets
-{global_config_str}
+{get_global_config_str()}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
 ###############\n\n"""
@@ -162,7 +162,7 @@ def benchmark_config_str(config):
     return f"""#### Config ####
 {get_default_config_str(config)}
 TensorRT optimized: {config.trt} (fp{16 if bool(config.fp16) else 32})
-{global_config_str}
+{get_global_config_str()}
 Preload subjects Chunksize: {config.subjects_cs}
 Dataset Iterations: {config.iters}
 ###############\n\n"""
@@ -171,7 +171,7 @@ Dataset Iterations: {config.iters}
 def live_sim_config_str(config, n_class=None):
     return f"""#### Config ####
 {get_default_config_str(config)}
-{global_config_str}
+{get_global_config_str()}
 Subject: {config.subject}
 ###############\n\n"""
 
@@ -185,10 +185,10 @@ def makedir(path):
         pass
 
 
-global_config_str = f"""EEG Epoch interval: [{eeg_config.EEG_TMIN};{eeg_config.EEG_TMAX}]s
+def get_global_config_str():
+    return f"""EEG Epoch interval: [{eeg_config.EEG_TMIN};{eeg_config.EEG_TMAX}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
-Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
-"""
+Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}"""
 
 
 def get_default_config_str(config):
