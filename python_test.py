@@ -8,10 +8,8 @@ import mne
 import numpy as np
 import torch
 
-from config import SAMPLERATE, MNE_CHANNELS, EEG_TMAX, EEG_TMIN, SAMPLES
-from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject, \
-    load_task_runs, get_data_from_raw, get_label_at_idx, load_subjects_data, ALL_SUBJECTS
-from physionet_machine_learning import physionet_live_sim, physionet_training_ss
+from data_loading import load_n_classes_tasks
+from physionet_machine_learning import physionet_training_ss
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")

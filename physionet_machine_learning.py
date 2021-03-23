@@ -11,20 +11,22 @@ import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset, TensorDataset, \
+from torch.utils.data import DataLoader, RandomSampler, TensorDataset, \
     random_split  # noqa
 
 from common import train, test, benchmark, predict_single
-from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
-    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, live_sim_results_folder, \
-    global_config, trained_ss_model_name
+from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
+    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, global_config, \
+    trained_ss_model_name, eeg_config
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
-    mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run
+    mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run, create_loader_from_subject
 from models.eegnet import EEGNet
 from util.dot_dict import DotDict
-from util.utils import training_config_str, create_results_folders, matplot, save_training_results, \
+from util.misc import split_list_into_chunks
+from util.plot import plot_training_statistics
+from util.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, \
-    save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, save_config, \
+    save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
 
 
@@ -172,9 +174,9 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
 def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
                           save_model=True, name=None, device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
     train_share = 0.8
-    test_share = 1- train_share
+    test_share = 1 - train_share
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
-                     n_classes=n_classes, ch_names=ch_names,train_share=train_share,test_share=test_share)
+                     n_classes=n_classes, ch_names=ch_names, train_share=train_share, test_share=test_share)
 
     chs = len(ch_names)
     # Dont print MNE loading logs
@@ -199,23 +201,8 @@ def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BAT
         model = get_model(n_class, chs, device,
                           state_path=f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}")
 
-        preloaded_data, preloaded_labels = load_subjects_data([used_subject], n_class, ch_names)
-        preloaded_data = preloaded_data.reshape(preloaded_data.shape[1], 1, preloaded_data.shape[2],
-                                                preloaded_data.shape[3])
-        preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
-
-        print("data", preloaded_data.shape)
-        print("labels", preloaded_labels.shape)
-
-        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
-                                 torch.as_tensor(preloaded_labels, device=device, dtype=torch.int)
-                                 )
-        lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
-        train_set, test_set = random_split(data_set, lengths)
-        print()
-
-        loader_train = DataLoader(train_set, batch_size, sampler=RandomSampler(train_set), pin_memory=False)
-        loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
+        loader_train, loader_test = create_loader_from_subject(used_subject, train_share, test_share, n_class,
+                                                               batch_size, ch_names, device)
 
         loss_values_train, loss_values_valid, _, __ = train(model, loader_train, loader_test,
                                                             num_epochs, device)
@@ -242,7 +229,7 @@ def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BAT
 # with Physionet Dataset
 # Returns Batch Latency + Time per EEG Trial inference
 # saves results in model_path/benchmark
-def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=N_CLASSES, device=torch.device("cpu"),
+def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
                         warm_ups=GPU_WARMUPS,
                         subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
                         ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
@@ -265,7 +252,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
         class_models[n_class].eval()
         # Get optimized model with TensorRT
         if tensorRT:
-            t = torch.randn((batch_size, 1, chs, SAMPLES)).to(device)
+            t = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
             # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
             # TensorRT either with fp16 ("half") or fp32
             if fp16:
@@ -359,11 +346,11 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         X = get_data_from_raw(raw)
         last_label = None
         for now_sample in range(max_sample):
-            if now_sample < SAMPLES:
+            if now_sample < eeg_config.SAMPLES:
                 continue
             # get_label_at_idx( times, annot, 10)
             label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
-            pred = predict_single(class_models[n_class], X[:, (now_sample - SAMPLES):now_sample], device=device)
+            pred = predict_single(class_models[n_class], X[:, (now_sample - eeg_config.SAMPLES):now_sample], device=device)
             # if last_label != label:
             print(f"Label from\t{now_time:.3f}: {label}\tpred: {pred}")
             last_label = label
@@ -375,40 +362,14 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
     print("Warming up GPU")
     for u in range(warm_ups):
         with torch.no_grad():
-            data = torch.randn((batch_size, 1, chs, SAMPLES)).to(device)
+            data = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
             y = model(data.half() if fp16 else data)
 
 
-# Plots Losses, Accuracies of Training, Validation, Testing
-def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
-                             epoch_losses_valid,
-                             best_fold, batch_size, folds, early_stop):
-    matplot(accuracies, f"{n_class}class Cross Validation", "Folds Iteration", "Accuracy in %",
-            save_path=dir_results,
-            bar_plot=True, max_y=100.0)
-    matplot(avg_class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
-            "Accuracy in %",
-            save_path=dir_results,
-            bar_plot=True, max_y=100.0)
-    matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
-            f'loss per batch (size = {batch_size})',
-            labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
-    # Plot Test loss during Training if early stopping is used
-    matplot(epoch_losses_valid,
-            f"{n_class}class {'Validation' if early_stop else 'Training'} Losses {'' if tag is None else tag}", 'Epoch',
-            f'loss per batch (size = {batch_size})',
-            labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
-    train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
-    train_valid_data[0] = epoch_losses_train[best_fold]
-    train_valid_data[1] = epoch_losses_valid[best_fold]
-    matplot(train_valid_data,
-            f"{n_class}class Train-{'Valid' if early_stop else 'Test'} Losses of best Fold", 'Epoch',
-            f'loss per batch (size = {batch_size})',
-            labels=['Training Loss', f'{"Validation" if early_stop else "Testing"} Loss'], save_path=dir_results)
 
 
 def get_model(n_class, chs, device, state_path=None):
-    model = EEGNet(N=n_class, T=SAMPLES, C=chs)
+    model = EEGNet(N=n_class, T=eeg_config.SAMPLES, C=chs)
     if state_path is not None:
         model.load_state_dict(torch.load(state_path))
     model.to(device)

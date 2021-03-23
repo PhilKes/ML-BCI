@@ -12,6 +12,9 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 
 # Source
 # https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
+from config import eegnet_config
+
+
 class EEGNet(t.nn.Module):
     """
     EEGNet
@@ -62,7 +65,7 @@ class EEGNet(t.nn.Module):
         self.constrain_w, self.dropout_type = (constrain_w, dropout_type)
 
         # Number of input neurons to the final fully connected layer
-        n_features = (T // 4) // 8
+        n_features = (T // eegnet_config.pool_size) // 8
 
         kernel_size = (1, kernLength)
         # print("padding", get_padding(kernel_size))
@@ -78,7 +81,7 @@ class EEGNet(t.nn.Module):
             self.conv2 = t.nn.Conv2d(F1, D * F1, (C, 1), groups=F1, bias=False)
         self.batch_norm2 = t.nn.BatchNorm2d(D * F1, momentum=0.01, eps=0.001)
         self.activation1 = t.nn.ELU(inplace=True) if activation == 'elu' else t.nn.ReLU(inplace=True)
-        self.pool1 = t.nn.AvgPool2d((1, 4))
+        self.pool1 = t.nn.AvgPool2d((1, eegnet_config.pool_size))
         # self.dropout1 = dropout(p=p_dropout)
         self.dropout1 = t.nn.Dropout(p=p_dropout)
 

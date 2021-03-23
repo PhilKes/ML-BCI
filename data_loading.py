@@ -15,13 +15,13 @@ from mne.io import concatenate_raws, read_raw_edf
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
+from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
 from tqdm import tqdm
 
-from config import VERBOSE, EEG_TMIN, EEG_TMAX, datasets_folder, DATA_PRELOAD, BATCH_SIZE, SAMPLES, \
-    MNE_CHANNELS, global_config, TRIALS_PER_SUBJECT_RUN, SAMPLERATE
+from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
+    MNE_CHANNELS, global_config, TRIALS_PER_SUBJECT_RUN
 
-from util.utils import print_subjects_ranges, split_np_into_chunks
+from util.misc import print_subjects_ranges, split_np_into_chunks
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
 excluded_subjects = [88, 92, 100, 104]
@@ -135,7 +135,7 @@ class TrialsDataset(Dataset):
 # also returns Validtion Loader containing validation_subjects subject for loss calculation
 def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
-                               equal_trials=False,used_subjects=ALL_SUBJECTS):
+                               equal_trials=False, used_subjects=ALL_SUBJECTS):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [used_subjects[idx] for idx in subjects_train_idxs]
     subjects_test = [used_subjects[idx] for idx in subjects_test_idxs]
@@ -160,6 +160,27 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
     # Sample the trials in random order
     sampler_train = RandomSampler(ds_train)
     return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
+
+
+def create_loader_from_subject(used_subject, train_share, test_share, n_class, batch_size, ch_names, device):
+    preloaded_data, preloaded_labels = load_subjects_data([used_subject], n_class, ch_names)
+    preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
+                                             preloaded_data.shape[3]))
+    preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
+
+    print("data", preloaded_data.shape)
+    print("labels", preloaded_labels.shape)
+
+    data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
+                             torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
+    lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
+    train_set, test_set = random_split(data_set, lengths)
+    print()
+
+    loader_train = DataLoader(train_set, batch_size, sampler=RandomSampler(train_set), pin_memory=False)
+    loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
+
+    return loader_train, loader_test
 
 
 def get_trials_size(n_class, equal_trials):
@@ -187,7 +208,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
                        normalize=False):
     subjects.sort()
     trials = get_trials_size(n_class, equal_trials)
-    preloaded_data = np.zeros((len(subjects), trials, len(ch_names), SAMPLES), dtype=np.float32)
+    preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
     print("Preload Shape", preloaded_data.shape)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
@@ -212,7 +233,7 @@ def get_runs_of_n_classes(n_classes):
 # Loads corresponding tasks for n_classes Classification
 def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
     tasks = n_classes_tasks[n_classes]
-    data, labels = load_task_runs(subject, tasks, exclude_rest=(n_classes == 2),
+    data, labels = load_task_runs(subject, tasks,
                                   exclude_bothfists=(n_classes == 4), ch_names=ch_names,
                                   equal_trials=equal_trials, n_class=n_classes)
     if n_classes == 2:
@@ -231,14 +252,6 @@ decrease_label = np.vectorize(dec_label)
 event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
 
-# Finds indices of label-value occurrences in y
-# and deletes them from X,y
-def remove_n_occurence_of(X, y, n, label):
-    label_idxs = np.where(y == label)[0]
-    label_idxs = label_idxs[:n]
-    return np.delete(X, label_idxs, axis=0), np.delete(y, label_idxs), len(label_idxs)
-
-
 # Loads Rest trials from the 1st baseline run of subject
 # if baseline run is not long enough for all needed trials
 # random 3s Trials are generated from baseline run
@@ -250,16 +263,16 @@ def mne_load_rests(subject, trials, ch_names):
         X = X[:1, :, :]
     X = np.squeeze(X, axis=0)
     X_cop = np.array(X, copy=True)
-    X = split_np_into_chunks(X, SAMPLES)
+    X = split_np_into_chunks(X, eeg_config.SAMPLES)
 
     missing_trials = trials - X.shape[0]
     if missing_trials > 0:
         for m in range(missing_trials):
             np.random.seed(m)
-            rand_start_idx = np.random.randint(0, X_cop.shape[0] - SAMPLES)
+            rand_start_idx = np.random.randint(0, X_cop.shape[0] - eeg_config.SAMPLES)
             # print("rand_start", rand_start_idx)
-            rand_x = np.zeros((1, SAMPLES, chs))
-            rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + SAMPLES)]
+            rand_x = np.zeros((1, eeg_config.SAMPLES, chs))
+            rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + eeg_config.SAMPLES)]
             X = np.concatenate((X, rand_x))
     y = np.full(X.shape[0], y[0])
     # print("X", X.shape, "Y", y)
@@ -268,16 +281,13 @@ def mne_load_rests(subject, trials, ch_names):
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
-def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
+def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
                    equal_trials=False):
-    global map_label
-    all_data = np.zeros((0, len(ch_names), SAMPLES))
+    all_data = np.zeros((0, len(ch_names), eeg_config.SAMPLES))
     all_labels = np.zeros((0), dtype=np.int)
     contains_rest_task = (0 in tasks)
     # Load Subject Data of all Tasks
-    for i, task in enumerate(tasks):
-        tasks_event_dict = event_dict
-        # if exclude_rest:
+    for task_idx, task in enumerate(tasks):
         tasks_event_dict = {'T1': 2, 'T2': 3}
         # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
@@ -305,19 +315,12 @@ def load_task_runs(subject, tasks, exclude_rest=False, exclude_bothfists=False, 
 
             # Correct labels if multiple tasks are loaded
             # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
-            for n in range(i if (not contains_rest_task) else i - 1):
+            for n in range(task_idx if (not contains_rest_task) else task_idx - 1):
                 labels = increase_label(labels)
         all_data = np.concatenate((all_data, data))
         all_labels = np.concatenate((all_labels, labels))
     # all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
     return all_data, all_labels
-
-
-# Shuffle 2 arrays unified
-def unison_shuffled_copies(a, b):
-    assert len(a) == len(b)
-    p = np.random.permutation(len(a))
-    return a[p], b[p]
 
 
 # Loads single Subject of Physionet Data with MNE
@@ -326,29 +329,15 @@ def unison_shuffled_copies(a, b):
 # if some are missing, they are ignored
 # event_id= 'auto' loads all event types
 # ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
-def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=EEG_TMIN, tmax=EEG_TMAX):
-    if VERBOSE:
-        print(f"MNE loading Subject {subject}")
-    raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
-    raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
-    raw = concatenate_raws(raw_files)
-    raw.rename_channels(lambda x: x.strip('.'))
-
-    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
-    if global_config.USE_NOTCH_FILTER:
-        raw.notch_filter(60.0, picks=picks, filter_length='auto',
-                         phase='zero')
-    if ((global_config.FREQ_FILTER_HIGHPASS is not None) | (global_config.FREQ_FILTER_LOWPASS is not None)):
-        # If method=”iir”, 4th order Butterworth will be used
-        raw.filter(global_config.FREQ_FILTER_HIGHPASS, global_config.FREQ_FILTER_LOWPASS, method='iir')
-        # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
+# tmin,tmax define what time interval of the events is returned
+def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=eeg_config.EEG_TMIN,
+                     tmax=eeg_config.EEG_TMAX):
+    raw = mne_load_subject_raw(subject, runs)
 
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
-    # https://mne.tools/0.11/auto_tutorials/plot_info.html
-    # picks = pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
-    #                    exclude='bads')
+    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
 
-    epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / SAMPLERATE), picks=picks,
+    epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / eeg_config.SAMPLERATE), picks=picks,
                     baseline=None, preload=True)
     # [trials, channels, timepoints,]
     subject_data = epochs.get_data().astype('float32')
@@ -357,25 +346,28 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
     return subject_data, subject_labels
 
 
-def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, notch=False, ch_names=MNE_CHANNELS):
+# Loads raw Subject run with specified channels
+# Can apply Bandpassfilter + Notch Filter
+def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
+                         fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
     if VERBOSE:
-        print(f"MNE loading Subject {subject}")
-    raw_fnames = eegbci.load_data(subject, runs, path=datasets_folder)
+        print(f"MNE loading Subject {subject} Runs {runs}")
+    raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
     raw.rename_channels(lambda x: x.strip('.'))
-
-    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
     if notch:
+        picks = mne.pick_channels(raw.info['ch_names'], ch_names)
         raw.notch_filter(60.0, picks=picks, filter_length='auto',
                          phase='zero')
     if ((fmin is not None) | (fmax is not None)):
+        # If method=”iir”, 4th order Butterworth will be used
         raw.filter(fmin, fmax, method='iir')
     return raw
 
 
 # Methods for live_sim MODE
-tdelta = EEG_TMAX - EEG_TMIN
+tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
 
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
@@ -397,9 +389,9 @@ def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
 
 def get_label_at_idx(times, annot, sample):
     now_time = times[sample]
-    if sample < SAMPLES:
+    if sample < eeg_config.SAMPLES:
         return None, now_time
-    middle_sample_of_window = int(sample - (SAMPLES / 2))
+    middle_sample_of_window = int(sample - (eeg_config.SAMPLES / 2))
     time = times[middle_sample_of_window]
     onsets = annot.onset
     # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)

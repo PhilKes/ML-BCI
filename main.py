@@ -14,7 +14,7 @@ from physionet_machine_learning import physionet_training_cv, physionet_benchmar
     physionet_training_ss
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS
 from data_loading import ALL_SUBJECTS, excluded_subjects
-from util.utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
+from util.misc import datetime_to_folder_str, list_to_string, load_chs_of_model
 
 
 def single_run(argv=sys.argv[1:]):
@@ -132,13 +132,13 @@ def single_run(argv=sys.argv[1:]):
                               equal_trials=(not args.all_trials), early_stop=args.early_stop, excluded=args.excluded)
     elif args.train:
         model_path = f"{args.model}"
-        args.ch_names = load_chs_from_txt(model_path)
+        args.ch_names = load_chs_of_model(model_path)
         # for i in range(args.loops):
         physionet_training_ss(model_path, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                               name=args.name,batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,equal_trials=(not args.all_trials))
     elif args.benchmark:
         model_path = f"{args.model}"
-        args.ch_names = load_chs_from_txt(model_path)
+        args.ch_names = load_chs_of_model(model_path)
         # for i in range(args.loops):
         return physionet_benchmark(model_path, name=args.name, n_classes=args.n_classes, device=device,
                                    subjects_cs=args.subjects_cs,
@@ -147,7 +147,7 @@ def single_run(argv=sys.argv[1:]):
                                    continuous=args.continuous)
     elif args.live_sim:
         model_path = f"{args.model}"
-        args.ch_names = load_chs_from_txt(model_path)
+        args.ch_names = load_chs_of_model(model_path)
         return physionet_live_sim(model_path, subject=args.subject, name=args.name, ch_names=args.ch_names,
                                   n_classes=args.n_classes,device=device, tag=args.tag,
                                   equal_trials=(not args.all_trials))

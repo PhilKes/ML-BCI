@@ -12,7 +12,9 @@ TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
 # for -benchmark: decrease --subjects_cs (see main.py) to decrease memory usage when benchmarking
 DATA_PRELOAD = True
-global_config = DotDict(FREQ_FILTER_HIGHPASS=None, FREQ_FILTER_LOWPASS=None, USE_NOTCH_FILTER=False)
+global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
+                        FREQ_FILTER_LOWPASS=None,
+                        USE_NOTCH_FILTER=False)
 results_folder = './results'
 training_results_folder = f"/training"
 benchmark_results_folder = f"/benchmark"
@@ -34,12 +36,14 @@ LR = DotDict(
     milestones=[20, 50],
     gamma=0.1
 )
-
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 EEG_TMIN = 0
 EEG_TMAX = 3
 SAMPLERATE = 160
-SAMPLES = (EEG_TMAX - EEG_TMIN) * SAMPLERATE
+eeg_config = DotDict(EEG_TMIN=0,
+                     EEG_TMAX=3,
+                     SAMPLERATE=160,
+                     SAMPLES=(EEG_TMAX - EEG_TMIN) * SAMPLERATE)
 
 # Amount of picked Trials in 1 Run of 1 Subject
 TRIALS_PER_SUBJECT_RUN = 21
@@ -51,6 +55,8 @@ VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]
 
 BATCH_SIZE = 16
+
+eegnet_config=DotDict(pool_size=4)
 
 # Benchmark Settings
 SUBJECTS_CS = 10
@@ -101,8 +107,8 @@ MOTORIMG_CHANNELS_16 = [
 ]
 MOTORIMG_CHANNELS_16_2 = [
     'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
-    'C5','C3', 'C1', 'C2', 'C4','C6',
-     'Cp3', 'Cp1', 'Cp2', 'Cp4',
+    'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
+    'Cp3', 'Cp1', 'Cp2', 'Cp4',
 ]
 MOTORIMG_CHANNELS_14 = [
     'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',
@@ -173,7 +179,7 @@ MOTORIMG_CHANNELS = {
     '8_6': MOTORIMG_CHANNELS_8_6, '12': MOTORIMG_CHANNELS_12,
     '14': MOTORIMG_CHANNELS_14, '14_2': MOTORIMG_CHANNELS_14_2,
     '14_3': MOTORIMG_CHANNELS_14_3, '14_4': MOTORIMG_CHANNELS_14_4,
-    '16': MOTORIMG_CHANNELS_16,'16_openbci': MOTORIMG_CHANNELS_16_openbci,
+    '16': MOTORIMG_CHANNELS_16, '16_openbci': MOTORIMG_CHANNELS_16_openbci,
     '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21}
 
 # # Calculated with python_test.py get_mean_std():
