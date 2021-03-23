@@ -56,6 +56,12 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         dir_results = create_results_folders(datetime=start)
     else:
         dir_results = create_results_folders(path=name)
+
+    if len(excluded) > 0:
+        if tag is None:
+            tag = 'excluded'
+        else:
+            tag += '_excluded'
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
     available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
@@ -102,7 +108,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         epoch_losses_train, epoch_losses_valid = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
         # Training of the 5 Folds with the different splits
         for fold in range(folds):
-            print(f"############ RUN {fold} ############")
+            print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
             loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
                                                  preloaded_labels, batch_size, ch_names, equal_trials)
@@ -157,7 +163,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(accuracies, class_accuracies, epoch_losses_train, dir_results, n_class)
+        save_training_numpy_data(accuracies, class_accuracies, epoch_losses_train, dir_results, n_class, excluded)
         # Plot Statistics and save as .png s
         plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
                                  epoch_losses_valid, best_fold, batch_size, folds, early_stop)
@@ -293,9 +299,9 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
                 continue
             # get_label_at_idx( times, annot, 10)
             label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
-            pred = predict_single(class_models[n_class], X[:, (now_sample - SAMPLES):now_sample])
+            pred = predict_single(class_models[n_class], X[:, (now_sample - SAMPLES):now_sample], device=device)
             # if last_label != label:
-            print(f"Label from {now_time} is: {label}, pred: {pred}")
+            print(f"Label from\t{now_time:.3f}: {label}\tpred: {pred}")
             last_label = label
 
     return
@@ -322,12 +328,12 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             bar_plot=True, max_y=100.0)
     matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
-            labels=[f"Run {i}" for i in range(folds)], save_path=dir_results)
+            labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
     matplot(epoch_losses_valid,
             f"{n_class}class {'Validation' if early_stop else 'Training'} Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
-            labels=[f"Run {i}" for i in range(folds)], save_path=dir_results)
+            labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
     train_valid_data[0] = epoch_losses_train[best_fold]
     train_valid_data[1] = epoch_losses_valid[best_fold]

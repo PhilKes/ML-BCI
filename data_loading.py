@@ -183,7 +183,7 @@ normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).resh
 
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage for ALL_SUBJECTS (~2GB)
-def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=False,
+def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=True,
                        normalize=False):
     subjects.sort()
     trials = get_trials_size(n_class, equal_trials)
@@ -350,12 +350,10 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
 
     epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / SAMPLERATE), picks=picks,
                     baseline=None, preload=True)
-    # TODO for equal_trials: https://mne.tools/stable/generated/mne.Epochs.html#mne.Epochs.equalize_event_counts
-    # [trials (84), timepoints (641), channels (len(ch_names)]
+    # [trials, channels, timepoints,]
     subject_data = epochs.get_data().astype('float32')
     # Labels (0-index based)
     subject_labels = epochs.events[:, -1] - 1
-    # subject_data = preprocess_mne_data(subject_data)
     return subject_data, subject_labels
 
 
@@ -372,9 +370,7 @@ def mne_load_subject_raw(subject, runs, fmin=None, fmax=None, notch=False, ch_na
         raw.notch_filter(60.0, picks=picks, filter_length='auto',
                          phase='zero')
     if ((fmin is not None) | (fmax is not None)):
-        # If method=”iir”, 4th order Butterworth will be used
         raw.filter(fmin, fmax, method='iir')
-        # raw.plot_psd(area_mode='range', tmax=10.0, picks=picks, average=False)
     return raw
 
 
@@ -393,7 +389,7 @@ def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
 
 
 def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
-    #raw1 = raw.copy()
+    # raw1 = raw.copy()
     raw.pick_channels(ch_names)
     data, times = raw[:, :]
     return data

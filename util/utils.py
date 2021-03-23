@@ -166,8 +166,9 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
     np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
 
 
-def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class):
-    np.savez(f"{save_path}/{n_class}class-training.npz", accs=accs, losses=losses, class_accs=class_accuracies)
+def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class, excluded_subjects):
+    np.savez(f"{save_path}/{n_class}class-training.npz", accs=accs, losses=losses, class_accs=class_accuracies,
+             excluded_subjects=np.asarray(excluded_subjects,dtype=np.int))
 
 
 # Loads list of ch_names from training results folder
@@ -195,9 +196,9 @@ def create_results_folders(path=None, name=None, datetime=None, type='train'):
     if path is not None:
         if type == 'train':
             folder = f"{results_folder}/{path}{training_results_folder}"
-        elif type=='benchmark':
+        elif type == 'benchmark':
             folder = f"{path}{benchmark_results_folder}{'' if name is None else f'/{name}'}"
-        elif type=='live_sim':
+        elif type == 'live_sim':
             folder = f"{path}{live_sim_results_folder}{'' if name is None else f'/{name}'}"
 
     else:
@@ -261,7 +262,7 @@ def training_result_str(accuracies, accuracies_overfitting, class_trials, class_
                         best_valid_losses, best_fold, early_stop=True):
     folds_str = ""
     for i in range(len(accuracies)):
-        folds_str += f'\tFold {i} {"[Best]" if i == best_fold else ""}:\t{accuracies[i]:.2f}\n'
+        folds_str += f'\tFold {i + 1} {"[Best]" if i == best_fold else ""}:\t{accuracies[i]:.2f}\n'
         if TEST_OVERFITTING:
             folds_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
 
@@ -274,8 +275,8 @@ def training_result_str(accuracies, accuracies_overfitting, class_trials, class_
     best_epochs_str = ""
     if early_stop:
         best_epochs_str += "Best Validation Loss Epochs of Folds:\n"
-        for sp in range(best_valid_epochs.shape[0]):
-            best_epochs_str += f'Fold {sp}{" [Best]" if sp == best_fold else ""}: {best_valid_epochs[sp]} (loss: {best_valid_losses[sp]:.5f})\n'
+        for fold in range(best_valid_epochs.shape[0]):
+            best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == best_fold else ""}: {best_valid_epochs[fold]} (loss: {best_valid_losses[fold]:.5f})\n'
 
     return f"""#### Results ####
 Elapsed Time: {elapsed}
@@ -305,6 +306,7 @@ Preload subjects Chunksize: {config.subjects_cs}
 Batch Size: {config.batch_size}
 Dataset Iterations: {config.iters}
 ###############\n\n"""
+
 
 def live_sim_config_str(config, n_class=None):
     return f"""#### Config ####

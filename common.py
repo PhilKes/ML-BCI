@@ -25,8 +25,8 @@ from config import LR
 # to determine best model with loweset test_loss
 # loss_values_train: Loss value of every Epoch on Training Dataset (data_loader)
 # loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
-# best_model: state_dict() of epoch model with lowest test_loss
-# best_epoch: best_epoch with lowest test_loss
+# best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
+# best_epoch: best_epoch with lowest test_loss if early_stop=True
 def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=True):
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
@@ -59,7 +59,7 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
         pbar.close()
         # Loss of entire epoch / amount of batches
         epoch_loss_train = (running_loss_train / len(loader_train))
-        # Validation loss on Test Dataset to determine
+        # Validation loss on Test Dataset
         # if early_stop=True: Used to determine best model state
         with torch.no_grad():
             model.eval()
