@@ -11,12 +11,13 @@ import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset, TensorDataset, \
+    random_split  # noqa
 
 from common import train, test, benchmark, predict_single
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, SAMPLES, GPU_WARMUPS, \
     MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, live_sim_results_folder, \
-    global_config
+    global_config, trained_ss_model_name
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
     mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run
 from models.eegnet import EEGNet
@@ -24,7 +25,7 @@ from util.dot_dict import DotDict
 from util.utils import training_config_str, create_results_folders, matplot, save_training_results, \
     benchmark_config_str, \
     save_benchmark_results, split_list_into_chunks, save_training_numpy_data, benchmark_result_str, save_config, \
-    training_result_str, live_sim_config_str
+    training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
 
 
 # Torch to TensorRT for model optimizations
@@ -44,7 +45,7 @@ from util.utils import training_config_str, create_results_folders, matplot, sav
 # save_model: Saves trained model with highest accuracy in results folder
 def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
                           save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                          equal_trials=False, early_stop=True, excluded=[]):
+                          equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
     chs = len(ch_names)
@@ -93,8 +94,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
             preloaded_data, preloaded_labels = load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                  ch_names, equal_trials,
-                                                                  normalize=False)
+                                                                  ch_names, equal_trials, normalize=False)
 
         cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
@@ -102,8 +102,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         accuracies = np.zeros((folds))
         best_losses_valid, best_epochs_valid = np.full((folds), fill_value=np.inf), np.zeros((folds), dtype=np.int)
         best_fold = -1
-        class_accuracies = np.zeros((folds, n_class))
-        class_trials = np.zeros(n_class)
+        class_accuracies, class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
         accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
         epoch_losses_train, epoch_losses_valid = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
         # Training of the 5 Folds with the different splits
@@ -111,18 +110,14 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
             loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
-                                                 preloaded_labels, batch_size, ch_names, equal_trials)
+                                                 preloaded_labels, batch_size, ch_names, equal_trials,
+                                                 used_subjects=used_subjects)
             loader_train, loader_test, loader_valid = loaders
 
             model = get_model(n_class, chs, device)
 
-            epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train(model,
-                                                                                                            loader_train,
-                                                                                                            loader_test,
-                                                                                                            num_epochs,
-                                                                                                            device,
-                                                                                                            early_stop)
-
+            train_results = train(model, loader_train, loader_test, num_epochs, device, early_stop)
+            epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train_results
             # Load best model state of this fold to Test global accuracy
             if early_stop:
                 model.load_state_dict(best_model)
@@ -172,6 +167,75 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         # else: Model state after epochs of Fold with the highest accuracy on Training Set
         if save_model:
             torch.save(best_n_class_models[n_class], f"{dir_results}/{n_class}class_{trained_model_name}")
+
+
+def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
+                          save_model=True, name=None, device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
+    train_share = 0.8
+    test_share = 1- train_share
+    config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
+                     n_classes=n_classes, ch_names=ch_names,train_share=train_share,test_share=test_share)
+
+    chs = len(ch_names)
+    # Dont print MNE loading logs
+    mne.set_log_level('WARNING')
+    start = datetime.now()
+    print(training_ss_config_str(config))
+    dir_results = create_results_folders(path=f"{model_path}", name=f"S{subject:03d}", type='train_ss')
+    save_config(training_ss_config_str(config), ch_names, dir_results, tag)
+
+    best_n_class_models = {}
+    for i, n_class in enumerate(n_classes):
+        n_class_model_results = f"{model_path}{training_results_folder}/{n_class}class-training.npz"
+        results = np.load(n_class_model_results)
+        excluded_subjects = results['excluded_subjects']
+        if subject is None:
+            used_subject = excluded_subjects[0]
+        elif subject in excluded_subjects:
+            used_subject = subject
+        else:
+            raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {model_path}')
+
+        model = get_model(n_class, chs, device,
+                          state_path=f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}")
+
+        preloaded_data, preloaded_labels = load_subjects_data([used_subject], n_class, ch_names)
+        preloaded_data = preloaded_data.reshape(preloaded_data.shape[1], 1, preloaded_data.shape[2],
+                                                preloaded_data.shape[3])
+        preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
+
+        print("data", preloaded_data.shape)
+        print("labels", preloaded_labels.shape)
+
+        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
+                                 torch.as_tensor(preloaded_labels, device=device, dtype=torch.int)
+                                 )
+        lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
+        train_set, test_set = random_split(data_set, lengths)
+        print()
+
+        loader_train = DataLoader(train_set, batch_size, sampler=RandomSampler(train_set), pin_memory=False)
+        loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
+
+        loss_values_train, loss_values_valid, _, __ = train(model, loader_train, loader_test,
+                                                            num_epochs, device)
+        acc, test_class_hits = test(model, loader_test, device, n_class)
+
+        elapsed = datetime.now() - start
+
+        class_trials = np.zeros(n_class)
+        class_accs = np.zeros(n_class)
+        print("Trials for classes:")
+        for cl in range(n_class):
+            class_trials[cl] = len(test_class_hits[cl])
+            class_accs[cl] = (100 * (sum(test_class_hits[cl]) / class_trials[cl]))
+
+        np.savez(f"{dir_results}/train_ss_results.npz", acc=acc, class_hits=test_class_hits,
+                 loss_values_train=loss_values_train, loss_values_valid=loss_values_valid)
+        res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
+        print(res_str)
+        save_training_results(n_class, res_str, dir_results, tag)
+        torch.save(model, f"{dir_results}/{n_class}class_{trained_ss_model_name}")
 
 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
@@ -331,7 +395,7 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
     matplot(epoch_losses_valid,
-            f"{n_class}class {'Validation' if early_stop else 'Training'} Losses{'' if tag is None else tag}", 'Epoch',
+            f"{n_class}class {'Validation' if early_stop else 'Training'} Losses {'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))

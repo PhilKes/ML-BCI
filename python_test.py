@@ -11,7 +11,7 @@ import torch
 from config import SAMPLERATE, MNE_CHANNELS, EEG_TMAX, EEG_TMIN, SAMPLES
 from data_loading import load_n_classes_tasks, remove_n_occurence_of, mne_load_subject_raw, mne_load_subject, \
     load_task_runs, get_data_from_raw, get_label_at_idx, load_subjects_data, ALL_SUBJECTS
-from physionet_machine_learning import physionet_live_sim
+from physionet_machine_learning import physionet_live_sim, physionet_training_ss
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -275,10 +275,12 @@ def check_bad_data(subjects, n_classes):
 #         print(f"Label from {now_time} is: {label}")
 #     last_label = label
 
-#raw=mne_load_subject_raw(1,[4],fmin=4,fmax=60)
-#raw.plot_psd(area_mode='range', tmax=10.0, average=False)
+# raw=mne_load_subject_raw(1,[4],fmin=4,fmax=60)
+# raw.plot_psd(area_mode='range', tmax=10.0, average=False)
 
-#physionet_live_sim("../results/2_3_class_filters_chs/conf_chs_64",n_classes=[3])
+# physionet_live_sim("../results/2_3_class_filters_chs/conf_chs_64",n_classes=[3])
 
-preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 3)
-preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 4)
+# preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 3)
+# preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 4)
+
+physionet_training_ss(1, "./results/excluded_test", device=device,n_classes=[2])

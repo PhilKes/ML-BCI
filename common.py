@@ -27,7 +27,7 @@ from config import LR
 # loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
 # best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
 # best_epoch: best_epoch with lowest test_loss if early_stop=True
-def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=True):
+def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()

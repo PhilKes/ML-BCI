@@ -17,8 +17,10 @@ results_folder = './results'
 training_results_folder = f"/training"
 benchmark_results_folder = f"/benchmark"
 live_sim_results_folder = f"/live_sim"
+training_ss_results_folder = f"/training_ss"
 
 trained_model_name = "trained_model.pt"
+trained_ss_model_name = "trained_ss_model.pt"
 chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to
 # on initial Run MNE needs to download the Dataset
@@ -96,6 +98,11 @@ MOTORIMG_CHANNELS_16 = [
     'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
     'C3', 'C1', 'C2', 'C4',
     'Cp5', 'Cp3', 'Cp1', 'Cp2', 'Cp4', 'Cp6',
+]
+MOTORIMG_CHANNELS_16_2 = [
+    'Fc5', 'Fc3', 'Fc1', 'Fc2', 'Fc4', 'Fc6',
+    'C5','C3', 'C1', 'C2', 'C4','C6',
+     'Cp3', 'Cp1', 'Cp2', 'Cp4',
 ]
 MOTORIMG_CHANNELS_14 = [
     'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',

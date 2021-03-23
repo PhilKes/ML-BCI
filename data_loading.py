@@ -124,7 +124,7 @@ class TrialsDataset(Dataset):
     def __getitem__(self, trial):
         X, y = self.load_trial(trial)
         # Shape of 1 Batch (list of multiple __getitem__() calls):
-        # [samples (BATCH_SIZE), 1 , Timepoints (641), Channels (len(ch_names)]
+        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Timepoints (641)]
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y
@@ -135,10 +135,10 @@ class TrialsDataset(Dataset):
 # also returns Validtion Loader containing validation_subjects subject for loss calculation
 def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
-                               equal_trials=False):
+                               equal_trials=False,used_subjects=ALL_SUBJECTS):
     subjects_train_idxs, subjects_test_idxs = splits
-    subjects_train = [ALL_SUBJECTS[idx] for idx in subjects_train_idxs]
-    subjects_test = [ALL_SUBJECTS[idx] for idx in subjects_test_idxs]
+    subjects_train = [used_subjects[idx] for idx in subjects_train_idxs]
+    subjects_test = [used_subjects[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
     validation_loader = None
     if len(validation_subjects) > 0:

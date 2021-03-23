@@ -10,7 +10,8 @@ import sys
 
 import torch
 
-from physionet_machine_learning import physionet_training_cv, physionet_benchmark, physionet_live_sim
+from physionet_machine_learning import physionet_training_cv, physionet_benchmark, physionet_live_sim, \
+    physionet_training_ss
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS
 from data_loading import ALL_SUBJECTS, excluded_subjects
 from util.utils import datetime_to_folder_str, list_to_string, load_chs_from_txt
@@ -38,12 +39,14 @@ def single_run(argv=sys.argv[1:]):
     parser.add_argument('--excluded', nargs='+', type=int, default=[],
                         help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
 
+    parser.add_argument('-train_ss',
+                        help="Runs Subject specific Training on pretrained model",
+                        action='store_true', required=False)
+
     parser.add_argument('-benchmark',
                         help="Runs Benchmarking with Physionet Dataset with specified trained model",
                         action='store_true', required=False)
     # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
-    parser.add_argument('--model', type=str, default=None,
-                        help='Relative Folder path of model used to benchmark (in ./results folder)')
     parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
                         help=f"Chunk size for preloading subjects in memory (only for benchmark, default:{SUBJECTS_CS}, lower for less memory usage )")
     parser.add_argument('--trt', action='store_true',
@@ -61,7 +64,9 @@ def single_run(argv=sys.argv[1:]):
                         help="Simulate live usage of a subject with n_class classification on 1 single run",
                         action='store_true', required=False)
     parser.add_argument('--subject', type=int, default=1,
-                        help=f'Subject to simulate live_sim on')
+                        help=f'Subject used for -live_sim or -train_ss')
+    parser.add_argument('--model', type=str, default=None,
+                        help='Relative Folder path of model used (in ./results folder) for -benchmark or -train_ss ')
 
     # parser.add_argument('--loops', type=int, default=1,
     #                     help=f'Number of loops of Training/Benchmarking is run (default:1)')
@@ -85,8 +90,8 @@ def single_run(argv=sys.argv[1:]):
             args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
         else:
             args.name = args.name + f"_motor_img{args.ch_motorimg}"
-    if (not args.train) & (not args.benchmark) & (not args.live_sim):
-        parser.error("Either flag '--train', '--benchmark' or '--live_sim' must be present!")
+    if (not args.train) & (not args.benchmark) & (not args.live_sim) & (not args.train_ss):
+        parser.error("Either flag '-train', '-train_ss', '-benchmark' or '-live_sim' must be present!")
     if args.live_sim & (args.subject not in ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
     if not all(((n_class >= 2) & (n_class <= 4)) for n_class in args.n_classes):
@@ -106,8 +111,8 @@ def single_run(argv=sys.argv[1:]):
     if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):
         print(args.ch_names)
         parser.error("Channel names (--ch_names) must be a list of EEG Channels (see config.py MNE_CHANNELS)")
-    if args.benchmark & (args.model is None):
-        parser.error("You have to use --model to specify which model to benchmark with")
+    if (args.benchmark | args.train_ss)  & (args.model is None):
+        parser.error("You have to use --model to specify which model to use for -benchmark or -train_ss")
     # Slice channels from the 64 available EEG Channels from the start to given chs
     # ch_names = MNE_CHANNELS[:args.chs]
 
@@ -125,6 +130,12 @@ def single_run(argv=sys.argv[1:]):
         physionet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                               name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
                               equal_trials=(not args.all_trials), early_stop=args.early_stop, excluded=args.excluded)
+    elif args.train:
+        model_path = f"{args.model}"
+        args.ch_names = load_chs_from_txt(model_path)
+        # for i in range(args.loops):
+        physionet_training_ss(model_path, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
+                              name=args.name,batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,equal_trials=(not args.all_trials))
     elif args.benchmark:
         model_path = f"{args.model}"
         args.ch_names = load_chs_from_txt(model_path)
@@ -138,8 +149,8 @@ def single_run(argv=sys.argv[1:]):
         model_path = f"{args.model}"
         args.ch_names = load_chs_from_txt(model_path)
         return physionet_live_sim(model_path, subject=args.subject, name=args.name, ch_names=args.ch_names,
-                                  n_classes=args.n_classes,
-                                  device=device, tag=args.tag, equal_trials=(not args.all_trials))
+                                  n_classes=args.n_classes,device=device, tag=args.tag,
+                                  equal_trials=(not args.all_trials))
 
 
 ########################################################################################

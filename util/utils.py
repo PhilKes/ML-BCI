@@ -19,7 +19,8 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, EEG_TMIN, EEG_TMAX, \
-    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, PLOT_TO_PDF
+    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, PLOT_TO_PDF, \
+    training_ss_results_folder
 
 
 # Create results folder with current DateTime as name
@@ -168,7 +169,7 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
 
 def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class, excluded_subjects):
     np.savez(f"{save_path}/{n_class}class-training.npz", accs=accs, losses=losses, class_accs=class_accuracies,
-             excluded_subjects=np.asarray(excluded_subjects,dtype=np.int))
+             excluded_subjects=np.asarray(excluded_subjects, dtype=np.int))
 
 
 # Loads list of ch_names from training results folder
@@ -200,6 +201,8 @@ def create_results_folders(path=None, name=None, datetime=None, type='train'):
             folder = f"{path}{benchmark_results_folder}{'' if name is None else f'/{name}'}"
         elif type == 'live_sim':
             folder = f"{path}{live_sim_results_folder}{'' if name is None else f'/{name}'}"
+        elif type == 'train_ss':
+            folder = f"{path}{training_ss_results_folder}{'' if name is None else f'/{name}'}"
 
     else:
         now_string = datetime_to_folder_str(datetime)
@@ -258,6 +261,23 @@ Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milest
 ###############\n\n"""
 
 
+def training_ss_config_str(config):
+    return f"""#### Config ####
+Device: {config.device}
+Nr. of classes: {config.n_classes}
+{get_str_n_classes(config.n_classes)}
+Subject: {config.subject}
+Subject Dataset with {config.train_share * 100}% Training, {config.test_share * 100}% Test Subsets
+Channels: {len(config.ch_names)} {config.ch_names}
+EEG Epoch interval: [{EEG_TMIN};{EEG_TMAX}]s
+Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
+Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
+Batch Size: {config.batch_size}
+Epochs: {config.num_epochs}
+Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
+###############\n\n"""
+
+
 def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
                         best_valid_losses, best_fold, early_stop=True):
     folds_str = ""
@@ -284,6 +304,27 @@ Accuracies of Folds:
 {folds_str}
 Avg. acc: {np.average(accuracies):.2f}
 {f'Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
+Trials per class:
+{trials_str}
+Avg. Class Accuracies:
+{classes_str}
+{best_epochs_str}
+###############\n\n"""
+
+
+def training_ss_result_str(acc, class_trials, class_accs, elapsed):
+    trials_str = ""
+    for cl, trs in enumerate(class_trials):
+        trials_str += f"\t[{cl}]: {int(trs)}"
+    classes_str = ""
+    for l in range(len(class_accs)):
+        classes_str += f'\t[{l}]: {class_accs[l]:.2f}'
+    best_epochs_str = ""
+
+    return f"""#### Results ####
+Elapsed Time: {elapsed}
+Accuracy on Test Subset:
+{acc:.2f}
 Trials per class:
 {trials_str}
 Avg. Class Accuracies:
