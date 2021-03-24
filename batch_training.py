@@ -24,29 +24,29 @@ confs = {
     #     # Name for each run
     #     'names': ['bs_16', 'bs_32']
     # },
-    'tmax': {
-        'params': [[], [], [], []],
-        'names': ['tmax_2', 'tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
-        # Initialize method for each run (optional)
-        # len(params) = len(names) = len(init)
-        'init': [
-            lambda: set_eeg_times(0, 2),
-            lambda: set_eeg_times(0, 3),
-            lambda: set_eeg_times(0, 4),
-            lambda: set_eeg_times(-1, 5),
-        ],
-        # Execute after all runs finished -> reset parameters (optional)
-        'after': lambda: set_eeg_times(0, 3),
-    },
-    'pool': {
-        'params': [[], []],
-        'names': ['pool_4', 'pool_8'],
-        'init': [
-            lambda: set_poolsize(4),
-            lambda: set_poolsize(8),
-        ],
-        'after': lambda: set_poolsize(4)
-    },
+    # 'tmax': {
+    #     'params': [[], [], [], []],
+    #     'names': ['tmax_2', 'tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
+    #     # Initialize method for each run (optional)
+    #     # len(params) = len(names) = len(init)
+    #     'init': [
+    #         lambda: set_eeg_times(0, 2),
+    #         lambda: set_eeg_times(0, 3),
+    #         lambda: set_eeg_times(0, 4),
+    #         lambda: set_eeg_times(-1, 5),
+    #     ],
+    #     # Execute after all runs finished -> reset parameters (optional)
+    #     'after': lambda: set_eeg_times(0, 3),
+    # },
+    # 'pool': {
+    #     'params': [[], []],
+    #     'names': ['pool_4', 'pool_8'],
+    #     'init': [
+    #         lambda: set_poolsize(4),
+    #         lambda: set_poolsize(8),
+    #     ],
+    #     'after': lambda: set_poolsize(4)
+    # },
     'chs': {
         'params': [
             ['--ch_motorimg', '16'],

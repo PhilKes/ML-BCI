@@ -408,8 +408,16 @@ def get_label_at_time(raw, times, time):
     idx = raw.time_as_index(time)
     return get_label_at_idx(times, raw.annotations, idx)
 
-def map_trial_times_to_samples(raw, trials_start_times):
-    trials_start_samples = np.zeros(trials_start_times.shape[0], dtype=np.int)
-    for i in range(trials_start_times.shape[0]):
-        trials_start_samples[i] = raw.time_as_index(trials_start_times[i])
-    return trials_start_samples
+
+# Map times in raw to corresponding samples
+def map_times_to_samples(raw, times):
+    samples = np.zeros(times.shape[0], dtype=np.int)
+    for i in range(times.shape[0]):
+        samples[i] = raw.time_as_index(times[i])
+    return samples
+
+
+# Map from Trials labels to classes
+# e.g. 'T1' -> 1
+def map_trial_labels_to_classes(labels):
+    return [int(trial[-1]) for trial in labels]

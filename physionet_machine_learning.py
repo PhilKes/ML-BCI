@@ -16,17 +16,17 @@ from torch.utils.data import DataLoader, RandomSampler, TensorDataset, \
     random_split  # noqa
 from tqdm import tqdm
 
-from common import train, test, benchmark, predict_single
+from common import train, test, benchmark, predict_single, predict_on_samples
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, global_config, \
     trained_ss_model_name, eeg_config
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
     mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run, create_loader_from_subject, \
-    map_trial_times_to_samples
+    map_times_to_samples, map_trial_labels_to_classes
 from models.eegnet import EEGNet
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks
-from util.plot import plot_training_statistics, matplot
+from util.plot import plot_training_statistics, matplot, create_vspans_from_trials
 from util.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -54,8 +54,6 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
     chs = len(ch_names)
-    # Dont print MNE loading logs
-    mne.set_log_level('WARNING')
     start = datetime.now()
     print(training_config_str(config))
     if name is None:
@@ -187,8 +185,6 @@ def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BAT
                      n_classes=n_classes, ch_names=ch_names, train_share=train_share, test_share=test_share)
 
     chs = len(ch_names)
-    # Dont print MNE loading logs
-    mne.set_log_level('WARNING')
     start = datetime.now()
     print(training_ss_config_str(config))
     dir_results = create_results_folders(path=f"{model_path}", name=f"S{subject:03d}", type='train_ss')
@@ -244,8 +240,6 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
     config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                      trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
-    # Dont print MNE loading logs
-    mne.set_log_level('WARNING')
 
     print(benchmark_config_str(config))
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='benchmark')
@@ -338,8 +332,6 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
                        device=torch.device("cpu"), tag=None, equal_trials=True):
     config = DotDict(subject=subject, device=device.type, n_classes=n_classes, ch_names=ch_names)
     chs = len(ch_names)
-    # Dont print MNE loading logs
-    mne.set_log_level('WARNING')
 
     print(live_sim_config_str(config))
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
@@ -352,59 +344,43 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         class_models[n_class] = get_model(n_class, chs, device, model_path)
         class_models[n_class].eval()
 
-        # Load Raw Subject Run
-        raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], fmin=global_config.FREQ_FILTER_HIGHPASS,
-                                   fmax=global_config.FREQ_FILTER_LOWPASS, notch=global_config.USE_NOTCH_FILTER,
-                                   ch_names=ch_names)
+        # Load Raw Subject Run for n_class
+        raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
 
         max_sample = raw.n_times
-        times = raw.times[:max_sample]
+        #times = raw.times[:max_sample]
         trials_start_times = raw.annotations.onset
-        trials_classes = []
-        # Map from Trials labels to class idxs
-        # e.g. 'T1' -> 1
-        for trial in raw.annotations.description:
-            trials_classes.append(int(trial[-1]))
-        # Get Trial idxs of Trials Start Times
-        trials_start_samples = map_trial_times_to_samples(raw, trials_start_times)
+        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
 
-        # Generate Rectangle to highlight Trials in Plot
-        vspans = []
-        for trial in range(trials_start_samples.shape[0]):
-            if trial == trials_start_samples.shape[0] - 1:
-                vspans.append((trials_start_samples[trial], max_sample, trials_classes[trial]))
-            else:
-                vspans.append((trials_start_samples[trial], trials_start_samples[trial + 1], trials_classes[trial]))
+        # Get samples of Trials Start Times
+        trials_start_samples = map_times_to_samples(raw, trials_start_times)
 
-        sample_predictions = np.zeros((max_sample, n_class))
-        print('Predicting on every sample of run')
-
-        pbar = tqdm(range(max_sample), file=sys.stdout)
-        for now_sample in pbar:
-            if now_sample < eeg_config.SAMPLES:
-                continue
-            # get_label_at_idx( times, annot, 10)
-            label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
-            sample_predictions[now_sample] = predict_single(class_models[n_class],
-                                                            X[:, (now_sample - eeg_config.SAMPLES):now_sample],
-                                                            device=device)
+        sample_predictions = predict_on_samples(class_models[n_class], n_class, X, max_sample, device)
         sample_predictions = sample_predictions * 100
         sample_predictions = np.swapaxes(sample_predictions, 0, 1)
 
-        # Split into multiple plots if too long
-        plot_splits = 1
-        sample_split_size = int(sample_predictions.shape[0] / plot_splits)
-        trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
-        for i in range(plot_splits):
-            matplot(sample_predictions[:(i + 1) * sample_split_size], f"{n_class}class Live Simulation_{i + 1}_S{subject:03d}",
-                    'Time in sec.',
-                    f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5, vspans=vspans[:(i + 1) * trials_split_size],
-                    ticks=trials_start_samples[:(i + 1) * trials_split_size],
-                    x_values=trials_start_times[:(i + 1) * trials_split_size],
-                    labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+        # Generate Rectangles to highlight Trials in Plot
+        vspans = create_vspans_from_trials(trials_start_samples, trials_classes, max_sample)
+        # TODO: Mark 3 second mark of each trials like in training
+        matplot(sample_predictions,
+                f"{n_class}class Live Simulation_S{subject:03d}",
+                'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+                vspans=vspans, ticks=trials_start_samples, x_values=trials_start_times,
+                labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
         np.save(f"{dir_results}/{n_class}class_predictions", sample_predictions)
+        # Split into multiple plots if too long
+        # plot_splits = 1
+        # sample_split_size = int(sample_predictions.shape[0] / plot_splits)
+        # trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
+        # for i in range(plot_splits):
+        #     matplot(sample_predictions[:,(i*sample_split_size):(i + 1) * sample_split_size], f"{n_class}class Live Simulation_S{subject:03d}_{i + 1}",
+        #             'Time in sec.',
+        #             f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5, vspans=vspans[(i*trials_split_size):(i + 1) * trials_split_size],
+        #             ticks=trials_start_samples[(i*trials_split_size):(i + 1) * trials_split_size],
+        #             x_values=trials_start_times[(i*trials_split_size):(i + 1) * trials_split_size],
+        #             labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
     return
 
 

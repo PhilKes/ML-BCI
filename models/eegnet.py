@@ -9,12 +9,12 @@ import torch.optim as optim  # noqa
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
-
-# Source
-# https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
 from config import eegnet_config
 
 
+# Original Source:
+# Tibor Schneider
+# https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
 class EEGNet(t.nn.Module):
     """
     EEGNet
@@ -64,8 +64,9 @@ class EEGNet(t.nn.Module):
         self.p_dropout, self.reg_rate, self.activation = (p_dropout, reg_rate, activation)
         self.constrain_w, self.dropout_type = (constrain_w, dropout_type)
 
+        pool_size = eegnet_config.pool_size
         # Number of input neurons to the final fully connected layer
-        n_features = (T // eegnet_config.pool_size) // 8
+        n_features = (T // pool_size) // 8
 
         kernel_size = (1, kernLength)
         # print("padding", get_padding(kernel_size))
@@ -81,7 +82,7 @@ class EEGNet(t.nn.Module):
             self.conv2 = t.nn.Conv2d(F1, D * F1, (C, 1), groups=F1, bias=False)
         self.batch_norm2 = t.nn.BatchNorm2d(D * F1, momentum=0.01, eps=0.001)
         self.activation1 = t.nn.ELU(inplace=True) if activation == 'elu' else t.nn.ReLU(inplace=True)
-        self.pool1 = t.nn.AvgPool2d((1, eegnet_config.pool_size))
+        self.pool1 = t.nn.AvgPool2d((1, pool_size))
         # self.dropout1 = dropout(p=p_dropout)
         self.dropout1 = t.nn.Dropout(p=p_dropout)
 
@@ -110,7 +111,7 @@ class EEGNet(t.nn.Module):
     def forward(self, x):
 
         # reshape vector from (s,1,T, C) to (s, 1, C, T)
-        #x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
+        # x = x.reshape(x.shape[0], x.shape[1], x.shape[3], x.shape[2])
         # print("x",x.shape)
 
         # input dimensions: (s, 1, C, T)
@@ -139,7 +140,7 @@ class EEGNet(t.nn.Module):
         # https://discuss.pytorch.org/t/what-is-the-difference-of-flatten-and-view-1-in-pytorch/51790/5
         # https://discuss.pytorch.org/t/mat1-dim-doesnt-matches-the-mat2-dim/93256
         # x = self.flatten(x)  # output dim: (s, F2 * (T // 64))
-        #x = x.view(-1, int(self.F2 * (self.T // 64)))
+        # x = x.view(-1, int(self.F2 * (self.T // 64)))
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)  # output dim: (s, N)
 
@@ -302,6 +303,7 @@ class PermutedFlatten(t.nn.Flatten):
 
     def forward(self, input):
         return input.permute(0, 2, 3, 1).flatten(self.start_dim, self.end_dim)
+
 
 # Source:
 # https://stackoverflow.com/questions/58307036/is-there-really-no-padding-same-option-for-pytorchs-conv2d

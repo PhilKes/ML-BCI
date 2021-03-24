@@ -60,6 +60,10 @@ Miscellaneous Helper methods for logging / saving results / Plots
 Python Playground for testing libraries
 
 ## Libraries
+Use `python3 -m pip install -r requirements.txt` to ensure all necessary libraries are installed
+
+[Numpy](https://numpy.org/)
+
 [PyTorch](https://pytorch.org/)
 
 [PyCuda](https://documen.tician.de/pycuda/)
@@ -69,3 +73,5 @@ Python Playground for testing libraries
 [torch2trt](https://github.com/NVIDIA-AI-IOT/torch2trt)
 
 [Matplotlib](https://matplotlib.org/)
+
+[Pandas](https://pandas.pydata.org/)

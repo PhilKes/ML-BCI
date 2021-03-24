@@ -135,6 +135,14 @@ Accuracies:{acc_avg:.2f}
 ###############\n\n"""
 
 
+def benchmark_single_result_str(trials, acc, num_batches, batch_lat, trial_inf_time):
+    f"""Accuracy on the {trials} trials: {acc:.2f}
+    Batches:{num_batches} Trials:{trials}
+    Batch Latency: {batch_lat:.5f}
+    Trial Inf. Time: {trial_inf_time}
+    Trials per second: {(1 / trial_inf_time): .2f}"""
+
+
 def training_config_str(config):
     return f"""#### Config ####
 {get_default_config_str(config)}

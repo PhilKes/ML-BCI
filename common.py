@@ -16,8 +16,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
 import torch.nn.functional as F  # noqa
 
-from config import LR
-
+from config import LR, eeg_config
 
 # Training
 # see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
@@ -28,6 +27,10 @@ from config import LR
 # loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
 # best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
 # best_epoch: best_epoch with lowest test_loss if early_stop=True
+from data_loading import get_label_at_idx
+from util.configs_results import benchmark_single_result_str
+
+
 def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
@@ -146,7 +149,6 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
     num_batches = len(data_loader)
     # https://deci.ai/the-correct-way-to-measure-inference-time-of-deep-neural-networks/?utm_referrer=https%3A%2F%2Fwww.google.com%2F
     timings = np.zeros((num_batches))
-    # start = time.perf_counter()
     total, correct = 0.0, 0.0
     with torch.no_grad():
         for i, data in enumerate(data_loader):
@@ -169,20 +171,11 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
             curr_time = stop - start
             timings[i] = curr_time
 
-            # print(f"Batch: {i + 1} of {num_batches}")
-        # stop = time.perf_counter()
         acc = (100 * correct / total)
-        print(F'Accuracy on the {len(data_loader.dataset)} trials: %0.2f %%' % (
-            acc))
         batch_lat = np.sum(timings) / num_batches
-        trial_inf_time = np.sum(timings) / len(data_loader.dataset)
-        # Latency of one batch
-        print(f"Batches:{num_batches} Trials:{len(data_loader.dataset)}")
-        # batch_lat = (stop - start) / num_batches
-        # Inference time for 1 Trial
-        print(f"Batch Latency: {batch_lat:.5f}")
-        print(f"Trial Inf. Time: {trial_inf_time}")
-        print(f"Trials per second: {(1 / trial_inf_time): .2f}")
+        trials = len(data_loader.dataset)
+        trial_inf_time = np.sum(timings) / trials
+        print(benchmark_single_result_str(trials, acc, num_batches, batch_lat, trial_inf_time))
 
         # trial_inf_time = (stop - start) / len(data_loader.dataset)
 
@@ -190,6 +183,24 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
     return batch_lat, trial_inf_time, acc
 
 
+# Infers on all given samples with time window
+# Returns all class predictions for all samples
+def predict_on_samples(model, n_class, samples_data, max_sample, device=torch.device("cpu")):
+    sample_predictions = np.zeros((max_sample, n_class))
+    print('Predicting on every sample of run')
+
+    pbar = tqdm(range(max_sample), file=sys.stdout)
+    for now_sample in pbar:
+        if now_sample < eeg_config.SAMPLES:
+            continue
+        # label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
+        time_window_samples = samples_data[:, (now_sample - eeg_config.SAMPLES):now_sample]
+        sample_predictions[now_sample] = predict_single(model, time_window_samples, device)
+    return sample_predictions
+
+
+# Infers on single Trial (SAMPLES)
+# Returns class predictions (with Softmax -> predictions =[0;1])
 def predict_single(model, X, device=torch.device("cpu")):
     with torch.no_grad():
         X = torch.as_tensor(X[None, None, ...], device=device, dtype=torch.float32)

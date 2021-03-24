@@ -278,7 +278,7 @@ def check_bad_data(subjects, n_classes):
 # raw=mne_load_subject_raw(1,[4],fmin=4,fmax=60)
 # raw.plot_psd(area_mode='range', tmax=10.0, average=False)
 
-physionet_live_sim("./results/2_3_class_params/batch_size/conf_bs_16",n_classes=[3])
+physionet_live_sim("./results/2_3_class_defaults",n_classes=[3])
 
 # preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 3)
 # preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 4)

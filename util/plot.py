@@ -22,26 +22,26 @@ from config import PLOT_TO_PDF
 # save_path: if plot + data array should be saved, declare save location
 # bar_plot: Plot as bars with average line (for Accuracies)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
-            x_values=None, ticks=None,fig_size=None,vspans=[]):
+            x_values=None, ticks=None, fig_size=None, vspans=[]):
     # use LaTeX fonts in the plot
     plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
 
     fig, ax = plt.subplots()
     if fig_size is not None:
-        fig.set_size_inches(fig_size[0],fig_size[1])
+        fig.set_size_inches(fig_size[0], fig_size[1])
     plt.title(title)
     plt.xlabel(xlabel)
     plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(1))
     plt.ylabel(ylabel)
     if max_y is not None:
         plt.ylim(top=max_y)
-    #Avoid X-Labels overlapping
+    # Avoid X-Labels overlapping
     if ticks is not None:
         plt.xticks(rotation=90)
         ax.set_xticks(ticks)
         ax.set_xticklabels(x_values)
-            #plt.xticks(ticks=ticks,labels=x_values)
+        # plt.xticks(ticks=ticks,labels=x_values)
     elif data.shape[-1] > 30:
         multiple = 5 if data.shape[-1] % 5 == 0 else 4
         plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(multiple))
@@ -49,7 +49,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     # Plot multiple lines
     if data.ndim == 2:
         for i in range(len(data)):
-            plt.plot(data[i], label=labels[i] if len(labels) >= i else "",color=colors[i])
+            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i])
             plt.legend()
         plt.grid()
     else:
@@ -57,7 +57,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
             ax.bar(np.arange(len(data)), data, 0.35, )
             ax.axhline(np.average(data), color='red', linestyle='--')
         else:
-            plt.plot(data, label=labels[0] if len(labels) > 0 else "",color=colors[0])
+            plt.plot(data, label=labels[0] if len(labels) > 0 else "", color=colors[0])
             plt.grid()
 
     for vspan in vspans:
@@ -171,3 +171,14 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             f"{n_class}class Train-Test Losses of best Fold", 'Epoch',
             f'loss per batch (size = {batch_size})',
             labels=['Training Loss', 'Testing Loss'], save_path=dir_results)
+
+
+# Generate Rectangles (vspans) to highlight Areas in plot
+def create_vspans_from_trials(vspan_start_idxs, color_idx, max_idx):
+    vspans = []
+    for vspan in range(vspan_start_idxs.shape[0]):
+        if vspan == vspan_start_idxs.shape[0] - 1:
+            vspans.append((vspan_start_idxs[vspan], max_idx, color_idx[vspan]))
+        else:
+            vspans.append((vspan_start_idxs[vspan], vspan_start_idxs[vspan + 1], color_idx[vspan]))
+    return vspans
