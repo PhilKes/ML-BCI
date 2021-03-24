@@ -398,7 +398,7 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         sample_split_size = int(sample_predictions.shape[0] / plot_splits)
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
         for i in range(plot_splits):
-            matplot(sample_predictions[:(i + 1) * sample_split_size], f"{n_class}class Live Simulation_{i + 1}",
+            matplot(sample_predictions[:(i + 1) * sample_split_size], f"{n_class}class Live Simulation_{i + 1}_S{subject:03d}",
                     'Time in sec.',
                     f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5, vspans=vspans[:(i + 1) * trials_split_size],
                     ticks=trials_start_samples[:(i + 1) * trials_split_size],
