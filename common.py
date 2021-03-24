@@ -14,6 +14,7 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from tqdm import tqdm
+import torch.nn.functional as F  # noqa
 
 from config import LR
 
@@ -191,9 +192,9 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
 
 def predict_single(model, X, device=torch.device("cpu")):
     with torch.no_grad():
-        X = torch.as_tensor(X[None,None, ...], device=device, dtype=torch.float32)
+        X = torch.as_tensor(X[None, None, ...], device=device, dtype=torch.float32)
         output = model(X)
-        #print("Out",output)
-        _, predicted = torch.max(output.data.cpu(), 1)
-    return predicted[0]
-
+        # print("Out",output)
+        # _, predicted = torch.max(output.data.cpu(), 1)
+        predicted = F.softmax(output, dim=1)
+    return predicted

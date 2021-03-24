@@ -2,6 +2,7 @@
 * Training and Validating of Physionet Dataset with EEGNet PyTorch implementation
 * Performance Benchmarking of Inference on EEGNet pretrained with Physionet Data
 """
+import sys
 from datetime import datetime
 
 import mne
@@ -13,17 +14,19 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset, \
     random_split  # noqa
+from tqdm import tqdm
 
 from common import train, test, benchmark, predict_single
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, global_config, \
     trained_ss_model_name, eeg_config
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
-    mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run, create_loader_from_subject
+    mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run, create_loader_from_subject, \
+    map_trial_times_to_samples
 from models.eegnet import EEGNet
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks
-from util.plot import plot_training_statistics
+from util.plot import plot_training_statistics, matplot
 from util.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -324,6 +327,12 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
     return batch_lat_avgs, trial_inf_time_avgs
 
 
+# Simulates Live usage
+# Loads pretrained model of model_path
+# Loads Example Run of Subject for n_class
+# Predicts classes on every available sample
+# Plots Prediction values (in percent)
+# Stores Prediction array as .npy
 def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
                        n_classes=N_CLASSES,
                        device=torch.device("cpu"), tag=None, equal_trials=True):
@@ -343,24 +352,59 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         class_models[n_class] = get_model(n_class, chs, device, model_path)
         class_models[n_class].eval()
 
+        # Load Raw Subject Run
         raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], fmin=global_config.FREQ_FILTER_HIGHPASS,
                                    fmax=global_config.FREQ_FILTER_LOWPASS, notch=global_config.USE_NOTCH_FILTER,
                                    ch_names=ch_names)
-        max_sample = raw.n_times
-        # X, times, annot = crop_time_and_label(raw, 8)
+        # Get Data from raw Run
         X = get_data_from_raw(raw)
-        last_label = None
-        for now_sample in range(max_sample):
+
+        max_sample = raw.n_times
+        times = raw.times[:max_sample]
+        trials_start_times = raw.annotations.onset
+        trials_classes = []
+        # Map from Trials labels to class idxs
+        # e.g. 'T1' -> 1
+        for trial in raw.annotations.description:
+            trials_classes.append(int(trial[-1]))
+        # Get Trial idxs of Trials Start Times
+        trials_start_samples = map_trial_times_to_samples(raw, trials_start_times)
+
+        # Generate Rectangle to highlight Trials in Plot
+        vspans = []
+        for trial in range(trials_start_samples.shape[0]):
+            if trial == trials_start_samples.shape[0] - 1:
+                vspans.append((trials_start_samples[trial], max_sample, trials_classes[trial]))
+            else:
+                vspans.append((trials_start_samples[trial], trials_start_samples[trial + 1], trials_classes[trial]))
+
+        sample_predictions = np.zeros((max_sample, n_class))
+        print('Predicting on every sample of run')
+
+        pbar = tqdm(range(max_sample), file=sys.stdout)
+        for now_sample in pbar:
             if now_sample < eeg_config.SAMPLES:
                 continue
             # get_label_at_idx( times, annot, 10)
-            label, now_time = get_label_at_idx(raw.times, raw.annotations, now_sample)
-            pred = predict_single(class_models[n_class], X[:, (now_sample - eeg_config.SAMPLES):now_sample],
-                                  device=device)
-            # if last_label != label:
-            print(f"Label from\t{now_time:.3f}: {label}\tpred: {pred}")
-            last_label = label
+            label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
+            sample_predictions[now_sample] = predict_single(class_models[n_class],
+                                                            X[:, (now_sample - eeg_config.SAMPLES):now_sample],
+                                                            device=device)
+        sample_predictions = sample_predictions * 100
+        sample_predictions = np.swapaxes(sample_predictions, 0, 1)
 
+        # Split into multiple plots if too long
+        plot_splits = 1
+        sample_split_size = int(sample_predictions.shape[0] / plot_splits)
+        trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
+        for i in range(plot_splits):
+            matplot(sample_predictions[:(i + 1) * sample_split_size], f"{n_class}class Live Simulation_{i + 1}",
+                    'Time in sec.',
+                    f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5, vspans=vspans[:(i + 1) * trials_split_size],
+                    ticks=trials_start_samples[:(i + 1) * trials_split_size],
+                    x_values=trials_start_times[:(i + 1) * trials_split_size],
+                    labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+        np.save(f"{dir_results}/{n_class}class_predictions", sample_predictions)
     return
 
 

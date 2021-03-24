@@ -21,27 +21,35 @@ from config import PLOT_TO_PDF
 # labels: if 2d data, provide labels for legend
 # save_path: if plot + data array should be saved, declare save location
 # bar_plot: Plot as bars with average line (for Accuracies)
-def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False):
+def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
+            x_values=None, ticks=None,fig_size=None,vspans=[]):
     # use LaTeX fonts in the plot
     plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
 
     fig, ax = plt.subplots()
+    if fig_size is not None:
+        fig.set_size_inches(fig_size[0],fig_size[1])
     plt.title(title)
     plt.xlabel(xlabel)
     plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(1))
     plt.ylabel(ylabel)
     if max_y is not None:
         plt.ylim(top=max_y)
-    # Avoid X-Labels overlapping
-    if data.shape[-1] > 30:
+    #Avoid X-Labels overlapping
+    if ticks is not None:
+        plt.xticks(rotation=90)
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(x_values)
+            #plt.xticks(ticks=ticks,labels=x_values)
+    elif data.shape[-1] > 30:
         multiple = 5 if data.shape[-1] % 5 == 0 else 4
         plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(multiple))
         plt.xticks(rotation=90)
     # Plot multiple lines
     if data.ndim == 2:
         for i in range(len(data)):
-            plt.plot(data[i], label=labels[i] if len(labels) >= i else "")
+            plt.plot(data[i], label=labels[i] if len(labels) >= i else "",color=colors[i])
             plt.legend()
         plt.grid()
     else:
@@ -49,8 +57,12 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
             ax.bar(np.arange(len(data)), data, 0.35, )
             ax.axhline(np.average(data), color='red', linestyle='--')
         else:
-            plt.plot(data, label=labels[0] if len(labels) > 0 else "")
+            plt.plot(data, label=labels[0] if len(labels) > 0 else "",color=colors[0])
             plt.grid()
+
+    for vspan in vspans:
+        plt.axvspan(vspan[0], vspan[1], color=colors[vspan[2]], alpha=0.5)
+
     if save_path is not None:
         fig = plt.gcf()
         # np.save(f"{save_path}/{title}.npy", data)

@@ -9,68 +9,33 @@ from main import single_run
 
 default_options = ['-train']
 start = datetime.now()
-# folder = f"{datetime_to_folder_str(start)}_batch_training_ALL"
-
-#
-# global_config.USE_NOTCH_FILTER = False
-# global_config.FREQ_FILTER_HIGHPASS = None
-# global_config.FREQ_FILTER_LOWPASS = None
-#
-#
-#
-# single_run(default_options + ['--name', f"{folder}/batch_size/conf_bs_16", '--bs', '16'])
-# single_run(default_options + ['--name', f"{folder}/batch_size/conf_bs_32", '--bs', '32'])
-#
-# eeg_config.EEG_TMIN = 0
-# eeg_config.EEG_TMAX = 2
-# single_run(default_options + ['--name', f"{folder}/tmax/conf_tmax_2"])
-# eeg_config.EEG_TMAX = 3
-# single_run(default_options + ['--name', f"{folder}/tmax/conf_tmax_3"])
-# eeg_config.EEG_TMAX = 4
-# single_run(default_options + ['--name', f"{folder}/tmax/conf_tmax_4"])
-# eeg_config.EEG_TMIN = -1
-# eeg_config.EEG_TMAX = 5
-# single_run(default_options + ['--name', f"{folder}/tmax/conf_tmin_-1_tmax_5"])
-#
-# eeg_config.EEG_TMIN = 0
-# eeg_config.EEG_TMAX = 3
-#
-# eegnet_config.pool_size = 4
-# single_run(default_options + ['--name', f"{folder}/pool/conf_pool_4"])
-# eegnet_config.pool_size = 8
-# single_run(default_options + ['--name', f"{folder}/pool/conf_pool_8"])
-#
-# eegnet_config.pool_size = 4
-#
-# single_run(default_options + ['--name', f"{folder}/chs16/conf", '--ch_motorimg 16'])
-# single_run(default_options + ['--name', f"{folder}/chs16/conf", '--ch_motorimg 16_2'])
-# single_run(default_options + ['--name', f"{folder}/chs16/conf", '--ch_motorimg 16_openbci'])
 
 folder = "2_3_class_params"
 n_classes = ['2', '3']
+# All Configurations to execute Training with
 confs = {
     # Key is the subfolder name
-    'batch_size': {
-        # Params for each run
-        'params': [
-            ['--bs', '16'],
-            ['--bs', '32'],
-        ],
-        # Name for each run
-        'names': ['bs_16', 'bs_32']
-    },
+    # 'batch_size': {
+    #     # Params for each run
+    #     'params': [
+    #         ['--bs', '16'],
+    #         ['--bs', '32'],
+    #     ],
+    #     # Name for each run
+    #     'names': ['bs_16', 'bs_32']
+    # },
     'tmax': {
         'params': [[], [], [], []],
         'names': ['tmax_2', 'tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
-        # Initialize method for each run
-        # len(params) = len(init)
+        # Initialize method for each run (optional)
+        # len(params) = len(names) = len(init)
         'init': [
             lambda: set_eeg_times(0, 2),
             lambda: set_eeg_times(0, 3),
             lambda: set_eeg_times(0, 4),
             lambda: set_eeg_times(-1, 5),
         ],
-        # Execute after all runs -> reset parameter
+        # Execute after all runs finished -> reset parameters (optional)
         'after': lambda: set_eeg_times(0, 3),
     },
     'pool': {
@@ -102,6 +67,9 @@ def set_poolsize(size):
     eegnet_config.pool_size = size
 
 
+# Loop to exectue alls Configurations
+# Create .csv and .txt files with all Runs of a batch
+# e.g. /batch_sizes/..._batch_training.txt
 for conf_name in confs:
     conf_folder = f"{folder}/{conf_name}"
     conf = confs[conf_name]

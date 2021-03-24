@@ -407,3 +407,9 @@ def get_label_at_idx(times, annot, sample):
 def get_label_at_time(raw, times, time):
     idx = raw.time_as_index(time)
     return get_label_at_idx(times, raw.annotations, idx)
+
+def map_trial_times_to_samples(raw, trials_start_times):
+    trials_start_samples = np.zeros(trials_start_times.shape[0], dtype=np.int)
+    for i in range(trials_start_times.shape[0]):
+        trials_start_samples[i] = raw.time_as_index(trials_start_times[i])
+    return trials_start_samples
