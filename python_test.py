@@ -3,16 +3,14 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
-import os
 
 import mne
 import numpy as np
-import pandas
 import torch
 
 from config import set_eeg_times
-from data_loading import load_n_classes_tasks
-from physionet_machine_learning import physionet_training_ss, physionet_live_sim
+from data.data_loading import load_n_classes_tasks
+from machine_learning.modes import live_sim
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -308,11 +306,11 @@ def check_bad_data(subjects, n_classes):
 # save_pd(arr,3)
 
 set_eeg_times(0, 2)
-physionet_live_sim("./results/2_3_class_params/tmax/conf_tmax_2", n_classes=[3])
+live_sim("./results/2_3_class_params/tmax/conf_tmax_2", n_classes=[3])
 set_eeg_times(0, 3)
-physionet_live_sim("./results/2_3_class_params/tmax/conf_tmax_3", n_classes=[3])
+live_sim("./results/2_3_class_params/tmax/conf_tmax_3", n_classes=[3])
 set_eeg_times(0, 4)
-physionet_live_sim("./results/2_3_class_params/tmax/conf_tmax_4", n_classes=[3])
+live_sim("./results/2_3_class_params/tmax/conf_tmax_4", n_classes=[3])
 set_eeg_times(-1, 5)
-physionet_live_sim("./results/2_3_class_params/tmax/conf_tmin_-1_tmax_5", n_classes=[3])
+live_sim("./results/2_3_class_params/tmax/conf_tmin_-1_tmax_5", n_classes=[3])
 set_eeg_times(0, 2)

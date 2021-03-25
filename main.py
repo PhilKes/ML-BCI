@@ -13,10 +13,11 @@ import sys
 import mne
 import torch
 
-from physionet_machine_learning import physionet_training_cv, physionet_benchmark, physionet_live_sim, \
-    physionet_training_ss
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MNE_CHANNELS, MOTORIMG_CHANNELS
-from data_loading import ALL_SUBJECTS, excluded_subjects
+from data.physionet_dataset import MNE_CHANNELS, excluded_subjects
+from machine_learning.modes import training_cv, benchmarking, live_sim, \
+    training_ss
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS
+from data.data_loading import ALL_SUBJECTS
 from util.misc import datetime_to_folder_str, list_to_string, load_chs_of_model
 
 
@@ -52,28 +53,28 @@ def single_run(argv=sys.argv[1:]):
     print("device", device.type)
 
     if args.train:
-        return physionet_training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                                     name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                                     equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                                     excluded=args.excluded)
+        return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
+                           name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
+                           equal_trials=(not args.all_trials), early_stop=args.early_stop,
+                           excluded=args.excluded)
     elif args.train_ss:
         model_path = f"{args.model}"
         args.ch_names = load_chs_of_model(model_path)
-        physionet_training_ss(model_path, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                              name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names)
+        training_ss(model_path, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
+                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names)
     elif args.benchmark:
         model_path = f"{args.model}"
         args.ch_names = load_chs_of_model(model_path)
-        return physionet_benchmark(model_path, name=args.name, n_classes=args.n_classes, device=device,
-                                   subjects_cs=args.subjects_cs, tensorRT=args.trt, fp16=args.fp16,
-                                   iters=args.iters, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                                   equal_trials=(not args.all_trials), continuous=args.continuous)
+        return benchmarking(model_path, name=args.name, n_classes=args.n_classes, device=device,
+                            subjects_cs=args.subjects_cs, tensorRT=args.trt, fp16=args.fp16,
+                            iters=args.iters, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
+                            equal_trials=(not args.all_trials), continuous=args.continuous)
     elif args.live_sim:
         model_path = f"{args.model}"
         args.ch_names = load_chs_of_model(model_path)
-        return physionet_live_sim(model_path, subject=args.subject, name=args.name, ch_names=args.ch_names,
-                                  n_classes=args.n_classes, device=device, tag=args.tag,
-                                  equal_trials=(not args.all_trials))
+        return live_sim(model_path, subject=args.subject, name=args.name, ch_names=args.ch_names,
+                        n_classes=args.n_classes, device=device, tag=args.tag,
+                        equal_trials=(not args.all_trials))
 
 
 # Common Arguments #########################

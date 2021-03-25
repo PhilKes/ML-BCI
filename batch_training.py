@@ -4,7 +4,8 @@ from datetime import datetime
 
 import numpy
 import pandas as pd
-from config import global_config, eeg_config, eegnet_config, results_folder, set_eeg_times, reset_eeg_times
+from config import global_config, eeg_config, eegnet_config, results_folder, set_eeg_times, reset_eeg_times, \
+    set_poolsize
 from main import single_run
 
 default_options = ['-train']
@@ -25,12 +26,11 @@ confs = {
     #     'names': ['bs_16', 'bs_32']
     # },
     'tmax': {
-        'params': [[], [], [], []],
-        'names': ['tmax_2', 'tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
+        'params': [ [], [], []],
+        'names': ['tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
         # Initialize method for each run (optional)
         # len(params) = len(names) = len(init)
         'init': [
-            lambda: set_eeg_times(0, 2),
             lambda: set_eeg_times(0, 3),
             lambda: set_eeg_times(0, 4),
             lambda: set_eeg_times(-1, 5),
@@ -65,10 +65,6 @@ confs = {
     # }
 }
 
-
-
-
-
 # Loop to exectue alls Configurations
 # Create .csv and .txt files with all Runs of a batch
 # e.g. /batch_sizes/..._batch_training.txt
@@ -80,24 +76,27 @@ for conf_name in confs:
     # Result array for avg. accuracy + OF for each Run
     # (runs, len(n_classes), 2 (acc + OF))
     classes = len(n_classes)
-    res = numpy.zeros((runs, classes , 2))
+    runs_results = numpy.zeros((runs, classes, 2))
     for run in range(runs):
         if 'init' in conf.keys():
             conf['init'][run]()
         params = conf['params'][run]
-        res[run, 0], res[run, 1] = single_run(
+        n_classes_accs, n_classes_ofs = single_run(
             ['-train', '--n_classes'] + n_classes +
             ['--name', f"{conf_folder}/conf_{conf['names'][run]}"] + params)
+        for n_class in range(classes):
+            runs_results[run, n_class, 0] = n_classes_accs[n_class]
+            runs_results[run, n_class, 1] = n_classes_ofs[n_class]
     if 'after' in conf.keys():
         conf['after']()
     # numpy.savetxt(f"{conf_folder}/acc_of_results.csv", res, delimiter=',', header="Acc,OF", comments="")
-    res = res.reshape((runs, classes * 2), order='F')
+    runs_results = runs_results.reshape((runs, classes * 2), order='F')
     # res_rows = numpy.zeros((runs, len(n_classes) * 2))
     columns = []
     for n_class in n_classes:
         columns.append(f"{n_class}class Acc")
         columns.append(f"{n_class}class OF")
-    df = pd.DataFrame(data=res, index=conf['names'], columns=columns)
+    df = pd.DataFrame(data=runs_results, index=conf['names'], columns=columns)
     df.to_csv(f"{results_folder}/{conf_folder}/batch_training_results.csv")
     with open(os.path.join(f"{results_folder}/{conf_folder}", f'{conf_name}_batch_training.txt'),
               'w') as outfile:

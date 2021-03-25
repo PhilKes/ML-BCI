@@ -10,124 +10,17 @@ import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from mne import Epochs
-from mne.datasets import eegbci
 from mne.io import concatenate_raws, read_raw_edf
-from sklearn.preprocessing import MinMaxScaler
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
-    MNE_CHANNELS, global_config, TRIALS_PER_SUBJECT_RUN
-
+    global_config
+from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks
+from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN
 from util.misc import print_subjects_ranges, split_np_into_chunks
-
-# Some Subjects are excluded due to differing numbers of Trials in the recordings
-excluded_subjects = [88, 92, 100, 104]
-ALL_SUBJECTS = [i for i in range(1, 110) if i not in excluded_subjects]
-
-runs_rest = [1]  # Baseline, eyes open
-runs_t1 = [3, 7, 11]  # Task 1 (open and close left or right fist)
-runs_t2 = [4, 8, 12]  # Task 2 (imagine opening and closing left or right fist)
-runs_t3 = [5, 9, 13]  # Task 3 (open and close both fists or both feet)
-runs_t4 = [6, 10, 14]  # Task 4 (imagine opening and closing both fists or both feet)
-
-runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
-
-n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}
-# Sample run for n_class live_sim mode
-n_classes_live_run = {2: runs_t2[0], 3: runs_t2[0], 4: runs_t2[0]}
-
-# Maximum available trials
-trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}
-
-# All total trials per class per n_class-Classification
-classes_trials = {
-    "2class": {
-        0: 445,  # Left
-        1: 437,  # Right
-    },
-    "3class": {
-        0: 882,  # Rest
-        1: 445,  # Left
-        2: 437,  # Right
-    },
-    "4class": {
-        0: 1748,  # Rest
-        1: 479,  # Left
-        2: 466,  # Right
-        3: 394,  # Both Fists
-    },
-}
-
-
-# Dataset for EEG Trials Data (divided by subjects)
-class TrialsDataset(Dataset):
-
-    def __init__(self, subjects, n_classes, device, preloaded_tuple=None, ch_names=MNE_CHANNELS, equal_trials=False):
-        self.subjects = subjects
-        # Buffers for last loaded Subject data+labels
-        self.loaded_subject = -1
-        self.loaded_subject_data = None
-        self.loaded_subject_labels = None
-        self.n_classes = n_classes
-        self.runs = []
-        self.device = device
-        self.trials_per_subject = get_trials_size(n_classes, equal_trials)
-        self.equal_trials = equal_trials
-        self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
-        self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
-        self.ch_names = ch_names
-
-    # Length of Dataset (all trials)
-    def __len__(self):
-        return len(self.subjects) * self.trials_per_subject
-
-    # Determines corresponding Subject of trial and loads subject's data+labels
-    # Uses buffer for last loaded subject if DATA_PRELOAD = False
-    # trial: trial idx
-    # returns trial data (X) and trial label (y)
-    def load_trial(self, trial):
-        local_trial_idx = trial % self.trials_per_subject
-
-        # determine required subject for trial
-        subject = self.subjects[int(trial / self.trials_per_subject)]
-
-        # Immediately return from preloaded data if available
-        if self.preloaded_data is not None:
-            if self.preloaded_data.shape[0] == len(ALL_SUBJECTS):
-                idx = ALL_SUBJECTS.index(subject)
-            else:
-                idx = self.subjects.index(subject)
-            return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
-
-        # If Subject is in current buffer, skip MNE Loading
-        if self.loaded_subject == subject:
-            return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
-
-        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes, ch_names=self.ch_names,
-                                                            equal_trials=self.equal_trials)
-        # Buffer newly loaded subject
-        self.loaded_subject = subject
-        self.loaded_subject_data = subject_data
-        # BCELoss excepts one-hot encoded, Cross Entropy (used here) not:
-        #   labels (0,1,2) to categorical/one-hot encoded: 0 = [1 0 0], 1 =[0 1 0],...
-        #   self.loaded_subject_labels = np.eye(self.n_classes, dtype='uint8')[subject_labels]
-        #   (https://discuss.pytorch.org/t/cross-entropy-with-one-hot-targets/13580/2)
-        self.loaded_subject_labels = subject_labels
-        # Return single trial from all Subject's Trials
-        X, y = self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
-        return X, y
-
-    # Returns a single trial as Tensor with Labels
-    def __getitem__(self, trial):
-        X, y = self.load_trial(trial)
-        # Shape of 1 Batch (list of multiple __getitem__() calls):
-        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Timepoints (641)]
-        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
-        # X = TRANSFORM(X)
-        return X, y
 
 
 # Returns Loaders of Training + Test Datasets from index splits
@@ -191,30 +84,8 @@ def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equ
                                        preloaded_labels, batch_size, equal_trials=equal_trials)
 
 
-def get_trials_size(n_class, equal_trials):
-    trials = trials_for_classes_per_subject_avail[n_class]
-    if equal_trials:
-        r = len(get_runs_of_n_classes(n_class))
-        if n_class == 4:
-            r -= 3
-        if n_class == 2:
-            r -= 1
-        if n_class == 3:
-            r -= 1
-        trials = TRIALS_PER_SUBJECT_RUN * r
-    return trials
-
-
-# Normalize Data to [0;1] range
-scaler = MinMaxScaler(copy=False)
-
-normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
-
-
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage for ALL_SUBJECTS (~2GB)
-
-
 def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=True,
                        normalize=False):
     subjects.sort()
@@ -234,16 +105,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
     return preloaded_data, preloaded_labels
 
 
-def get_runs_of_n_classes(n_classes):
-    n_runs = []
-    for task in n_classes_tasks[n_classes]:
-        n_runs.extend(runs[task])
-    return n_runs
-
-
 # Loads corresponding tasks for n_classes Classification
-
-
 def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
     tasks = n_classes_tasks[n_classes]
     data, labels = load_task_runs(subject, tasks,
@@ -254,23 +116,12 @@ def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials
     return data, labels
 
 
-# If multiple tasks are used (4classes classification)
-# labels need to be adjusted because different events from
-# different tasks have the same numbers
-inc_label = lambda label: label + 2 if label != 0 else label
-dec_label = lambda label: label - 1
-increase_label = np.vectorize(inc_label)
-
-decrease_label = np.vectorize(dec_label)
-
 event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
 
 # Loads Rest trials from the 1st baseline run of subject
 # if baseline run is not long enough for all needed trials
 # random 3s Trials are generated from baseline run
-
-
 def mne_load_rests(subject, trials, ch_names):
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
@@ -297,8 +148,6 @@ def mne_load_rests(subject, trials, ch_names):
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
-
-
 def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
                    equal_trials=False):
     all_data = np.zeros((0, len(ch_names), eeg_config.SAMPLES))
@@ -348,8 +197,6 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
 # event_id= 'auto' loads all event types
 # ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
 # tmin,tmax define what time interval of the events is returned
-
-
 def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=None,
                      tmax=None):
     if tmax is None:
@@ -372,13 +219,11 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
 
 # Loads raw Subject run with specified channels
 # Can apply Bandpassfilter + Notch Filter
-
-
 def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
                          fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
     if VERBOSE:
         print(f"MNE loading Subject {subject} Runs {runs}")
-    raw_fnames = eegbci.load_data(subject, runs, datasets_folder)
+    raw_fnames = mne_dataset.load_data(subject, runs, datasets_folder)
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
     raw.rename_channels(lambda x: x.strip('.'))
@@ -392,60 +237,71 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
     return raw
 
 
-# Methods for live_sim MODE
+# Dataset for EEG Trials Data (divided by subjects)
+class TrialsDataset(Dataset):
 
+    def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
+                 ch_names=MNE_CHANNELS, equal_trials=False, used_subjects=ALL_SUBJECTS):
+        self.subjects = subjects
+        # Buffers for last loaded Subject data+labels
+        self.loaded_subject = -1
+        self.loaded_subject_data = None
+        self.loaded_subject_labels = None
+        self.n_classes = n_classes
+        self.runs = []
+        self.device = device
+        self.trials_per_subject = get_trials_size(n_classes, equal_trials)
+        self.equal_trials = equal_trials
+        self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
+        self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
+        self.ch_names = ch_names
+        self.used_subjects = used_subjects
 
-tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
+    # Length of Dataset (all trials)
+    def __len__(self):
+        return len(self.subjects) * self.trials_per_subject
 
+    # Determines corresponding Subject of trial and loads subject's data+labels
+    # Uses buffer for last loaded subject if DATA_PRELOAD = False
+    # trial: trial idx
+    # returns trial data (X) and trial label (y)
+    def load_trial(self, trial):
+        local_trial_idx = trial % self.trials_per_subject
 
-def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
-    if (time - tdelta) < 0:
-        raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
-    raw1 = raw.copy()
-    raw1.pick_channels(ch_names)
-    raw1.crop(time - tdelta, time)
-    data, times = raw1[:, :]
-    return data, times, raw1.annotations
+        # determine required subject for trial
+        subject = self.subjects[int(trial / self.trials_per_subject)]
 
+        # Immediately return from preloaded data if available
+        if self.preloaded_data is not None:
+            if self.preloaded_data.shape[0] == len(self.used_subjects):
+                idx = self.used_subjects.index(subject)
+            else:
+                idx = self.subjects.index(subject)
+            return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
 
-def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
-    # raw1 = raw.copy()
-    raw.pick_channels(ch_names)
-    data, times = raw[:, :]
-    return data
+        # If Subject is in current buffer, skip MNE Loading
+        if self.loaded_subject == subject:
+            return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
 
+        subject_data, subject_labels = load_n_classes_tasks(subject, self.n_classes, ch_names=self.ch_names,
+                                                            equal_trials=self.equal_trials)
+        # Buffer newly loaded subject
+        self.loaded_subject = subject
+        self.loaded_subject_data = subject_data
+        # BCELoss excepts one-hot encoded, Cross Entropy (used here) not:
+        #   labels (0,1,2) to categorical/one-hot encoded: 0 = [1 0 0], 1 =[0 1 0],...
+        #   self.loaded_subject_labels = np.eye(self.n_classes, dtype='uint8')[subject_labels]
+        #   (https://discuss.pytorch.org/t/cross-entropy-with-one-hot-targets/13580/2)
+        self.loaded_subject_labels = subject_labels
+        # Return single trial from all Subject's Trials
+        X, y = self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
+        return X, y
 
-def get_label_at_idx(times, annot, sample):
-    now_time = times[sample]
-    if sample < eeg_config.SAMPLES:
-        return None, now_time
-    middle_sample_of_window = int(sample - (eeg_config.SAMPLES / 2))
-    time = times[middle_sample_of_window]
-    onsets = annot.onset
-    # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)
-    # find index where time would be inserted
-    # -> index of label is sorted_idx-1
-    sorted_idx = np.searchsorted(onsets, [time])[0]
-    # Determine if majority of samples lies in
-    # get label of sample_idx in the middle of the window
-    label = annot.description[sorted_idx - 1]
-    return label, now_time
-
-
-def get_label_at_time(raw, times, time):
-    idx = raw.time_as_index(time)
-    return get_label_at_idx(times, raw.annotations, idx)
-
-
-# Map times in raw to corresponding samples
-def map_times_to_samples(raw, times):
-    samples = np.zeros(times.shape[0], dtype=np.int)
-    for i in range(times.shape[0]):
-        samples[i] = raw.time_as_index(times[i])
-    return samples
-
-
-# Map from Trials labels to classes
-# e.g. 'T1' -> 1
-def map_trial_labels_to_classes(labels):
-    return [int(trial[-1]) for trial in labels]
+    # Returns a single trial as Tensor with Labels
+    def __getitem__(self, trial):
+        X, y = self.load_trial(trial)
+        # Shape of 1 Batch (list of multiple __getitem__() calls):
+        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Timepoints (641)]
+        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
+        # X = TRANSFORM(X)
+        return X, y

@@ -1,8 +1,7 @@
 """
 Main functions for
-Training, Testing, Benchmarking
+Inferencing, Training, Testing, Benchmarking
 """
-import math
 import sys
 import time
 
@@ -27,11 +26,10 @@ from config import LR, eeg_config
 # loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
 # best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
 # best_epoch: best_epoch with lowest test_loss if early_stop=True
-from data_loading import get_label_at_idx
 from util.configs_results import benchmark_single_result_str
 
 
-def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
+def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
@@ -102,7 +100,7 @@ def train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"
 
 
 # Tests labeled data with trained net
-def test(model, data_loader, device=torch.device("cpu"), n_class=3):
+def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
     print("###### Testing started")
     total, correct = 0.0, 0.0
     class_hits = [[] for i in range(n_class)]
@@ -140,7 +138,7 @@ def test(model, data_loader, device=torch.device("cpu"), n_class=3):
 
 
 # Benchmarks net on Inference Time in Batches
-def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
+def do_benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
     # TODO Correct way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
     # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
@@ -185,7 +183,7 @@ def benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
 
 # Infers on all given samples with time window
 # Returns all class predictions for all samples
-def predict_on_samples(model, n_class, samples_data, max_sample, device=torch.device("cpu")):
+def do_predict_on_samples(model, n_class, samples_data, max_sample, device=torch.device("cpu")):
     sample_predictions = np.zeros((max_sample, n_class))
     print('Predicting on every sample of run')
 
@@ -193,15 +191,15 @@ def predict_on_samples(model, n_class, samples_data, max_sample, device=torch.de
     for now_sample in pbar:
         if now_sample < eeg_config.SAMPLES:
             continue
-        #label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
+        # label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
         time_window_samples = samples_data[:, (now_sample - eeg_config.SAMPLES):now_sample]
-        sample_predictions[now_sample] = predict_single(model, time_window_samples, device)
+        sample_predictions[now_sample] = do_predict_single(model, time_window_samples, device)
     return sample_predictions
 
 
 # Infers on single Trial (SAMPLES)
 # Returns class predictions (with Softmax -> predictions =[0;1])
-def predict_single(model, X, device=torch.device("cpu")):
+def do_predict_single(model, X, device=torch.device("cpu")):
     with torch.no_grad():
         X = torch.as_tensor(X[None, None, ...], device=device, dtype=torch.float32)
         output = model(X)
