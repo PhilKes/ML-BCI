@@ -2,35 +2,29 @@
 * Training and Validating of Physionet Dataset with EEGNet PyTorch implementation
 * Performance Benchmarking of Inference on EEGNet pretrained with Physionet Data
 """
-import sys
 from datetime import datetime
 
-import mne
 import numpy as np
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
-from torch.utils.data import DataLoader, RandomSampler, TensorDataset, \
-    random_split  # noqa
-from tqdm import tqdm
 
-from common import train, test, benchmark, predict_single, predict_on_samples
+from common import train, test, benchmark, predict_on_samples
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
-    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, global_config, \
-    trained_ss_model_name, eeg_config
+    MNE_CHANNELS, trained_model_name, training_results_folder, VALIDATION_SUBJECTS, trained_ss_model_name, eeg_config
 from data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, create_loader_from_subjects, \
-    mne_load_subject_raw, get_data_from_raw, get_label_at_idx, n_classes_live_run, create_loader_from_subject, \
-    map_times_to_samples, map_trial_labels_to_classes
+    mne_load_subject_raw, get_data_from_raw, n_classes_live_run, create_loader_from_subject, \
+    map_times_to_samples, map_trial_labels_to_classes, create_preloaded_loader
 from models.eegnet import EEGNet
-from util.dot_dict import DotDict
-from util.misc import split_list_into_chunks
-from util.plot import plot_training_statistics, matplot, create_vspans_from_trials
 from util.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
+from util.dot_dict import DotDict
+from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
+from util.plot import plot_training_statistics, matplot, create_vspans_from_trials
 
 
 # Torch to TensorRT for model optimizations
@@ -53,7 +47,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
                           equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
-    chs = len(ch_names)
+
     start = datetime.now()
     print(training_config_str(config))
     if name is None:
@@ -83,10 +77,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
         print(f"Validation Subjects: [{validation_subjects[0]}-{validation_subjects[-1]}]")
 
     # Group labels (subjects in same group need same group label)
-    groups = np.zeros(len(used_subjects), dtype=np.int)
-    group_size = int(len(used_subjects) / folds)
-    for i in range(folds):
-        groups[group_size * i:(group_size * (i + 1))] = i
+    groups = groups_labels(len(used_subjects), folds)
 
     # Split Data into training + test
     cv = GroupKFold(n_splits=folds)
@@ -118,7 +109,7 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
                                                  used_subjects=used_subjects)
             loader_train, loader_test, loader_valid = loaders
 
-            model = get_model(n_class, chs, device)
+            model = get_model(n_class, len(ch_names), device)
 
             train_results = train(model, loader_train, loader_test, num_epochs, device, early_stop)
             epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train_results
@@ -145,17 +136,10 @@ def physionet_training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS
                 best_n_class_models[n_class] = model.state_dict().copy()
                 best_fold = fold
             accuracies[fold] = test_accuracy
-            fold_class_accuracies = np.zeros(n_class)
-            print("Trials for classes:")
-            for cl in range(n_class):
-                class_trials[cl] = len(test_class_hits[cl])
-                fold_class_accuracies[cl] = (100 * (sum(test_class_hits[cl]) / len(test_class_hits[cl])))
-            class_accuracies[fold] = fold_class_accuracies
+            class_trials, class_accuracies[fold] = get_class_prediction_stats(n_class, test_class_hits)
         elapsed = datetime.now() - start
         # Calculate average accuracies per class
-        avg_class_accuracies = np.zeros(n_class)
-        for cl in range(n_class):
-            avg_class_accuracies[cl] = np.average([float(class_accuracies[sp][cl]) for sp in range(folds)])
+        avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
         res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed,
                                       best_epochs_valid, best_losses_valid, best_fold, early_stop=early_stop)
         print(res_str)
@@ -184,7 +168,6 @@ def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BAT
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, train_share=train_share, test_share=test_share)
 
-    chs = len(ch_names)
     start = datetime.now()
     print(training_ss_config_str(config))
     dir_results = create_results_folders(path=f"{model_path}", name=f"S{subject:03d}", type='train_ss')
@@ -202,7 +185,7 @@ def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BAT
         else:
             raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {model_path}')
 
-        model = get_model(n_class, chs, device,
+        model = get_model(n_class, len(ch_names), device,
                           state_path=f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}")
 
         loader_train, loader_test = create_loader_from_subject(used_subject, train_share, test_share, n_class,
@@ -214,19 +197,14 @@ def physionet_training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BAT
 
         elapsed = datetime.now() - start
 
-        class_trials = np.zeros(n_class)
-        class_accs = np.zeros(n_class)
-        print("Trials for classes:")
-        for cl in range(n_class):
-            class_trials[cl] = len(test_class_hits[cl])
-            class_accs[cl] = (100 * (sum(test_class_hits[cl]) / class_trials[cl]))
+        class_trials, class_accs = get_class_prediction_stats(n_class, test_class_hits)
 
         np.savez(f"{dir_results}/train_ss_results.npz", acc=acc, class_hits=test_class_hits,
                  loss_values_train=loss_values_train, loss_values_valid=loss_values_valid)
         res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
         print(res_str)
         save_training_results(n_class, res_str, dir_results, tag)
-        torch.save(model, f"{dir_results}/{n_class}class_{trained_ss_model_name}")
+        torch.save(model, f"{dir_results}/{n_class}class_S{subject:03d}_{trained_ss_model_name}")
 
 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
@@ -254,14 +232,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
         class_models[n_class].eval()
         # Get optimized model with TensorRT
         if tensorRT:
-            t = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
-            # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
-            # TensorRT either with fp16 ("half") or fp32
-            if fp16:
-                t = t.half()
-                class_models[n_class] = class_models[n_class].half()
-            class_models[n_class] = torch2trt(class_models[n_class], [t], max_batch_size=batch_size, fp16_mode=fp16)
-            print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
+            class_models[n_class] = get_tensorrt_model(class_models[n_class], batch_size, chs, device, fp16)
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
         preload_chunks = split_list_into_chunks(ALL_SUBJECTS, subjects_cs)
@@ -275,12 +246,7 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
 
         # Preloads 1 chunk of Subjects and executes 1 gpu_warmup
         if continuous:
-            subjects_chunk = preload_chunks[0]
-            print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-            preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
-                                                                  equal_trials=equal_trials)
-            loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
-                                                      preloaded_labels, batch_size, ch_names, equal_trials)
+            loader_data = create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size, device)
             # Warm up GPU with random data
             if device.type != 'cpu':
                 gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
@@ -290,24 +256,19 @@ def physionet_benchmark(model_path, name=None, batch_size=BATCH_SIZE, n_classes=
                 # Benchmarking is executed per subject chunk over all Subjects
                 # Infers over 1 subject chunks, loads next subject chunk + gpu_warmup, ...
                 for ch_idx, subjects_chunk in enumerate(preload_chunks):
-                    if DATA_PRELOAD:
-                        print(f"Preloading Subjects [{subjects_chunk[0]}-{subjects_chunk[-1]}] Data in memory")
-                        preloaded_data, preloaded_labels = load_subjects_data(subjects_chunk, n_class, ch_names,
-                                                                              equal_trials=equal_trials)
-                    loader_data = create_loader_from_subjects(subjects_chunk, n_class, device, preloaded_data,
-                                                              preloaded_labels, batch_size, equal_trials=equal_trials)
+                    loader_data = create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device)
                     # Warm up GPU with random data
                     if device.type != 'cpu':
                         gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
                     idx = chunks * i + ch_idx
-                    batch_lats[idx], trial_inf_times[idx], accuracies[idx] = benchmark(class_models[n_class],
-                                                                                       loader_data, device, fp16)
+                    benchmark_results = benchmark(class_models[n_class], loader_data, device, fp16)
+                    batch_lats[idx], trial_inf_times[idx], accuracies[idx] = benchmark_results
 
             else:
                 # Benchmarking is executed continuously only over 1 subject chunk
                 # Infers over the same subject chunk i times without loading in between
-                batch_lats[i], trial_inf_times[i], accuracies[i] = benchmark(class_models[n_class], loader_data, device,
-                                                                             fp16)
+                benchmark_results = benchmark(class_models[n_class], loader_data, device, fp16)
+                batch_lats[i], trial_inf_times[i], accuracies[i] = benchmark_results
         elapsed = datetime.now() - start
         acc_avg = np.average(accuracies)
         batch_lat_avgs[class_idx] = np.average(batch_lats)
@@ -331,7 +292,6 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
                        n_classes=N_CLASSES,
                        device=torch.device("cpu"), tag=None, equal_trials=True):
     config = DotDict(subject=subject, device=device.type, n_classes=n_classes, ch_names=ch_names)
-    chs = len(ch_names)
 
     print(live_sim_config_str(config))
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
@@ -341,7 +301,7 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         print(f"######### {n_class}Class-Classification Live Simulation")
         model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
         print(f"Loading pretrained model from '{model_path}'")
-        class_models[n_class] = get_model(n_class, chs, device, model_path)
+        class_models[n_class] = get_model(n_class, len(ch_names), device, model_path)
         class_models[n_class].eval()
 
         # Load Raw Subject Run for n_class
@@ -350,7 +310,7 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         X = get_data_from_raw(raw)
 
         max_sample = raw.n_times
-        #times = raw.times[:max_sample]
+        # times = raw.times[:max_sample]
         trials_start_times = raw.annotations.onset
         trials_classes = map_trial_labels_to_classes(raw.annotations.description)
 
@@ -397,4 +357,16 @@ def get_model(n_class, chs, device, state_path=None):
     if state_path is not None:
         model.load_state_dict(torch.load(state_path))
     model.to(device)
+    return model
+
+
+def get_tensorrt_model(model, batch_size, chs, device, fp16):
+    t = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
+    # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
+    # TensorRT either with fp16 ("half") or fp32
+    if fp16:
+        t = t.half()
+        model = model.half()
+    model = torch2trt(model, [t], max_batch_size=batch_size, fp16_mode=fp16)
+    print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
     return model

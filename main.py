@@ -65,10 +65,9 @@ def single_run(argv=sys.argv[1:]):
         model_path = f"{args.model}"
         args.ch_names = load_chs_of_model(model_path)
         return physionet_benchmark(model_path, name=args.name, n_classes=args.n_classes, device=device,
-                                   subjects_cs=args.subjects_cs,
-                                   tensorRT=args.trt, fp16=args.fp16, iters=args.iters, batch_size=args.bs,
-                                   tag=args.tag, ch_names=args.ch_names, equal_trials=(not args.all_trials),
-                                   continuous=args.continuous)
+                                   subjects_cs=args.subjects_cs, tensorRT=args.trt, fp16=args.fp16,
+                                   iters=args.iters, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
+                                   equal_trials=(not args.all_trials), continuous=args.continuous)
     elif args.live_sim:
         model_path = f"{args.model}"
         args.ch_names = load_chs_of_model(model_path)
@@ -91,6 +90,8 @@ def add_common_arguments(parser):
                         help=f'Trial Batch Size (default:{BATCH_SIZE})')
     parser.add_argument('--model', type=str, default=None,
                         help='Relative Folder path of model used (in ./results folder) for -benchmark or -train_ss')
+    parser.add_argument('--subject', type=int, default=1,
+                        help=f'Subject used for -live_sim or -train_ss')
 
 
 def check_common_arguments(parser, args):
@@ -104,6 +105,8 @@ def check_common_arguments(parser, args):
         parser.error("You have to use --model to specify which model to use for -benchmark or -train_ss")
     if (args.device == "cpu") & (args.bs > 15):
         parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
+    if (args.live_sim | args.train_ss) & (args.subject not in ALL_SUBJECTS):
+        parser.error(f"Subject {args.subject} does not exist!")
 
 
 # Train Arguments #########################
@@ -187,13 +190,10 @@ def add_live_sim_arguments(parser):
     parser.add_argument('-live_sim',
                         help="Simulate live usage of a subject with n_class classification on 1 single run",
                         action='store_true', required=False)
-    parser.add_argument('--subject', type=int, default=1,
-                        help=f'Subject used for -live_sim or -train_ss')
 
 
 def check_live_sim_arguments(parser, args):
-    if args.live_sim & (args.subject not in ALL_SUBJECTS):
-        parser.error(f"Subject {args.subject} does not exist!")
+    pass
 
 
 ########################################################################################

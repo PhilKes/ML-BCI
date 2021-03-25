@@ -1,6 +1,7 @@
 """
 Miscellaneous Utility
 """
+import collections
 import math
 
 import numpy as np
@@ -61,8 +62,42 @@ def split_np_into_chunks(arr, chunk_size):
 def list_to_string(list):
     return ','.join([str(i) for i in list])
 
+
 # Shuffle 2 arrays unified
 def unison_shuffled_copies(a, b):
     assert len(a) == len(b)
     p = np.random.permutation(len(a))
     return a[p], b[p]
+
+
+# Returns an array with groups of length (size/groups)
+# All elements in one group have same value
+def groups_labels(size, groups):
+    groups_vals = np.zeros(0, dtype=np.int)
+    group_size = math.ceil(size / groups)
+    for i in range(groups):
+        groups_vals = np.concatenate((groups_vals, np.full(group_size, i)))
+    group = 0
+    while groups_vals.shape[0] > size:
+        groups_vals = np.delete(groups_vals, np.where(groups_vals == group)[0][0])
+        group = (group + 1) % groups
+    #print(collections.Counter(groups_vals))
+    return groups_vals
+
+
+# Returns amount of Trials per class
+# and Accuracies per class
+def get_class_prediction_stats(n_class, class_hits):
+    class_trials, class_accs = np.zeros(n_class), np.zeros(n_class)
+    for cl in range(n_class):
+        class_trials[cl] = len(class_hits[cl])
+        class_accs[cl] = (100 * (sum(class_hits[cl]) / class_trials[cl]))
+    return class_trials, class_accs
+
+
+# Calculate average accuracies per class
+def get_class_avgs(n_class, class_accs):
+    avg_class_accs = np.zeros(n_class)
+    for cl in range(n_class):
+        avg_class_accs[cl] = np.average([float(class_accs[sp][cl]) for sp in range(class_accs.shape[0])])
+    return avg_class_accs

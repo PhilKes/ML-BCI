@@ -183,6 +183,14 @@ def create_loader_from_subject(used_subject, train_share, test_share, n_class, b
     return loader_train, loader_test
 
 
+def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equal_trials=False):
+    print(f"Preloading Subjects [{subjects[0]}-{subjects[-1]}] Data in memory")
+    preloaded_data, preloaded_labels = load_subjects_data(subjects, n_class, ch_names,
+                                                          equal_trials=equal_trials)
+    return create_loader_from_subjects(subjects, n_class, device, preloaded_data,
+                                       preloaded_labels, batch_size, equal_trials=equal_trials)
+
+
 def get_trials_size(n_class, equal_trials):
     trials = trials_for_classes_per_subject_avail[n_class]
     if equal_trials:
@@ -199,11 +207,14 @@ def get_trials_size(n_class, equal_trials):
 
 # Normalize Data to [0;1] range
 scaler = MinMaxScaler(copy=False)
+
 normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
 
 
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage for ALL_SUBJECTS (~2GB)
+
+
 def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=True,
                        normalize=False):
     subjects.sort()
@@ -231,6 +242,8 @@ def get_runs_of_n_classes(n_classes):
 
 
 # Loads corresponding tasks for n_classes Classification
+
+
 def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
     tasks = n_classes_tasks[n_classes]
     data, labels = load_task_runs(subject, tasks,
@@ -247,6 +260,7 @@ def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials
 inc_label = lambda label: label + 2 if label != 0 else label
 dec_label = lambda label: label - 1
 increase_label = np.vectorize(inc_label)
+
 decrease_label = np.vectorize(dec_label)
 
 event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
@@ -255,6 +269,8 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 # Loads Rest trials from the 1st baseline run of subject
 # if baseline run is not long enough for all needed trials
 # random 3s Trials are generated from baseline run
+
+
 def mne_load_rests(subject, trials, ch_names):
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
@@ -281,6 +297,8 @@ def mne_load_rests(subject, trials, ch_names):
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
+
+
 def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
                    equal_trials=False):
     all_data = np.zeros((0, len(ch_names), eeg_config.SAMPLES))
@@ -330,6 +348,8 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
 # event_id= 'auto' loads all event types
 # ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
 # tmin,tmax define what time interval of the events is returned
+
+
 def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=eeg_config.EEG_TMIN,
                      tmax=eeg_config.EEG_TMAX):
     raw = mne_load_subject_raw(subject, runs)
@@ -348,6 +368,8 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
 
 # Loads raw Subject run with specified channels
 # Can apply Bandpassfilter + Notch Filter
+
+
 def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
                          fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
     if VERBOSE:
@@ -367,6 +389,8 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
 
 
 # Methods for live_sim MODE
+
+
 tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
 
 
@@ -410,6 +434,8 @@ def get_label_at_time(raw, times, time):
 
 
 # Map times in raw to corresponding samples
+
+
 def map_times_to_samples(raw, times):
     samples = np.zeros(times.shape[0], dtype=np.int)
     for i in range(times.shape[0]):
@@ -419,5 +445,7 @@ def map_times_to_samples(raw, times):
 
 # Map from Trials labels to classes
 # e.g. 'T1' -> 1
+
+
 def map_trial_labels_to_classes(labels):
     return [int(trial[-1]) for trial in labels]

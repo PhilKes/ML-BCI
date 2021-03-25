@@ -47,14 +47,22 @@ confs = {
     #     ],
     #     'after': lambda: set_poolsize(4)
     # },
-    'chs': {
+    'excluded': {
         'params': [
-            ['--ch_motorimg', '16'],
-            ['--ch_motorimg', '16_2'],
-            ['--ch_motorimg', '16_openbci'],
+            ['--excluded', '1'],
+            ['--excluded', '1', '2'],
+            ['--excluded', '1', '2', '10'],
         ],
-        'names': ['chs_16', 'chs_16_2', 'chs_16_openbci']
+        'names': ['s_1', 's_1_2', 's_1_2_10']
     }
+    # 'chs': {
+    #     'params': [
+    #         ['--ch_motorimg', '16'],
+    #         ['--ch_motorimg', '16_2'],
+    #         ['--ch_motorimg', '16_openbci'],
+    #     ],
+    #     'names': ['chs_16', 'chs_16_2', 'chs_16_openbci']
+    # }
 }
 
 
@@ -89,8 +97,8 @@ for conf_name in confs:
     if 'after' in conf.keys():
         conf['after']()
     # numpy.savetxt(f"{conf_folder}/acc_of_results.csv", res, delimiter=',', header="Acc,OF", comments="")
-    res = res.reshape((runs, len_n_classes * 2),order='F')
-    #res_rows = numpy.zeros((runs, len(n_classes) * 2))
+    res = res.reshape((runs, len_n_classes * 2), order='F')
+    # res_rows = numpy.zeros((runs, len(n_classes) * 2))
     columns = []
     for n_class in n_classes:
         columns.append(f"{n_class}class Acc")

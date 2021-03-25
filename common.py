@@ -208,4 +208,4 @@ def predict_single(model, X, device=torch.device("cpu")):
         # print("Out",output)
         # _, predicted = torch.max(output.data.cpu(), 1)
         predicted = F.softmax(output, dim=1)
-    return predicted
+    return predicted.cpu()
