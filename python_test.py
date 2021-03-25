@@ -10,6 +10,7 @@ import numpy as np
 import pandas
 import torch
 
+from config import set_eeg_times
 from data_loading import load_n_classes_tasks
 from physionet_machine_learning import physionet_training_ss, physionet_live_sim
 
@@ -278,12 +279,12 @@ def check_bad_data(subjects, n_classes):
 # raw=mne_load_subject_raw(1,[4],fmin=4,fmax=60)
 # raw.plot_psd(area_mode='range', tmax=10.0, average=False)
 
-physionet_live_sim("./results/2_3_class_defaults",n_classes=[3])
+# physionet_live_sim("./results/2_3_class_defaults",n_classes=[3])
 
 # preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 3)
 # preloaded_data, preloaded_labels = load_subjects_data(ALL_SUBJECTS, 4)
 
-#physionet_training_ss(1, "./results/excluded_test", device=device,n_classes=[2])
+# physionet_training_ss(1, "./results/excluded_test", device=device,n_classes=[2])
 
 
 #
@@ -305,3 +306,13 @@ physionet_live_sim("./results/2_3_class_defaults",n_classes=[3])
 # arr= arr2.copy().reshape((2,2*2),order='A')
 # print(arr)
 # save_pd(arr,3)
+
+set_eeg_times(0, 2)
+physionet_live_sim("./results/2_3_class_params/tmax/conf_tmax_2", n_classes=[3])
+set_eeg_times(0, 3)
+physionet_live_sim("./results/2_3_class_params/tmax/conf_tmax_3", n_classes=[3])
+set_eeg_times(0, 4)
+physionet_live_sim("./results/2_3_class_params/tmax/conf_tmax_4", n_classes=[3])
+set_eeg_times(-1, 5)
+physionet_live_sim("./results/2_3_class_params/tmax/conf_tmin_-1_tmax_5", n_classes=[3])
+set_eeg_times(0, 2)

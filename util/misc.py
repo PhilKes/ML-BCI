@@ -1,7 +1,6 @@
 """
-Miscellaneous Utility
+Miscellaneous Utility Methods
 """
-import collections
 import math
 
 import numpy as np
@@ -32,7 +31,7 @@ def load_chs_of_model(model_path):
 
 
 def datetime_to_folder_str(datetime):
-    return datetime.strftime("%Y-%m-%d %H_%M_%S")
+    return datetime.strftime("%Y-%m-%d_%H_%M_%S")
 
 
 str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]

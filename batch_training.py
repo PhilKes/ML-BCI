@@ -4,14 +4,14 @@ from datetime import datetime
 
 import numpy
 import pandas as pd
-from config import global_config, eeg_config, eegnet_config, results_folder
+from config import global_config, eeg_config, eegnet_config, results_folder, set_eeg_times, reset_eeg_times
 from main import single_run
 
 default_options = ['-train']
 start = datetime.now()
 
 folder = "2_3_class_params"
-n_classes = ['2']
+n_classes = ['3']
 # All Configurations to execute Training with
 confs = {
     # Key is the subfolder name
@@ -24,20 +24,20 @@ confs = {
     #     # Name for each run
     #     'names': ['bs_16', 'bs_32']
     # },
-    # 'tmax': {
-    #     'params': [[], [], [], []],
-    #     'names': ['tmax_2', 'tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
-    #     # Initialize method for each run (optional)
-    #     # len(params) = len(names) = len(init)
-    #     'init': [
-    #         lambda: set_eeg_times(0, 2),
-    #         lambda: set_eeg_times(0, 3),
-    #         lambda: set_eeg_times(0, 4),
-    #         lambda: set_eeg_times(-1, 5),
-    #     ],
-    #     # Execute after all runs finished -> reset parameters (optional)
-    #     'after': lambda: set_eeg_times(0, 3),
-    # },
+    'tmax': {
+        'params': [[], [], [], []],
+        'names': ['tmax_2', 'tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
+        # Initialize method for each run (optional)
+        # len(params) = len(names) = len(init)
+        'init': [
+            lambda: set_eeg_times(0, 2),
+            lambda: set_eeg_times(0, 3),
+            lambda: set_eeg_times(0, 4),
+            lambda: set_eeg_times(-1, 5),
+        ],
+        # Execute after all runs finished -> reset parameters (optional)
+        'after': lambda: reset_eeg_times(),
+    },
     # 'pool': {
     #     'params': [[], []],
     #     'names': ['pool_4', 'pool_8'],
@@ -47,14 +47,14 @@ confs = {
     #     ],
     #     'after': lambda: set_poolsize(4)
     # },
-    'excluded': {
-        'params': [
-            ['--excluded', '1'],
-            ['--excluded', '1', '2'],
-            ['--excluded', '1', '2', '10'],
-        ],
-        'names': ['s_1', 's_1_2', 's_1_2_10']
-    }
+    # 'excluded': {
+    #     'params': [
+    #         ['--excluded', '1'],
+    #         ['--excluded', '1', '2'],
+    #         ['--excluded', '1', '2', '10'],
+    #     ],
+    #     'names': ['s_1', 's_1_2', 's_1_2_10']
+    # }
     # 'chs': {
     #     'params': [
     #         ['--ch_motorimg', '16'],
@@ -66,13 +66,7 @@ confs = {
 }
 
 
-def set_eeg_times(tmin, tmax):
-    eeg_config.EEG_TMIN = tmin
-    eeg_config.EEG_TMAX = tmax
 
-
-def set_poolsize(size):
-    eegnet_config.pool_size = size
 
 
 # Loop to exectue alls Configurations
@@ -85,8 +79,8 @@ for conf_name in confs:
 
     # Result array for avg. accuracy + OF for each Run
     # (runs, len(n_classes), 2 (acc + OF))
-    len_n_classes = 2
-    res = numpy.zeros((runs, len(n_classes), 2))
+    classes = len(n_classes)
+    res = numpy.zeros((runs, classes , 2))
     for run in range(runs):
         if 'init' in conf.keys():
             conf['init'][run]()
@@ -97,7 +91,7 @@ for conf_name in confs:
     if 'after' in conf.keys():
         conf['after']()
     # numpy.savetxt(f"{conf_folder}/acc_of_results.csv", res, delimiter=',', header="Acc,OF", comments="")
-    res = res.reshape((runs, len_n_classes * 2), order='F')
+    res = res.reshape((runs, classes * 2), order='F')
     # res_rows = numpy.zeros((runs, len(n_classes) * 2))
     columns = []
     for n_class in n_classes:

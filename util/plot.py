@@ -17,7 +17,6 @@ from config import PLOT_TO_PDF
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black']
 
-big_font = {'family': 'serif', 'weight': 'bold', 'size': 22}
 
 
 # Plots data with Matplot
@@ -34,7 +33,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     # use LaTeX fonts in the plot
     plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
-    if (fig_size is not None) & (fig_size[0] > 30.0) | (fig_size[1] > 30.0):
+    if (fig_size is not None):
         plt.rcParams.update({'font.size': 22})
 
     fig, ax = plt.subplots()

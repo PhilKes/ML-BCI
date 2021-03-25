@@ -62,6 +62,24 @@ eegnet_config = DotDict(pool_size=4)
 SUBJECTS_CS = 10
 GPU_WARMUPS = 20
 
+
+def set_eeg_times(tmin, tmax):
+    eeg_config.EEG_TMIN = tmin
+    eeg_config.EEG_TMAX = tmax
+    eeg_config.SAMPLES = (tmax - tmin) * eeg_config.SAMPLERATE
+
+
+def reset_eeg_times():
+    eeg_config.EEG_TMIN = DEFAULT_EEG_TMIN
+    eeg_config.EEG_TMAX = DEFAULT_EEG_TMAX
+    eeg_config.SAMPLERATE = DEFAULT_SAMPLERATE
+    eeg_config.SAMPLES = (DEFAULT_EEG_TMAX - DEFAULT_EEG_TMIN) * DEFAULT_SAMPLERATE
+
+
+def set_poolsize(size):
+    eegnet_config.pool_size = size
+
+
 # Available 64 EEG Channels from Physionet Dataset
 # raw.info['ch_names']
 MNE_CHANNELS = [
@@ -182,4 +200,3 @@ MOTORIMG_CHANNELS = {
     '16': MOTORIMG_CHANNELS_16, '16_2': MOTORIMG_CHANNELS_16_2,
     '16_openbci': MOTORIMG_CHANNELS_16_openbci,
     '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21}
-

@@ -350,8 +350,12 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
 # tmin,tmax define what time interval of the events is returned
 
 
-def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=eeg_config.EEG_TMIN,
-                     tmax=eeg_config.EEG_TMAX):
+def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=None,
+                     tmax=None):
+    if tmax is None:
+        tmax = eeg_config.EEG_TMAX
+    if tmin is None:
+        tmin = eeg_config.EEG_TMIN
     raw = mne_load_subject_raw(subject, runs)
 
     events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
@@ -434,8 +438,6 @@ def get_label_at_time(raw, times, time):
 
 
 # Map times in raw to corresponding samples
-
-
 def map_times_to_samples(raw, times):
     samples = np.zeros(times.shape[0], dtype=np.int)
     for i in range(times.shape[0]):
@@ -445,7 +447,5 @@ def map_times_to_samples(raw, times):
 
 # Map from Trials labels to classes
 # e.g. 'T1' -> 1
-
-
 def map_trial_labels_to_classes(labels):
     return [int(trial[-1]) for trial in labels]
