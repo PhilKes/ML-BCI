@@ -1,7 +1,7 @@
 """
 Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
 (https://neuro.inf.unibe.ch/AlgorithmsNeuroscience/Tutorial_files/DataLoading.html)
-On initial Run MNE downloads the Physionet Dataset into ./datasets
+On initial Run MNE downloads the Physionet Dataset into ./data/datasets
 (https://physionet.org/content/eegmmidb/1.0.0/)
 """
 import mne
@@ -121,7 +121,7 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
 # Loads Rest trials from the 1st baseline run of subject
 # if baseline run is not long enough for all needed trials
-# random 3s Trials are generated from baseline run
+# random Trials are generated from baseline run
 def mne_load_rests(subject, trials, ch_names):
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
@@ -132,15 +132,17 @@ def mne_load_rests(subject, trials, ch_names):
     X_cop = np.array(X, copy=True)
     X = split_np_into_chunks(X, eeg_config.SAMPLES)
 
-    missing_trials = trials - X.shape[0]
-    if missing_trials > 0:
-        for m in range(missing_trials):
+    trials_diff = trials - X.shape[0]
+    if trials_diff > 0:
+        for m in range(trials_diff):
             np.random.seed(m)
             rand_start_idx = np.random.randint(0, X_cop.shape[0] - eeg_config.SAMPLES)
             # print("rand_start", rand_start_idx)
             rand_x = np.zeros((1, eeg_config.SAMPLES, chs))
             rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + eeg_config.SAMPLES)]
             X = np.concatenate((X, rand_x))
+    elif trials_diff < 0:
+        X = X[:trials_diff]
     y = np.full(X.shape[0], y[0])
     # print("X", X.shape, "Y", y)
     X = np.swapaxes(X, 2, 1)

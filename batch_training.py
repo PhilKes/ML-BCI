@@ -25,13 +25,20 @@ confs = {
     #     # Name for each run
     #     'names': ['bs_16', 'bs_32']
     # },
+    # 'excluded': {
+    #     'params': [
+    #         ['--excluded', '1'],
+    #         ['--excluded', '1', '20'],
+    #     ],
+    #     'names': ['s_001', 's_001_020', ]
+    # },
     'tmax': {
-        'params': [ [], [], []],
-        'names': ['tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
+        'params': [[], [], []],
+        'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
         # Initialize method for each run (optional)
         # len(params) = len(names) = len(init)
         'init': [
-            lambda: set_eeg_times(0, 3),
+            lambda: set_eeg_times(0, 1),
             lambda: set_eeg_times(0, 4),
             lambda: set_eeg_times(-1, 5),
         ],
@@ -47,22 +54,16 @@ confs = {
     #     ],
     #     'after': lambda: set_poolsize(4)
     # },
-    # 'excluded': {
-    #     'params': [
-    #         ['--excluded', '1'],
-    #         ['--excluded', '1', '2'],
-    #         ['--excluded', '1', '2', '10'],
-    #     ],
-    #     'names': ['s_1', 's_1_2', 's_1_2_10']
-    # }
-    # 'chs': {
-    #     'params': [
-    #         ['--ch_motorimg', '16'],
-    #         ['--ch_motorimg', '16_2'],
-    #         ['--ch_motorimg', '16_openbci'],
-    #     ],
-    #     'names': ['chs_16', 'chs_16_2', 'chs_16_openbci']
-    # }
+
+    'chs': {
+        'params': [
+            ['--ch_motorimg', '16_bs'],
+            ['--ch_motorimg', '16'],
+            ['--ch_motorimg', '16_2'],
+            ['--ch_motorimg', '16_openbci'],
+        ],
+        'names': ['chs_16_bs', 'chs_16', 'chs_16_2', 'chs_16_openbci', ]
+    }
 }
 
 # Loop to exectue alls Configurations

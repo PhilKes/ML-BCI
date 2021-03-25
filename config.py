@@ -105,6 +105,14 @@ MOTORIMG_CHANNELS_16_2 = [
     'C5', 'C3', 'C1', 'C2', 'C4', 'C6',
     'Cp3', 'Cp1', 'Cp2', 'Cp4',
 ]
+MOTORIMG_CHANNELS_16_bs = [
+    'Fp1', 'Fpz', 'Fp2',
+    'Af3', 'Af4',
+    'F7', 'F8',
+    'T10',
+    'P7', 'Po7', 'O1', 'Oz', 'O2', 'Po4', 'P8',
+    'I2'
+]
 MOTORIMG_CHANNELS_14 = [
     'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',
     'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
@@ -176,5 +184,6 @@ MOTORIMG_CHANNELS = {
     '14_3': MOTORIMG_CHANNELS_14_3, '14_4': MOTORIMG_CHANNELS_14_4,
     '16': MOTORIMG_CHANNELS_16, '16_2': MOTORIMG_CHANNELS_16_2,
     '16_openbci': MOTORIMG_CHANNELS_16_openbci,
+    '16_bs': MOTORIMG_CHANNELS_16_bs,
     '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21
 }

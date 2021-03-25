@@ -80,7 +80,7 @@ def groups_labels(size, groups):
     while groups_vals.shape[0] > size:
         groups_vals = np.delete(groups_vals, np.where(groups_vals == group)[0][0])
         group = (group + 1) % groups
-    #print(collections.Counter(groups_vals))
+    # print(collections.Counter(groups_vals))
     return groups_vals
 
 
@@ -100,3 +100,17 @@ def get_class_avgs(n_class, class_accs):
     for cl in range(n_class):
         avg_class_accs[cl] = np.average([float(class_accs[sp][cl]) for sp in range(class_accs.shape[0])])
     return avg_class_accs
+
+
+# Load excluded from results .npz
+# If subject is present in excluded return subject
+# else return first subject in excluded
+def get_excluded_if_present(n_class_model_results, subject):
+    results = np.load(n_class_model_results)
+    excluded_subjects = results['excluded_subjects']
+    if subject is None:
+        return excluded_subjects[0]
+    elif subject in excluded_subjects:
+        return subject
+    else:
+        raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {n_class_model_results}')

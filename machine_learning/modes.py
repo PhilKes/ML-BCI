@@ -27,7 +27,8 @@ from util.configs_results import training_config_str, create_results_folders, sa
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
 from util.dot_dict import DotDict
-from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
+from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs, \
+    get_excluded_if_present
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
 
 
@@ -165,7 +166,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
     return n_class_accuracy, n_class_overfitting_diff
 
 
-def training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
+def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
                 save_model=True, name=None, device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
     train_share = 0.8
     test_share = 1 - train_share
@@ -180,14 +181,7 @@ def training_ss(subject, model_path, num_epochs=EPOCHS, batch_size=BATCH_SIZE, l
     best_n_class_models = {}
     for i, n_class in enumerate(n_classes):
         n_class_model_results = f"{model_path}{training_results_folder}/{n_class}class-training.npz"
-        results = np.load(n_class_model_results)
-        excluded_subjects = results['excluded_subjects']
-        if subject is None:
-            used_subject = excluded_subjects[0]
-        elif subject in excluded_subjects:
-            used_subject = subject
-        else:
-            raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {model_path}')
+        used_subject = get_excluded_if_present(n_class_model_results, subject)
 
         model = get_model(n_class, len(ch_names), device,
                           state_path=f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}")
@@ -292,16 +286,19 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 # Predicts classes on every available sample
 # Plots Prediction values (in percent)
 # Stores Prediction array as .npy
-def live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
+def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
              n_classes=N_CLASSES,
              device=torch.device("cpu"), tag=None, equal_trials=True):
-    config = DotDict(subject=subject, device=device.type, n_classes=n_classes, ch_names=ch_names)
-
-    print(live_sim_config_str(config))
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
 
     class_models = {}
     for class_idx, n_class in enumerate(n_classes):
+        n_class_model_results = f"{model_path}{training_results_folder}/{n_class}class-training.npz"
+        used_subject = get_excluded_if_present(n_class_model_results, subject)
+
+        config = DotDict(subject=used_subject, device=device.type, n_classes=n_classes, ch_names=ch_names)
+        print(live_sim_config_str(config))
+
         print(f"######### {n_class}Class-Classification Live Simulation")
         model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
         print(f"Loading pretrained model from '{model_path}'")
@@ -309,7 +306,7 @@ def live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         class_models[n_class].eval()
 
         # Load Raw Subject Run for n_class
-        raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], ch_names=ch_names)
+        raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
 
@@ -348,7 +345,7 @@ def live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
             else:
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
-                    f"{n_class}class Live Simulation_S{subject:03d}_{i + 1}",
+                    f"{n_class}class Live Simulation_S{used_subject:03d}_{i + 1}",
                     'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
                     vspans=vspans[first_trial:last_trial + 1], vlines=vlines[first_trial:last_trial + 1],
                     ticks=trials_start_samples[first_trial:last_trial + 1],
