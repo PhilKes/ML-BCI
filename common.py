@@ -193,7 +193,7 @@ def predict_on_samples(model, n_class, samples_data, max_sample, device=torch.de
     for now_sample in pbar:
         if now_sample < eeg_config.SAMPLES:
             continue
-        # label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
+        #label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
         time_window_samples = samples_data[:, (now_sample - eeg_config.SAMPLES):now_sample]
         sample_predictions[now_sample] = predict_single(model, time_window_samples, device)
     return sample_predictions

@@ -11,7 +11,7 @@ default_options = ['-train']
 start = datetime.now()
 
 folder = "2_3_class_params"
-n_classes = ['2', '3']
+n_classes = ['2']
 # All Configurations to execute Training with
 confs = {
     # Key is the subfolder name

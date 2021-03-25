@@ -24,7 +24,7 @@ from util.configs_results import training_config_str, create_results_folders, sa
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
-from util.plot import plot_training_statistics, matplot, create_vspans_from_trials
+from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
 
 
 # Torch to TensorRT for model optimizations
@@ -321,26 +321,36 @@ def physionet_live_sim(model_path, subject=1, name=None, ch_names=MNE_CHANNELS,
         sample_predictions = sample_predictions * 100
         sample_predictions = np.swapaxes(sample_predictions, 0, 1)
 
-        # Generate Rectangles to highlight Trials in Plot
-        vspans = create_vspans_from_trials(trials_start_samples, trials_classes, max_sample)
-        # TODO: Mark 3 second mark of each trials like in training
-        matplot(sample_predictions,
-                f"{n_class}class Live Simulation_S{subject:03d}",
-                'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
-                vspans=vspans, ticks=trials_start_samples, x_values=trials_start_times,
-                labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+        # Highlight Trials and mark the trained on positions of each Trial
+        vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
+        tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
+        vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta)
+
+        # matplot(sample_predictions,
+        #         f"{n_class}class Live Simulation_S{subject:03d}",
+        #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+        #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
+        #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
         np.save(f"{dir_results}/{n_class}class_predictions", sample_predictions)
-        # Split into multiple plots if too long
-        # plot_splits = 1
-        # sample_split_size = int(sample_predictions.shape[0] / plot_splits)
-        # trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
-        # for i in range(plot_splits):
-        #     matplot(sample_predictions[:,(i*sample_split_size):(i + 1) * sample_split_size], f"{n_class}class Live Simulation_S{subject:03d}_{i + 1}",
-        #             'Time in sec.',
-        #             f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5, vspans=vspans[(i*trials_split_size):(i + 1) * trials_split_size],
-        #             ticks=trials_start_samples[(i*trials_split_size):(i + 1) * trials_split_size],
-        #             x_values=trials_start_times[(i*trials_split_size):(i + 1) * trials_split_size],
-        #             labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+        # Split into multiple plots, otherwise too long
+        plot_splits = 3
+        trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
+        for i in range(plot_splits):
+            first_trial = i * trials_split_size
+            last_trial = (i + 1) * trials_split_size - 1
+            first_sample = trials_start_samples[first_trial]
+            if i == plot_splits - 1:
+                last_sample = max_sample
+            else:
+                last_sample = trials_start_samples[last_trial + 1]
+            matplot(sample_predictions,
+                    f"{n_class}class Live Simulation_S{subject:03d}_{i + 1}",
+                    'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+                    vspans=vspans[first_trial:last_trial + 1], vlines=vlines[first_trial:last_trial + 1],
+                    ticks=trials_start_samples[first_trial:last_trial + 1],
+                    min_x=first_sample, max_x=last_sample,
+                    x_values=trials_start_times[first_trial:last_trial + 1],
+                    labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
     return
 
 

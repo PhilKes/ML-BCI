@@ -15,30 +15,46 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import PLOT_TO_PDF
 
+colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black']
+
+big_font = {'family': 'serif', 'weight': 'bold', 'size': 22}
+
 
 # Plots data with Matplot
 # data: either 1d or 2d datasets
 # labels: if 2d data, provide labels for legend
 # save_path: if plot + data array should be saved, declare save location
 # bar_plot: Plot as bars with average line (for Accuracies)
+# vspans: List of vertical Rectangles to draw
+#         Item Tuple: (X1,X2,color_idx)
+# vlines: List of vertical Lines to draw
+#         Item Tuple: (X,color_idx)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
-            x_values=None, ticks=None, fig_size=None, vspans=[]):
+            x_values=None, ticks=None, fig_size=None, vspans=[], vlines=[], min_x=None, max_x=None):
     # use LaTeX fonts in the plot
     plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
+    if (fig_size is not None) & (fig_size[0] > 30.0) | (fig_size[1] > 30.0):
+        plt.rcParams.update({'font.size': 22})
 
     fig, ax = plt.subplots()
     if fig_size is not None:
         fig.set_size_inches(fig_size[0], fig_size[1])
+
     plt.title(title)
     plt.xlabel(xlabel)
     plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(1))
     plt.ylabel(ylabel)
     if max_y is not None:
         plt.ylim(top=max_y)
+    if min_x is not None:
+        ax.set_xlim(xmin=min_x)
+    if max_x is not None:
+        ax.set_xlim(xmax=max_x)
     # Avoid X-Labels overlapping
     if ticks is not None:
-        plt.xticks(rotation=90)
+        if ticks.shape[0] > 30:
+            plt.xticks(rotation=90)
         ax.set_xticks(ticks)
         ax.set_xticklabels(x_values)
         # plt.xticks(ticks=ticks,labels=x_values)
@@ -62,6 +78,8 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
 
     for vspan in vspans:
         plt.axvspan(vspan[0], vspan[1], color=colors[vspan[2]], alpha=0.5)
+    for vline in vlines:
+        plt.axvline(vline[0], color=colors[vline[1]], alpha=0.75, linestyle='--')
 
     if save_path is not None:
         fig = plt.gcf()
@@ -73,9 +91,6 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
             fig.savefig(f"{save_path}/{title}.png")
     # fig.tight_layout()
     plt.show()
-
-
-colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple']
 
 
 # Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
@@ -173,12 +188,23 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             labels=['Training Loss', 'Testing Loss'], save_path=dir_results)
 
 
-# Generate Rectangles (vspans) to highlight Areas in plot
-def create_vspans_from_trials(vspan_start_idxs, color_idx, max_idx):
+# Generate consecutives Rectangles (vspans) to highlight Areas in plot
+def create_plot_vspans(vspan_start_xs, color_idx, max_x):
     vspans = []
-    for vspan in range(vspan_start_idxs.shape[0]):
-        if vspan == vspan_start_idxs.shape[0] - 1:
-            vspans.append((vspan_start_idxs[vspan], max_idx, color_idx[vspan]))
+    for vspan in range(vspan_start_xs.shape[0]):
+        if vspan == vspan_start_xs.shape[0] - 1:
+            vspans.append((vspan_start_xs[vspan], max_x, color_idx[vspan]))
         else:
-            vspans.append((vspan_start_idxs[vspan], vspan_start_idxs[vspan + 1], color_idx[vspan]))
+            vspans.append((vspan_start_xs[vspan], vspan_start_xs[vspan + 1], color_idx[vspan]))
     return vspans
+
+
+# Generate vertical Lines (vlines) for plot
+# Of Trials where interval of Training is highlighted
+def create_vlines_from_trials_epochs(raw, vline_xs, tdelta):
+    vlines = []
+    for trial_start_time in vline_xs:
+        trial_tdelta_sample = raw.time_as_index(trial_start_time + tdelta)
+        # -1: color_idx -> see plot.py colors[]
+        vlines.append((trial_tdelta_sample, -1))
+    return vlines
