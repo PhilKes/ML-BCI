@@ -181,6 +181,7 @@ def live_sim_config_str(config, n_class=None):
 {get_default_config_str(config)}
 {get_global_config_str()}
 Subject: {config.subject}
+Run: {config.run}
 ###############\n\n"""
 
 

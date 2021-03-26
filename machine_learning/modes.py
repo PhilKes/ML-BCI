@@ -5,6 +5,7 @@ All available Machine Learning modes implemented with PyTorch
 * Performance Benchmarking of Inference on pretrained EEGNet
 * Live Simulation of real time Classification of a PhysioNet Dataset Run
 """
+import os
 from datetime import datetime
 
 import numpy as np
@@ -18,9 +19,9 @@ from machine_learning.inference_training import do_train, do_test, do_benchmark,
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, training_results_folder, VALIDATION_SUBJECTS, trained_ss_model_name, eeg_config
 from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
-    create_preloaded_loader, create_loader_from_subject
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
-from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
+    create_preloaded_loader, create_loader_from_subject_runs
+from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, get_runs_of_n_classes
+from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run, n_classes_tasks, runs
 from machine_learning.models.eegnet import EEGNet
 from util.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, \
@@ -175,19 +176,21 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 
     start = datetime.now()
     print(training_ss_config_str(config))
-    dir_results = create_results_folders(path=f"{model_path}", name=f"S{subject:03d}", type='train_ss')
-    save_config(training_ss_config_str(config), ch_names, dir_results, tag)
 
     best_n_class_models = {}
     for i, n_class in enumerate(n_classes):
-        n_class_model_results = f"{model_path}{training_results_folder}/{n_class}class-training.npz"
+        n_class_model_results = f"{model_path}/{n_class}class-training.npz"
         used_subject = get_excluded_if_present(n_class_model_results, subject)
 
-        model = get_model(n_class, len(ch_names), device,
-                          state_path=f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}")
+        dir_results = create_results_folders(path=f"{model_path}", name=f"S{used_subject:03d}", type='train_ss')
+        save_config(training_ss_config_str(config), ch_names, dir_results, tag)
 
-        loader_train, loader_test = create_loader_from_subject(used_subject, train_share, test_share, n_class,
-                                                               batch_size, ch_names, device)
+        model = get_model(n_class, len(ch_names), device,
+                          state_path=f"{model_path}/{n_class}class_{trained_model_name}")
+        # Get all Runs of n_class Task, except last one -> reserved for live_sim
+        ignored_runs = [get_runs_of_n_classes(n_class)[-1]]
+        loader_train, loader_test = create_loader_from_subject_runs(used_subject, train_share, test_share, n_class,
+                                                                    batch_size, ch_names, device, ignored_runs=ignored_runs)
 
         loss_values_train, loss_values_valid, _, __ = do_train(model, loader_train, loader_test,
                                                                num_epochs, device)
@@ -202,7 +205,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
         print(res_str)
         save_training_results(n_class, res_str, dir_results, tag)
-        torch.save(model, f"{dir_results}/{n_class}class_S{subject:03d}_{trained_ss_model_name}")
+        torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
 # Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
@@ -293,14 +296,15 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
 
     class_models = {}
     for class_idx, n_class in enumerate(n_classes):
-        n_class_model_results = f"{model_path}{training_results_folder}/{n_class}class-training.npz"
+        n_class_model_results = f"{model_path}/{n_class}class-training.npz"
         used_subject = get_excluded_if_present(n_class_model_results, subject)
-
-        config = DotDict(subject=used_subject, device=device.type, n_classes=n_classes, ch_names=ch_names)
+        run = n_classes_live_run[n_class]
+        config = DotDict(subject=used_subject, device=device.type,
+                         n_classes=n_classes, ch_names=ch_names, run=run)
         print(live_sim_config_str(config))
 
         print(f"######### {n_class}Class-Classification Live Simulation")
-        model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
+        model_path = os.path.join(model_path,f"{n_class}class_{trained_model_name}")
         print(f"Loading pretrained model from '{model_path}'")
         class_models[n_class] = get_model(n_class, len(ch_names), device, model_path)
         class_models[n_class].eval()
@@ -345,7 +349,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
             else:
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
-                    f"{n_class}class Live Simulation_S{used_subject:03d}_{i + 1}",
+                    f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1}",
                     'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
                     vspans=vspans[first_trial:last_trial + 1], vlines=vlines[first_trial:last_trial + 1],
                     ticks=trials_start_samples[first_trial:last_trial + 1],

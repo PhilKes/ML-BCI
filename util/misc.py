@@ -27,7 +27,7 @@ def print_subjects_ranges(train, test):
 
 # Loads list of ch_names from training results folder
 def load_chs_of_model(model_path):
-    return np.genfromtxt(f"{model_path}/{training_results_folder}/{chs_names_txt}", dtype='str')
+    return np.genfromtxt(f"{model_path}/{chs_names_txt}", dtype='str')
 
 
 def datetime_to_folder_str(datetime):
@@ -106,11 +106,20 @@ def get_class_avgs(n_class, class_accs):
 # Load excluded from results .npz
 # If subject is present in excluded return subject
 # else return first subject in excluded
+# if excluded is empty, return Subject 1
 def get_excluded_if_present(n_class_model_results, subject):
-    results = np.load(n_class_model_results)
+    if subject is not None:
+        return subject
+    try:
+        results = np.load(n_class_model_results)
+    except FileNotFoundError:
+        raise FileNotFoundError(f'File {n_class_model_results} does not exist!')
     excluded_subjects = results['excluded_subjects']
     if subject is None:
-        return excluded_subjects[0]
+        if excluded_subjects.shape[0] > 0:
+            return excluded_subjects[0]
+        else:
+            raise ValueError(f'Training had no excluded Subject, please specify subject to live simulate on with --subject')
     elif subject in excluded_subjects:
         return subject
     else:

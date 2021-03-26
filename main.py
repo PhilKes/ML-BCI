@@ -16,7 +16,7 @@ import torch
 from data.physionet_dataset import MNE_CHANNELS, excluded_subjects
 from machine_learning.modes import training_cv, benchmarking, live_sim, \
     training_ss
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, training_results_folder
 from data.data_loading import ALL_SUBJECTS
 from util.misc import datetime_to_folder_str, list_to_string, load_chs_of_model
 
@@ -58,7 +58,7 @@ def single_run(argv=sys.argv[1:]):
                            equal_trials=(not args.all_trials), early_stop=args.early_stop,
                            excluded=args.excluded)
     elif args.train_ss:
-        model_path = f"{args.model}"
+        model_path = f"{args.model}/{training_results_folder}"
         args.ch_names = load_chs_of_model(model_path)
         training_ss(model_path, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                     name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names)

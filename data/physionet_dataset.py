@@ -31,6 +31,7 @@ DEFAULTS = DotDict(
     EEG_TMAX=3,
     SAMPLERATE=160,
     # if True: load Run 0 for Rest Trials, ignore in other Runs
+    # not relevant for 2 class Classification
     REST_TRIALS_FROM_BASELINE_RUN=True
 )
 
@@ -59,7 +60,7 @@ runs = [runs_rest, runs_t1, runs_t2, runs_t3, runs_t4]
 n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}
 
 # Sample run for n_class live_sim mode
-n_classes_live_run = {2: runs_t2[0], 3: runs_t2[0], 4: runs_t2[0]}
+n_classes_live_run = {2: runs_t2[-1], 3: runs_t2[-1], 4: runs_t2[-1]}
 
 # Maximum available trials
 trials_for_classes_per_subject_avail = {2: 42, 3: 84, 4: 153}

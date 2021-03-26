@@ -72,18 +72,21 @@ scaler = MinMaxScaler(copy=False)
 normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
 
 
-
-def get_runs_of_n_classes(n_classes):
+# omit_bl: Omit Baseline Runs (Rest Trials)
+def get_runs_of_n_classes(n_classes, omit_bl=False):
     n_runs = []
     for task in n_classes_tasks[n_classes]:
+        if omit_bl & (task == 0):
+            continue
         n_runs.extend(runs[task])
     return n_runs
 
 
-def get_trials_size(n_class, equal_trials):
+def get_trials_size(n_class, equal_trials, ignored_runs=[]):
     trials = trials_for_classes_per_subject_avail[n_class]
     if equal_trials:
-        r = len(get_runs_of_n_classes(n_class))
+        rs = [run for run in get_runs_of_n_classes(n_class) if run not in ignored_runs]
+        r = len(rs)
         if n_class == 4:
             r -= 3
         if n_class == 2:
@@ -92,6 +95,22 @@ def get_trials_size(n_class, equal_trials):
             r -= 1
         trials = TRIALS_PER_SUBJECT_RUN * r
     return trials
+
+
+# Ensure that same amount of Trials for each class is present
+def get_equal_trials_per_class(data, labels, classes, trials):
+    trials_idxs = np.zeros(0, dtype=np.int)
+    for cl in range(classes):
+        cl_idxs = np.where(labels == cl)[0]
+        # Get random Rest Trials from Run
+        if cl == 0:
+            np.random.seed(39)
+            np.random.shuffle(cl_idxs)
+        cl_idxs = cl_idxs[:trials]
+        trials_idxs = np.concatenate((trials_idxs, cl_idxs))
+    trials_idxs = np.sort(trials_idxs)
+    return data[trials_idxs], labels[trials_idxs]
+
 
 # If multiple tasks are used (4classes classification)
 # labels need to be adjusted because different events from
