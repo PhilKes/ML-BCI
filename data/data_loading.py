@@ -19,8 +19,8 @@ from tqdm import tqdm
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN
-from util.misc import print_subjects_ranges, split_np_into_chunks
+from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS
+from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr
 
 
 # Returns Loaders of Training + Test Datasets from index splits
@@ -107,12 +107,18 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
 
 # Loads corresponding tasks for n_classes Classification
 def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False):
-    tasks = n_classes_tasks[n_classes]
+    tasks = n_classes_tasks[n_classes].copy()
+    if (not DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
+        tasks.remove(0)
     data, labels = load_task_runs(subject, tasks,
-                                  exclude_bothfists=(n_classes == 4), ch_names=ch_names,
+                                  exclude_bothfists=(n_classes == 4), exclude_rests=(n_classes == 2),
+                                  ch_names=ch_names,
                                   equal_trials=equal_trials, n_class=n_classes)
     if n_classes == 2:
         labels = dec_label(labels)
+    # TODO? if REST_TRIALS_FROM_BASELINE_RUN:
+    #     np.random.seed(39)
+    #     data, labels = unified_shuffle_arr(data, labels)
     return data, labels
 
 
@@ -151,17 +157,20 @@ def mne_load_rests(subject, trials, ch_names):
 
 # Merges runs from different tasks + correcting labels for n_class classification
 def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
-                   equal_trials=False):
+                   equal_trials=False, exclude_rests=False):
     all_data = np.zeros((0, len(ch_names), eeg_config.SAMPLES))
     all_labels = np.zeros((0), dtype=np.int)
     contains_rest_task = (0 in tasks)
     # Load Subject Data of all Tasks
     for task_idx, task in enumerate(tasks):
-        tasks_event_dict = {'T1': 2, 'T2': 3}
+        if DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN | exclude_rests:
+            tasks_event_dict = {'T1': 2, 'T2': 3}
+        else:
+            tasks_event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
         # for 4class classification exclude both fists event of task 4 ("T1")
         if exclude_bothfists & (task == 4):
             tasks_event_dict = {'T2': 2}
-        if task == 0:
+        if DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
             data, labels = mne_load_rests(subject, TRIALS_PER_SUBJECT_RUN, ch_names)
         else:
             data, labels = mne_load_subject(subject, runs[task], event_id=tasks_event_dict, ch_names=ch_names)
@@ -173,10 +182,12 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
                 if n_class == 2:
                     classes = 3
                 for cl in range(classes):
-                    if n_class == 0:
-                        continue
-                    cl_idxs = np.where(labels == cl)[0]
 
+                    cl_idxs = np.where(labels == cl)[0]
+                    # Get random Rest Trials from Run
+                    if cl == 0:
+                        np.random.seed(39)
+                        np.random.shuffle(cl_idxs)
                     cl_idxs = cl_idxs[:trials_per_subject]
                     trials_idxs = np.concatenate((trials_idxs, cl_idxs))
                 trials_idxs = np.sort(trials_idxs)

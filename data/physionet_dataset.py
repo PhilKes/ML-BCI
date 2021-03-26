@@ -29,15 +29,18 @@ MNE_CHANNELS = [
 DEFAULTS = DotDict(
     EEG_TMIN=0,
     EEG_TMAX=3,
-    SAMPLERATE=160
+    SAMPLERATE=160,
+    # if True: load Run 0 for Rest Trials, ignore in other Runs
+    REST_TRIALS_FROM_BASELINE_RUN=True
 )
+
+
+def set_rest_from_bl_run(val):
+    DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN = val
+
 
 # Amount of picked Trials in 1 Run of 1 Subject
 TRIALS_PER_SUBJECT_RUN = 21
-
-#TODO: if False: load Runs with Rest Trials
-# if True: load Run 0 for Rest Trials, ignore in other Runs
-REST_TRIALS_FROM_BASELINE_RUN= True
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
 excluded_subjects = [88, 92, 100, 104]

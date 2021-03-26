@@ -63,7 +63,8 @@ def list_to_string(list):
 
 
 # Shuffle 2 arrays unified
-def unison_shuffled_copies(a, b):
+# Source: https://stackoverflow.com/a/4602224/9748566
+def unified_shuffle_arr(a, b):
     assert len(a) == len(b)
     p = np.random.permutation(len(a))
     return a[p], b[p]

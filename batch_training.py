@@ -6,6 +6,7 @@ import numpy
 import pandas as pd
 from config import global_config, eeg_config, eegnet_config, results_folder, set_eeg_times, reset_eeg_times, \
     set_poolsize
+from data.physionet_dataset import set_rest_from_bl_run
 from main import single_run
 
 default_options = ['-train']
@@ -32,19 +33,19 @@ confs = {
     #     ],
     #     'names': ['s_001', 's_001_020', ]
     # },
-    'tmax': {
-        'params': [[], [], []],
-        'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
-        # Initialize method for each run (optional)
-        # len(params) = len(names) = len(init)
-        'init': [
-            lambda: set_eeg_times(0, 1),
-            lambda: set_eeg_times(0, 4),
-            lambda: set_eeg_times(-1, 5),
-        ],
-        # Execute after all runs finished -> reset parameters (optional)
-        'after': lambda: reset_eeg_times(),
-    },
+    # 'tmax': {
+    #     'params': [[], [], []],
+    #     'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
+    #     # Initialize method for each run (optional)
+    #     # len(params) = len(names) = len(init)
+    #     'init': [
+    #         lambda: set_eeg_times(0, 1),
+    #         lambda: set_eeg_times(0, 4),
+    #         lambda: set_eeg_times(-1, 5),
+    #     ],
+    #     # Execute after all runs finished -> reset parameters (optional)
+    #     'after': lambda: reset_eeg_times(),
+    # },
     # 'pool': {
     #     'params': [[], []],
     #     'names': ['pool_4', 'pool_8'],
@@ -55,14 +56,23 @@ confs = {
     #     'after': lambda: set_poolsize(4)
     # },
 
-    'chs': {
-        'params': [
-            ['--ch_motorimg', '16_bs'],
-            ['--ch_motorimg', '16'],
-            ['--ch_motorimg', '16_2'],
-            ['--ch_motorimg', '16_openbci'],
+    # 'chs': {
+    #     'params': [
+    #         ['--ch_motorimg', '16_bs'],
+    #         ['--ch_motorimg', '16'],
+    #         ['--ch_motorimg', '16_2'],
+    #         ['--ch_motorimg', '16_openbci'],
+    #     ],
+    #     'names': ['chs_16_bs', 'chs_16', 'chs_16_2', 'chs_16_openbci', ]
+    # }
+    'rest_trials': {
+        'params': [[], []],
+        'names': ['from_bl_run', 'from_runs'],
+        'init': [
+            lambda: set_rest_from_bl_run(True),
+            lambda: set_rest_from_bl_run(False),
         ],
-        'names': ['chs_16_bs', 'chs_16', 'chs_16_2', 'chs_16_openbci', ]
+        'after': lambda: set_rest_from_bl_run(True)
     }
 }
 

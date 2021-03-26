@@ -111,7 +111,7 @@ MOTORIMG_CHANNELS_16_bs = [
     'F7', 'F8',
     'T10',
     'P7', 'Po7', 'O1', 'Oz', 'O2', 'Po4', 'P8',
-    'I2'
+    'Iz'
 ]
 MOTORIMG_CHANNELS_14 = [
     'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',
