@@ -58,7 +58,7 @@ def single_run(argv=sys.argv[1:]):
                            equal_trials=(not args.all_trials), early_stop=args.early_stop,
                            excluded=args.excluded)
     elif args.train_ss:
-        model_path = f"{args.model}/{training_results_folder}"
+        model_path = f"{args.model}"
         args.ch_names = load_chs_of_model(model_path)
         training_ss(model_path, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                     name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names)
@@ -90,7 +90,7 @@ def add_common_arguments(parser):
     parser.add_argument('--bs', type=int, default=BATCH_SIZE,
                         help=f'Trial Batch Size (default:{BATCH_SIZE})')
     parser.add_argument('--model', type=str, default=None,
-                        help='Relative Folder path of model used (in ./results folder) for -benchmark or -train_ss')
+                        help='Relative Folder path of trained model(in ./results/.../training folder), used for -benchmark or -train_ss or -live_sim')
     parser.add_argument('--subject', type=int, default=None,
                         help=f'Subject used for -live_sim or -train_ss')
 

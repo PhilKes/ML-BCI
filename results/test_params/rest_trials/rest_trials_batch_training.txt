@@ -1,0 +1,6 @@
+# Comparison of using Rest Trials from Baseline Run
+  vs Rest Trials from actual Runs
+
+             3class Acc  3class OF
+from_bl_run   74.890401  -7.947846
+from_runs     71.882086  -7.558579

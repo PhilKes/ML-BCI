@@ -160,7 +160,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
         # else: Model state after epochs of Fold with the highest accuracy on Training Set
         if save_model:
-            torch.save(best_n_class_models[n_class], f"{dir_results}/{n_class}class_{trained_model_name}")
+            torch.save(best_n_class_models[n_class], os.path.join(dir_results,f"{n_class}class_{trained_model_name}"))
 
         n_class_accuracy[i] = np.average(accuracies)
         n_class_overfitting_diff[i] = np.average(accuracies) - np.average(accuracies_overfitting)
@@ -169,7 +169,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
 
 def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
                 save_model=True, name=None, device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
-    train_share = 0.8
+    train_share = 1
     test_share = 1 - train_share
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, train_share=train_share, test_share=test_share)
@@ -177,34 +177,32 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     start = datetime.now()
     print(training_ss_config_str(config))
 
-    best_n_class_models = {}
     for i, n_class in enumerate(n_classes):
-        n_class_model_results = f"{model_path}/{n_class}class-training.npz"
+        n_class_model_results = os.path.join(model_path,f"{n_class}class-training.npz")
         used_subject = get_excluded_if_present(n_class_model_results, subject)
 
         dir_results = create_results_folders(path=f"{model_path}", name=f"S{used_subject:03d}", type='train_ss')
         save_config(training_ss_config_str(config), ch_names, dir_results, tag)
+        print(f"Loading pretrained model from '{model_path}'")
 
         model = get_model(n_class, len(ch_names), device,
-                          state_path=f"{model_path}/{n_class}class_{trained_model_name}")
+                          state_path=os.path.join(model_path,f"{n_class}class_{trained_model_name}"))
         # Get all Runs of n_class Task, except last one -> reserved for live_sim
         ignored_runs = [get_runs_of_n_classes(n_class)[-1]]
-        loader_train, loader_test = create_loader_from_subject_runs(used_subject, train_share, test_share, n_class,
-                                                                    batch_size, ch_names, device, ignored_runs=ignored_runs)
+        loader_train = create_loader_from_subject_runs(used_subject, n_class, batch_size,
+                                                       ch_names, device, ignored_runs=ignored_runs)
 
-        loss_values_train, loss_values_valid, _, __ = do_train(model, loader_train, loader_test,
+        loss_values_train, loss_values_valid, _, __ = do_train(model, loader_train, None,
                                                                num_epochs, device)
-        acc, test_class_hits = do_test(model, loader_test, device, n_class)
+        # acc, test_class_hits = do_test(model, loader_test, device, n_class)
+        # elapsed = datetime.now() - start
+        # class_trials, class_accs = get_class_prediction_stats(n_class, test_class_hits)
 
-        elapsed = datetime.now() - start
-
-        class_trials, class_accs = get_class_prediction_stats(n_class, test_class_hits)
-
-        np.savez(f"{dir_results}/train_ss_results.npz", acc=acc, class_hits=test_class_hits,
+        np.savez(os.path.join(dir_results,"train_ss_results.npz"),
                  loss_values_train=loss_values_train, loss_values_valid=loss_values_valid)
-        res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
-        print(res_str)
-        save_training_results(n_class, res_str, dir_results, tag)
+        # res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
+        # print(res_str)
+        # save_training_results(n_class, res_str, dir_results, tag)
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
@@ -294,9 +292,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
              device=torch.device("cpu"), tag=None, equal_trials=True):
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
 
-    class_models = {}
     for class_idx, n_class in enumerate(n_classes):
-        n_class_model_results = f"{model_path}/{n_class}class-training.npz"
+        n_class_model_results = os.path.join(model_path,f"{n_class}class-training.npz")
         used_subject = get_excluded_if_present(n_class_model_results, subject)
         run = n_classes_live_run[n_class]
         config = DotDict(subject=used_subject, device=device.type,
@@ -304,10 +301,10 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         print(live_sim_config_str(config))
 
         print(f"######### {n_class}Class-Classification Live Simulation")
-        model_path = os.path.join(model_path,f"{n_class}class_{trained_model_name}")
+        n_class_model_path = os.path.join(model_path, f"{n_class}class_{trained_model_name}")
         print(f"Loading pretrained model from '{model_path}'")
-        class_models[n_class] = get_model(n_class, len(ch_names), device, model_path)
-        class_models[n_class].eval()
+        model = get_model(n_class, len(ch_names), device, n_class_model_path)
+        model.eval()
 
         # Load Raw Subject Run for n_class
         raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
@@ -322,7 +319,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         # Get samples of Trials Start Times
         trials_start_samples = map_times_to_samples(raw, trials_start_times)
 
-        sample_predictions = do_predict_on_samples(class_models[n_class], n_class, X, max_sample, device)
+        sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, device)
         sample_predictions = sample_predictions * 100
         sample_predictions = np.swapaxes(sample_predictions, 0, 1)
 
@@ -336,7 +333,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
         #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
         #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
-        np.save(f"{dir_results}/{n_class}class_predictions", sample_predictions)
+        np.save(os.path.join(dir_results,f"{n_class}class_predictions"), sample_predictions)
         # Split into multiple plots, otherwise too long
         plot_splits = 3
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)

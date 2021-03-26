@@ -1,0 +1,23 @@
+#### Results ####
+Elapsed Time: 1:06:52.968328
+Accuracies of Folds:
+	Fold 1 :	72.34
+		Overfitting (Test-Training): -11.32
+	Fold 2 :	72.18
+		Overfitting (Test-Training): -10.83
+	Fold 3 :	78.61
+		Overfitting (Test-Training): -3.63
+	Fold 4 :	74.60
+		Overfitting (Test-Training): -8.47
+	Fold 5 [Best]:	71.58
+		Overfitting (Test-Training): -10.45
+
+Avg. acc: 73.86
+Avg. Overfitting difference: -8.94
+Trials per class:
+	[0]: 441	[1]: 441	[2]: 441
+Avg. Class Accuracies:
+	[0]: 77.23	[1]: 68.89	[2]: 75.46
+
+###############
+

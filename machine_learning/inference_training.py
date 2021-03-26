@@ -41,6 +41,7 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("c
     best_model = model.state_dict().copy()
     for epoch in range(epochs):
         print(f"## Epoch {epoch} ")
+        model.train()
         running_loss_train, running_loss_valid = 0.0, 0.0
         # Wrap in tqdm for Progressbar in Console
         pbar = tqdm(loader_train, file=sys.stdout)
@@ -61,39 +62,37 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("c
         pbar.close()
         # Loss of entire epoch / amount of batches
         epoch_loss_train = (running_loss_train / len(loader_train))
-        # Validation loss on Test Dataset
-        # if early_stop=True: Used to determine best model state
-        with torch.no_grad():
-            model.eval()
-            for idx_batch, (inputs, labels) in enumerate(loader_valid):
-                # Convert to correct types + put on GPU
-                inputs, labels = inputs, labels.long().to(device)
-                # zero the parameter gradients
-                # optimizer.zero_grad()
-                # forward + backward + optimize
-                outputs = model(inputs)
-                # print("out",outputs.shape,"labels",labels.shape)
-                loss = criterion(outputs, labels)
-                # loss.backward()
-                # optimizer.step()
-                running_loss_valid += loss.item()
-        model.train()
-        lr_scheduler.step()
-
-        epoch_loss_valid = (running_loss_valid / len(loader_valid))
-        # Determine if epoch (validation loss) is lower than all epochs before -> current best model
-        if early_stop:
-            if epoch_loss_valid < loss_values_valid.min():
-                best_model = model.state_dict().copy()
-                best_epoch = epoch
-            print('[%3d] Training loss/batch: %f\tValidation loss/batch: %f' %
-                  (epoch, epoch_loss_train, epoch_loss_valid))
-        else:
-            # Validation Set = Testing Set
+        if loader_valid is not None:
+            # Validation loss on Test Dataset
+            # if early_stop=True: Used to determine best model state
+            with torch.no_grad():
+                model.eval()
+                for idx_batch, (inputs, labels) in enumerate(loader_valid):
+                    # Convert to correct types + put on GPU
+                    inputs, labels = inputs, labels.long().to(device)
+                    # zero the parameter gradients
+                    # optimizer.zero_grad()
+                    # forward + backward + optimize
+                    outputs = model(inputs)
+                    # print("out",outputs.shape,"labels",labels.shape)
+                    loss = criterion(outputs, labels)
+                    # loss.backward()
+                    # optimizer.step()
+                    running_loss_valid += loss.item()
+            epoch_loss_valid = (running_loss_valid / len(loader_valid))
+            # Determine if epoch (validation loss) is lower than all epochs before -> current best model
+            if early_stop:
+                if epoch_loss_valid < loss_values_valid.min():
+                    best_model = model.state_dict().copy()
+                    best_epoch = epoch
             print('[%3d] Training loss/batch: %f\tTesting loss/batch: %f' %
                   (epoch, epoch_loss_train, epoch_loss_valid))
+            loss_values_valid[epoch] = epoch_loss_valid
+        else:
+            print('[%3d] Training loss/batch: %f' %(epoch, epoch_loss_train))
         loss_values_train[epoch] = epoch_loss_train
-        loss_values_valid[epoch] = epoch_loss_valid
+
+        lr_scheduler.step()
     print("Training finished ######")
 
     return loss_values_train, loss_values_valid, best_model, best_epoch

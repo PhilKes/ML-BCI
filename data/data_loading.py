@@ -56,7 +56,7 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
     return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
 
 
-def create_loader_from_subject_runs(used_subject, train_share, test_share, n_class, batch_size, ch_names, device,
+def create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names, device,
                                     ignored_runs=[]):
     preloaded_data, preloaded_labels = load_subjects_data([used_subject], n_class, ch_names, ignored_runs=ignored_runs)
     preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
@@ -68,14 +68,14 @@ def create_loader_from_subject_runs(used_subject, train_share, test_share, n_cla
 
     data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
                              torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
-    lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
-    train_set, test_set = random_split(data_set, lengths)
+    #lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
+    #train_set, test_set = random_split(data_set, lengths)
     print()
 
-    loader_train = DataLoader(train_set, batch_size, sampler=RandomSampler(train_set), pin_memory=False)
-    loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
+    loader_train = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
+    #loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
 
-    return loader_train, loader_test
+    return loader_train
 
 
 def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equal_trials=False):

@@ -4,21 +4,33 @@ from datetime import datetime
 
 import numpy
 import pandas as pd
-from config import global_config, eeg_config, eegnet_config, results_folder, set_eeg_times, reset_eeg_times, \
-    set_poolsize
-from data.physionet_dataset import set_rest_from_bl_run
+
+from config import results_folder, set_eeg_times, reset_eeg_times
 from main import single_run
 
 default_options = ['-train']
 start = datetime.now()
 
-folder = "2_3_class_params"
+folder = "test_params"
 n_classes = ['3']
 # All Configurations to execute Training with
 confs = {
-    # Key is the subfolder name
+    'tmax': {
+        # main.py -train Params for each run
+        'params': [[], [], []],
+        # name for subfolder for each run
+        'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
+        # Initialize methods for each run to set global settings (optional)
+        # len(params) = len(names) = len(init)
+        'init': [
+            lambda: set_eeg_times(0, 1),
+            lambda: set_eeg_times(0, 4),
+            lambda: set_eeg_times(-1, 5),
+        ],
+        # Execute after all runs finished -> reset changed parameters (optional)
+        'after': lambda: reset_eeg_times(),
+    },
     # 'batch_size': {
-    #     # Params for each run
     #     'params': [
     #         ['--bs', '16'],
     #         ['--bs', '32'],
@@ -33,19 +45,8 @@ confs = {
     #     ],
     #     'names': ['s_001', 's_001_020', ]
     # },
-    # 'tmax': {
-    #     'params': [[], [], []],
-    #     'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
-    #     # Initialize method for each run (optional)
-    #     # len(params) = len(names) = len(init)
-    #     'init': [
-    #         lambda: set_eeg_times(0, 1),
-    #         lambda: set_eeg_times(0, 4),
-    #         lambda: set_eeg_times(-1, 5),
-    #     ],
-    #     # Execute after all runs finished -> reset parameters (optional)
-    #     'after': lambda: reset_eeg_times(),
-    # },
+    # Key is the subfolder name
+
     # 'pool': {
     #     'params': [[], []],
     #     'names': ['pool_4', 'pool_8'],
@@ -65,15 +66,15 @@ confs = {
     #     ],
     #     'names': ['chs_16_bs', 'chs_16', 'chs_16_2', 'chs_16_openbci', ]
     # }
-    'rest_trials': {
-        'params': [[], []],
-        'names': ['from_bl_run', 'from_runs'],
-        'init': [
-            lambda: set_rest_from_bl_run(True),
-            lambda: set_rest_from_bl_run(False),
-        ],
-        'after': lambda: set_rest_from_bl_run(True)
-    }
+    # 'rest_trials': {
+    #     'params': [[], []],
+    #     'names': ['from_bl_run', 'from_runs'],
+    #     'init': [
+    #         lambda: set_rest_from_bl_run(True),
+    #         lambda: set_rest_from_bl_run(False),
+    #     ],
+    #     'after': lambda: set_rest_from_bl_run(True)
+    # }
 }
 
 # Loop to exectue alls Configurations

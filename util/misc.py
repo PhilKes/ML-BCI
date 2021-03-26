@@ -2,6 +2,7 @@
 Miscellaneous Utility Methods
 """
 import math
+import os
 
 import numpy as np
 import torch  # noqa
@@ -27,7 +28,11 @@ def print_subjects_ranges(train, test):
 
 # Loads list of ch_names from training results folder
 def load_chs_of_model(model_path):
-    return np.genfromtxt(f"{model_path}/{chs_names_txt}", dtype='str')
+    try:
+        chs = np.genfromtxt(os.path.join(model_path, chs_names_txt), dtype='str')
+    except OSError:
+        raise FileNotFoundError("Please specify a valid model path (folder with training results, ch_names.txt,...)")
+    return chs
 
 
 def datetime_to_folder_str(datetime):
@@ -119,7 +124,8 @@ def get_excluded_if_present(n_class_model_results, subject):
         if excluded_subjects.shape[0] > 0:
             return excluded_subjects[0]
         else:
-            raise ValueError(f'Training had no excluded Subject, please specify subject to live simulate on with --subject')
+            raise ValueError(
+                f'Training had no excluded Subject, please specify subject to live simulate on with --subject')
     elif subject in excluded_subjects:
         return subject
     else:
