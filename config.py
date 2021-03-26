@@ -1,6 +1,8 @@
 """
 Configuration File containing global default values
 """
+import math
+
 from data.physionet_dataset import DEFAULTS
 from util.dot_dict import DotDict
 
@@ -39,8 +41,16 @@ eegnet_config = DotDict(pool_size=4)
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 eeg_config = DotDict(EEG_TMIN=DEFAULTS.EEG_TMIN,
                      EEG_TMAX=DEFAULTS.EEG_TMAX,
+                     TRIAL_SLICES=1,
                      SAMPLERATE=DEFAULTS.SAMPLERATE,
                      SAMPLES=(DEFAULTS.EEG_TMAX - DEFAULTS.EEG_TMIN) * DEFAULTS.SAMPLERATE)
+
+
+def set_eeg_trials_slices(slices):
+    #eeg_config.EEG_TMIN = 0
+    #eeg_config.EEG_TMAX = 4
+    eeg_config.TRIALS_SLICES = slices
+    eeg_config.SAMPLES = math.floor(((eeg_config.EEG_TMAX - eeg_config.EEG_TMIN ) * eeg_config.SAMPLERATE)/slices)
 
 
 def set_eeg_times(tmin, tmax):

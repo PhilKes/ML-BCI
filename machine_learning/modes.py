@@ -5,6 +5,7 @@ All available Machine Learning modes implemented with PyTorch
 * Performance Benchmarking of Inference on pretrained EEGNet
 * Live Simulation of real time Classification of a PhysioNet Dataset Run
 """
+import math
 import os
 from datetime import datetime
 
@@ -160,7 +161,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
         # else: Model state after epochs of Fold with the highest accuracy on Training Set
         if save_model:
-            torch.save(best_n_class_models[n_class], os.path.join(dir_results,f"{n_class}class_{trained_model_name}"))
+            torch.save(best_n_class_models[n_class], os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
 
         n_class_accuracy[i] = np.average(accuracies)
         n_class_overfitting_diff[i] = np.average(accuracies) - np.average(accuracies_overfitting)
@@ -178,7 +179,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     print(training_ss_config_str(config))
 
     for i, n_class in enumerate(n_classes):
-        n_class_model_results = os.path.join(model_path,f"{n_class}class-training.npz")
+        n_class_model_results = os.path.join(model_path, f"{n_class}class-training.npz")
         used_subject = get_excluded_if_present(n_class_model_results, subject)
 
         dir_results = create_results_folders(path=f"{model_path}", name=f"S{used_subject:03d}", type='train_ss')
@@ -186,7 +187,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         print(f"Loading pretrained model from '{model_path}'")
 
         model = get_model(n_class, len(ch_names), device,
-                          state_path=os.path.join(model_path,f"{n_class}class_{trained_model_name}"))
+                          state_path=os.path.join(model_path, f"{n_class}class_{trained_model_name}"))
         # Get all Runs of n_class Task, except last one -> reserved for live_sim
         ignored_runs = [get_runs_of_n_classes(n_class)[-1]]
         loader_train = create_loader_from_subject_runs(used_subject, n_class, batch_size,
@@ -198,7 +199,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         # elapsed = datetime.now() - start
         # class_trials, class_accs = get_class_prediction_stats(n_class, test_class_hits)
 
-        np.savez(os.path.join(dir_results,"train_ss_results.npz"),
+        np.savez(os.path.join(dir_results, "train_ss_results.npz"),
                  loss_values_train=loss_values_train, loss_values_valid=loss_values_valid)
         # res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
         # print(res_str)
@@ -293,7 +294,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
 
     for class_idx, n_class in enumerate(n_classes):
-        n_class_model_results = os.path.join(model_path,f"{n_class}class-training.npz")
+        n_class_model_results = os.path.join(model_path, f"{n_class}class-training.npz")
         used_subject = get_excluded_if_present(n_class_model_results, subject)
         run = n_classes_live_run[n_class]
         config = DotDict(subject=used_subject, device=device.type,
@@ -318,7 +319,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
 
         # Get samples of Trials Start Times
         trials_start_samples = map_times_to_samples(raw, trials_start_times)
-
+        # if eeg_config.TRIALS_SLICES is not None:
+        #     used_samples = math.floor(used_samples / eeg_config.TRIALS_SLICES)
         sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, device)
         sample_predictions = sample_predictions * 100
         sample_predictions = np.swapaxes(sample_predictions, 0, 1)
@@ -333,7 +335,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
         #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
         #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
-        np.save(os.path.join(dir_results,f"{n_class}class_predictions"), sample_predictions)
+        np.save(os.path.join(dir_results, f"{n_class}class_predictions"), sample_predictions)
         # Split into multiple plots, otherwise too long
         plot_splits = 3
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)

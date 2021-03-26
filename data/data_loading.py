@@ -4,6 +4,8 @@ Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
 On initial Run MNE downloads the Physionet Dataset into ./data/datasets
 (https://physionet.org/content/eegmmidb/1.0.0/)
 """
+import math
+
 import mne
 import numpy as np
 import torch  # noqa
@@ -19,7 +21,7 @@ from tqdm import tqdm
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
-    get_equal_trials_per_class
+    get_equal_trials_per_class, split_trials
 from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS
 from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr
 
@@ -68,12 +70,12 @@ def create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
 
     data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
                              torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
-    #lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
-    #train_set, test_set = random_split(data_set, lengths)
+    # lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
+    # train_set, test_set = random_split(data_set, lengths)
     print()
 
     loader_train = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
-    #loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
+    # loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
 
     return loader_train
 
@@ -94,15 +96,18 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
     subjects.sort()
     trials = get_trials_size(n_class, equal_trials, ignored_runs)
     trials_per_run_class = np.math.floor(trials / n_class)
+    trials = trials * eeg_config.TRIALS_SLICES
+
     preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
     print("Preload Shape", preloaded_data.shape)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
         data, labels = load_n_classes_tasks(subject, n_class, ch_names, equal_trials, trials_per_run_class,
                                             ignored_runs)
-
         # if data.shape[0] > preloaded_data.shape[1]:
         #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
+        if eeg_config.TRIALS_SLICES > 1:
+            data, labels = split_trials(data, labels, eeg_config.TRIALS_SLICES, eeg_config.SAMPLES)
         preloaded_data[i] = data
         preloaded_labels[i] = labels
     if normalize:
@@ -120,7 +125,8 @@ def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials
     data, labels = load_task_runs(subject, tasks,
                                   exclude_bothfists=(n_classes == 4), exclude_rests=(n_classes == 2),
                                   ch_names=ch_names, ignored_runs=ignored_runs,
-                                  equal_trials=equal_trials,trials_per_run_class=trials_per_run_class, n_class=n_classes)
+                                  equal_trials=equal_trials, trials_per_run_class=trials_per_run_class,
+                                  n_class=n_classes)
     if n_classes == 2:
         labels = dec_label(labels)
     # TODO? if REST_TRIALS_FROM_BASELINE_RUN:
@@ -135,7 +141,7 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 # Loads Rest trials from the 1st baseline run of subject
 # if baseline run is not long enough for all needed trials
 # random Trials are generated from baseline run
-def mne_load_rests(subject, trials, ch_names):
+def mne_load_rests(subject, trials, ch_names, samples):
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
     chs = len(ch_names)
@@ -143,16 +149,16 @@ def mne_load_rests(subject, trials, ch_names):
         X = X[:1, :, :]
     X = np.squeeze(X, axis=0)
     X_cop = np.array(X, copy=True)
-    X = split_np_into_chunks(X, eeg_config.SAMPLES)
+    X = split_np_into_chunks(X, samples)
 
     trials_diff = trials - X.shape[0]
     if trials_diff > 0:
         for m in range(trials_diff):
             np.random.seed(m)
-            rand_start_idx = np.random.randint(0, X_cop.shape[0] - eeg_config.SAMPLES)
+            rand_start_idx = np.random.randint(0, X_cop.shape[0] - samples)
             # print("rand_start", rand_start_idx)
-            rand_x = np.zeros((1, eeg_config.SAMPLES, chs))
-            rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + eeg_config.SAMPLES)]
+            rand_x = np.zeros((1, samples, chs))
+            rand_x[0] = X_cop[rand_start_idx: (rand_start_idx + samples)]
             X = np.concatenate((X, rand_x))
     elif trials_diff < 0:
         X = X[:trials_diff]
@@ -164,14 +170,16 @@ def mne_load_rests(subject, trials, ch_names):
 
 # Merges runs from different tasks + correcting labels for n_class classification
 def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
-                   equal_trials=False,trials_per_run_class=TRIALS_PER_SUBJECT_RUN, exclude_rests=False, ignored_runs=[]):
-    all_data = np.zeros((0, len(ch_names), eeg_config.SAMPLES))
+                   equal_trials=False, trials_per_run_class=TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
+                   ignored_runs=[]):
+    load_samples = eeg_config.SAMPLES * eeg_config.TRIALS_SLICES
+    all_data = np.zeros((0, len(ch_names), load_samples))
     all_labels = np.zeros((0), dtype=np.int)
     # Load Subject Data of all Tasks
     for task_idx, task in enumerate(tasks):
         # Task = 0 -> Rest Trials "T0"
         if DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
-            data, labels = mne_load_rests(subject, trials_per_run_class, ch_names)
+            data, labels = mne_load_rests(subject, trials_per_run_class, ch_names, load_samples)
         else:
             # if Rest Trials are loaded from Baseline Run, ignore "TO"s in all other Runs
             # exclude_rests is True for 2class Classification
@@ -261,7 +269,7 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject = get_trials_size(n_classes, equal_trials)
+        self.trials_per_subject = get_trials_size(n_classes, equal_trials) * eeg_config.TRIALS_SLICES
         self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None

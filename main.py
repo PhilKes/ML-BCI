@@ -16,7 +16,8 @@ import torch
 from data.physionet_dataset import MNE_CHANNELS, excluded_subjects
 from machine_learning.modes import training_cv, benchmarking, live_sim, \
     training_ss
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, training_results_folder
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, training_results_folder, set_eeg_trials_slices, \
+    eeg_config, set_eeg_times
 from data.data_loading import ALL_SUBJECTS
 from util.misc import datetime_to_folder_str, list_to_string, load_chs_of_model
 
@@ -51,6 +52,8 @@ def single_run(argv=sys.argv[1:]):
         dev = "cpu"
     device = torch.device(dev)
     print("device", device.type)
+    ########################################
+    set_eeg_trials_slices(args.trials_slices)
 
     if args.train:
         return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
@@ -94,6 +97,13 @@ def add_common_arguments(parser):
     parser.add_argument('--subject', type=int, default=None,
                         help=f'Subject used for -live_sim or -train_ss')
 
+    parser.add_argument('--trials_slices', type=int, default=eeg_config.TRIAL_SLICES,
+                        help=f'Will slice every Trial into n x Trials (default: {eeg_config.TRIAL_SLICES})')
+    parser.add_argument('--tmin', type=int, default=eeg_config.EEG_TMIN,
+                        help=f'Start Time of every Trial Epoch (default: {eeg_config.EEG_TMIN})')
+    parser.add_argument('--tmax', type=int, default=eeg_config.EEG_TMAX,
+                        help=f'End Time of every Trial Epoch (default: {eeg_config.EEG_TMAX})')
+
 
 def check_common_arguments(parser, args):
     if (not args.train) & (not args.benchmark) & (not args.live_sim) & (not args.train_ss):
@@ -108,6 +118,14 @@ def check_common_arguments(parser, args):
         parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
     if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
+
+    if (args.tmin > args.tmax) | (args.tmin == args.tmax):
+        parser.error(f"tmax has to be greater than tmin!")
+    set_eeg_times(args.tmin, args.tmax)
+    if args.trials_slices < 1:
+        parser.error(f"Trials slices has to be greater than 0!")
+    if (eeg_config.SAMPLES % args.trials_slices != 0):
+        parser.error(f"Can't divide {eeg_config.SAMPLES} Samples in {args.trials_slices} slices!")
 
 
 # Train Arguments #########################

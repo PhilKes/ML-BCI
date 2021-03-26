@@ -15,21 +15,21 @@ folder = "test_params"
 n_classes = ['3']
 # All Configurations to execute Training with
 confs = {
-    'tmax': {
-        # main.py -train Params for each run
-        'params': [[], [], []],
-        # name for subfolder for each run
-        'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
-        # Initialize methods for each run to set global settings (optional)
-        # len(params) = len(names) = len(init)
-        'init': [
-            lambda: set_eeg_times(0, 1),
-            lambda: set_eeg_times(0, 4),
-            lambda: set_eeg_times(-1, 5),
-        ],
-        # Execute after all runs finished -> reset changed parameters (optional)
-        'after': lambda: reset_eeg_times(),
-    },
+    # 'tmax': {
+    #     # main.py -train Params for each run
+    #     'params': [[], [], []],
+    #     # name for subfolder for each run
+    #     'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
+    #     # Initialize methods for each run to set global settings (optional)
+    #     # len(params) = len(names) = len(init)
+    #     'init': [
+    #         lambda: set_eeg_times(0, 1),
+    #         lambda: set_eeg_times(0, 4),
+    #         lambda: set_eeg_times(-1, 5),
+    #     ],
+    #     # Execute after all runs finished -> reset changed parameters (optional)
+    #     'after': lambda: reset_eeg_times(),
+    # },
     # 'batch_size': {
     #     'params': [
     #         ['--bs', '16'],
@@ -74,7 +74,11 @@ confs = {
     #         lambda: set_rest_from_bl_run(False),
     #     ],
     #     'after': lambda: set_rest_from_bl_run(True)
-    # }
+    # },
+    'slicing': {
+        'params': [[], ['--trials_slices', '2'], ['--trials_slices', '4']],
+        'names': ['no_slices', '2_slices', '4_slices'],
+    },
 }
 
 # Loop to exectue alls Configurations

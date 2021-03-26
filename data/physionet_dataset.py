@@ -28,7 +28,7 @@ MNE_CHANNELS = [
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 DEFAULTS = DotDict(
     EEG_TMIN=0,
-    EEG_TMAX=3,
+    EEG_TMAX=4,
     SAMPLERATE=160,
     # if True: load Run 0 for Rest Trials, ignore in other Runs
     # not relevant for 2 class Classification

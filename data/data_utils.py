@@ -1,3 +1,5 @@
+import collections
+
 import numpy as np
 import torch  # noqa
 import torch.nn.functional as F  # noqa
@@ -110,6 +112,20 @@ def get_equal_trials_per_class(data, labels, classes, trials):
         trials_idxs = np.concatenate((trials_idxs, cl_idxs))
     trials_idxs = np.sort(trials_idxs)
     return data[trials_idxs], labels[trials_idxs]
+
+
+def split_trials(data, labels, splits, samples):
+    split_size = np.math.floor(data.shape[0] / splits)
+    #data = np.array_split(data, splits, axis=2)
+    data_split = np.zeros((data.shape[0] * splits, data.shape[1], samples))
+    labels_split = np.zeros((data.shape[0] * splits),dtype=np.int)
+    for t_idx in range(data.shape[0]):
+        for split in range(splits):
+            data_split[t_idx * splits + split] = data[t_idx, :,(samples*split):(samples*(split+1))]
+            labels_split[t_idx * splits + split]= labels[t_idx]
+    #print(collections.Counter(labels))
+    #print(collections.Counter(labels_split))
+    return data_split, labels_split
 
 
 # If multiple tasks are used (4classes classification)
