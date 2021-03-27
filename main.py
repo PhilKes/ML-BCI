@@ -93,7 +93,7 @@ def add_common_arguments(parser):
     parser.add_argument('--bs', type=int, default=BATCH_SIZE,
                         help=f'Trial Batch Size (default:{BATCH_SIZE})')
     parser.add_argument('--model', type=str, default=None,
-                        help='Relative Folder path of trained model(in ./results/.../training folder), used for -benchmark or -train_ss or -live_sim')
+                        help='Relative Folder path of trained model(in ./results/.../training/ folder), used for -benchmark or -train_ss or -live_sim')
     parser.add_argument('--subject', type=int, default=None,
                         help=f'Subject used for -live_sim or -train_ss')
 

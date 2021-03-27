@@ -10,6 +10,7 @@ import torch
 
 from config import set_eeg_times
 from data.data_loading import load_n_classes_tasks
+from data.data_utils import get_trials_size
 from machine_learning.modes import live_sim
 
 print(F"Torch version:\t{torch.__version__}")
@@ -305,12 +306,18 @@ def check_bad_data(subjects, n_classes):
 # print(arr)
 # save_pd(arr,3)
 
-set_eeg_times(0, 2)
-live_sim("./results/2_3_class_params/tmax/conf_tmax_2", n_classes=[3])
-set_eeg_times(0, 3)
-live_sim("./results/2_3_class_params/tmax/conf_tmax_3", n_classes=[3])
-set_eeg_times(0, 4)
-live_sim("./results/2_3_class_params/tmax/conf_tmax_4", n_classes=[3])
-set_eeg_times(-1, 5)
-live_sim("./results/2_3_class_params/tmax/conf_tmin_-1_tmax_5", n_classes=[3])
-set_eeg_times(0, 2)
+# set_eeg_times(0, 2)
+# live_sim("./results/2_3_class_params/tmax/conf_tmax_2", n_classes=[3])
+# set_eeg_times(0, 3)
+# live_sim("./results/2_3_class_params/tmax/conf_tmax_3", n_classes=[3])
+# set_eeg_times(0, 4)
+# live_sim("./results/2_3_class_params/tmax/conf_tmax_4", n_classes=[3])
+# set_eeg_times(-1, 5)
+# live_sim("./results/2_3_class_params/tmax/conf_tmin_-1_tmax_5", n_classes=[3])
+# set_eeg_times(0, 2)
+
+x1=get_trials_size(2)
+x2=get_trials_size(3)
+x3=get_trials_size(3,ignored_runs=[12,4])
+x4=get_trials_size(4)
+print(x1,x2,x3,x4)

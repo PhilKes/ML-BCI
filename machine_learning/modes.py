@@ -5,7 +5,6 @@ All available Machine Learning modes implemented with PyTorch
 * Performance Benchmarking of Inference on pretrained EEGNet
 * Live Simulation of real time Classification of a PhysioNet Dataset Run
 """
-import math
 import os
 from datetime import datetime
 
@@ -16,21 +15,21 @@ import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 
-from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
-    trained_model_name, training_results_folder, VALIDATION_SUBJECTS, trained_ss_model_name, eeg_config
+    trained_model_name, VALIDATION_SUBJECTS, eeg_config
 from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
-    create_preloaded_loader, create_loader_from_subject_runs
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, get_runs_of_n_classes
-from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run, n_classes_tasks, runs
+    create_preloaded_loader, create_n_class_loaders_from_subject
+from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
+from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
+from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.models.eegnet import EEGNet
 from util.configs_results import training_config_str, create_results_folders, save_training_results, \
-    benchmark_config_str, \
+    benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
+    get_trained_model_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
 from util.dot_dict import DotDict
-from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs, \
-    get_excluded_if_present
+from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
 
 
@@ -101,12 +100,12 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
         print(f"######### {n_class}Class-Classification")
-        accuracies = np.zeros((folds))
-        best_losses_valid, best_epochs_valid = np.full((folds), fill_value=np.inf), np.zeros((folds), dtype=np.int)
+        fold_accuracies = np.zeros((folds))
+        best_losses_test, best_epochs_valid = np.full((folds), fill_value=np.inf), np.zeros((folds), dtype=np.int)
         best_fold = -1
         class_accuracies, class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
         accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
-        epoch_losses_train, epoch_losses_valid = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
+        epoch_losses_train, epoch_losses_test = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
         # Training of the 5 Folds with the different splits
         for fold in range(folds):
             print(f"############ Fold {fold + 1} ############")
@@ -119,18 +118,18 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             model = get_model(n_class, len(ch_names), device)
 
             train_results = do_train(model, loader_train, loader_test, num_epochs, device, early_stop)
-            epoch_losses_train[fold], epoch_losses_valid[fold], best_model, best_epochs_valid[fold] = train_results
+            epoch_losses_train[fold], epoch_losses_test[fold], best_model, best_epochs_valid[fold] = train_results
             # Load best model state of this fold to Test global accuracy
             if early_stop:
                 model.load_state_dict(best_model)
-                best_epoch_loss_valid = epoch_losses_valid[fold][best_epochs_valid[fold]]
+                best_epoch_loss_test = epoch_losses_test[fold][best_epochs_valid[fold]]
                 print(
-                    f"Best Epoch: {best_epochs_valid[fold]} with loss on Validation Data: {best_epoch_loss_valid}")
+                    f"Best Epoch: {best_epochs_valid[fold]} with loss on Validation Data: {best_epoch_loss_test}")
                 # Determine Fold with lowest test_loss on best epoch of fold
-                if best_epoch_loss_valid < best_losses_valid.min():
+                if best_epoch_loss_test < np.min(best_losses_test):
                     best_n_class_models[n_class] = best_model
                     best_fold = fold
-                best_losses_valid[fold] = best_epoch_loss_valid
+                best_losses_test[fold] = best_epoch_loss_test
 
             print("## Testing ##")
             test_accuracy, test_class_hits = do_test(model, loader_test, device, n_class)
@@ -139,71 +138,73 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
                 print("## Testing on Training Dataset ##")
                 accuracies_overfitting[fold], train_class_hits = do_test(model, loader_train, device, n_class)
             # If not using early stopping, determine which fold has the highest accuracy
-            if not early_stop & (test_accuracy >= accuracies.max()):
+            if (not early_stop) & (test_accuracy > np.max(fold_accuracies)):
                 best_n_class_models[n_class] = model.state_dict().copy()
                 best_fold = fold
-            accuracies[fold] = test_accuracy
+            fold_accuracies[fold] = test_accuracy
             class_trials, class_accuracies[fold] = get_class_prediction_stats(n_class, test_class_hits)
         elapsed = datetime.now() - start
         # Calculate average accuracies per class
         avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
-        res_str = training_result_str(accuracies, accuracies_overfitting, class_trials, avg_class_accuracies, elapsed,
-                                      best_epochs_valid, best_losses_valid, best_fold, early_stop=early_stop)
+        res_str = training_result_str(fold_accuracies, accuracies_overfitting, class_trials, avg_class_accuracies,
+                                      elapsed,
+                                      best_epochs_valid, best_losses_test, best_fold, early_stop=early_stop)
         print(res_str)
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(accuracies, class_accuracies, epoch_losses_train, dir_results, n_class, excluded)
+        save_training_numpy_data(fold_accuracies, class_accuracies, epoch_losses_train, epoch_losses_test, dir_results,
+                                 n_class, excluded)
         # Plot Statistics and save as .png s
-        plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
-                                 epoch_losses_valid, best_fold, batch_size, folds, early_stop)
+        plot_training_statistics(dir_results, tag, n_class, fold_accuracies, avg_class_accuracies, epoch_losses_train,
+                                 epoch_losses_test, best_fold, batch_size, folds, early_stop)
         # Save best trained Model state
         # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
         # else: Model state after epochs of Fold with the highest accuracy on Training Set
         if save_model:
             torch.save(best_n_class_models[n_class], os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
 
-        n_class_accuracy[i] = np.average(accuracies)
-        n_class_overfitting_diff[i] = np.average(accuracies) - np.average(accuracies_overfitting)
+        n_class_accuracy[i] = np.average(fold_accuracies)
+        n_class_overfitting_diff[i] = np.average(fold_accuracies) - np.average(accuracies_overfitting)
     return n_class_accuracy, n_class_overfitting_diff
 
 
-def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=N_CLASSES,
+def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=[3],
                 save_model=True, name=None, device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
-    train_share = 1
-    test_share = 1 - train_share
+    n_test_runs = 1
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
-                     n_classes=n_classes, ch_names=ch_names, train_share=train_share, test_share=test_share)
+                     n_classes=n_classes, ch_names=ch_names, n_test_runs=n_test_runs)
 
     start = datetime.now()
     print(training_ss_config_str(config))
 
     for i, n_class in enumerate(n_classes):
-        n_class_model_results = os.path.join(model_path, f"{n_class}class-training.npz")
-        used_subject = get_excluded_if_present(n_class_model_results, subject)
+        test_accuracy, test_class_hits = np.zeros(1), []
+        n_class_results = load_npz(get_results_file(model_path, n_class))
+        used_subject = get_excluded_if_present(n_class_results, subject)
 
-        dir_results = create_results_folders(path=f"{model_path}", name=f"S{used_subject:03d}", type='train_ss')
+        dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", type='train_ss')
         save_config(training_ss_config_str(config), ch_names, dir_results, tag)
         print(f"Loading pretrained model from '{model_path}'")
 
-        model = get_model(n_class, len(ch_names), device,
-                          state_path=os.path.join(model_path, f"{n_class}class_{trained_model_name}"))
-        # Get all Runs of n_class Task, except last one -> reserved for live_sim
-        ignored_runs = [get_runs_of_n_classes(n_class)[-1]]
-        loader_train = create_loader_from_subject_runs(used_subject, n_class, batch_size,
-                                                       ch_names, device, ignored_runs=ignored_runs)
+        model = get_model(n_class, len(ch_names), device, model_path)
+        loader_train, loader_test = create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs, batch_size,
+                                                                        ch_names, device)
 
-        loss_values_train, loss_values_valid, _, __ = do_train(model, loader_train, None,
-                                                               num_epochs, device)
-        # acc, test_class_hits = do_test(model, loader_test, device, n_class)
-        # elapsed = datetime.now() - start
-        # class_trials, class_accs = get_class_prediction_stats(n_class, test_class_hits)
+        epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
+                                                                num_epochs, device)
+        test_accuracy[0], test_class_hits = do_test(model, loader_test, device, n_class)
 
-        np.savez(os.path.join(dir_results, "train_ss_results.npz"),
-                 loss_values_train=loss_values_train, loss_values_valid=loss_values_valid)
-        # res_str = training_ss_result_str(acc, class_trials, class_accs, elapsed)
-        # print(res_str)
-        # save_training_results(n_class, res_str, dir_results, tag)
+        elapsed = datetime.now() - start
+        class_trials, class_accuracies = get_class_prediction_stats(n_class, test_class_hits)
+
+        res_str = training_ss_result_str(test_accuracy[0], class_trials, class_accuracies, elapsed)
+        print(res_str)
+        save_training_results(n_class, res_str, dir_results, tag)
+        save_training_numpy_data(test_accuracy, class_accuracies,
+                                 epoch_losses_train, epoch_losses_test,
+                                 dir_results, n_class, [])
+
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
@@ -226,8 +227,10 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
     batch_lat_avgs, trial_inf_time_avgs = np.zeros((len(n_classes))), np.zeros((len(n_classes)))
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
-        model_path = f"{model_path}{training_results_folder}/{n_class}class_{trained_model_name}"
-        print(f"Loading pretrained model from '{model_path}'")
+        n_class_results = load_npz(get_results_file(model_path, n_class))
+        load_global_conf_from_results(n_class_results)
+
+        print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
         class_models[n_class] = get_model(n_class, chs, device, model_path)
         class_models[n_class].eval()
         # Get optimized model with TensorRT
@@ -294,17 +297,18 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
 
     for class_idx, n_class in enumerate(n_classes):
-        n_class_model_results = os.path.join(model_path, f"{n_class}class-training.npz")
-        used_subject = get_excluded_if_present(n_class_model_results, subject)
+        n_class_results = load_npz(get_results_file(model_path, n_class))
+        #TODO UNCOMMENT load_global_conf_from_results(n_class_results)
+        used_subject = get_excluded_if_present(n_class_results, subject)
+
         run = n_classes_live_run[n_class]
         config = DotDict(subject=used_subject, device=device.type,
                          n_classes=n_classes, ch_names=ch_names, run=run)
         print(live_sim_config_str(config))
 
         print(f"######### {n_class}Class-Classification Live Simulation")
-        n_class_model_path = os.path.join(model_path, f"{n_class}class_{trained_model_name}")
         print(f"Loading pretrained model from '{model_path}'")
-        model = get_model(n_class, len(ch_names), device, n_class_model_path)
+        model = get_model(n_class, len(ch_names), device, model_path)
         model.eval()
 
         # Load Raw Subject Run for n_class
@@ -369,10 +373,10 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
 
 # Return EEGNet model
 # pretrained state will be loaded if present
-def get_model(n_class, chs, device, state_path=None):
+def get_model(n_class, chs, device, model_path=None):
     model = EEGNet(N=n_class, T=eeg_config.SAMPLES, C=chs)
-    if state_path is not None:
-        model.load_state_dict(torch.load(state_path))
+    if model_path is not None:
+        model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
     model.to(device)
     return model
 

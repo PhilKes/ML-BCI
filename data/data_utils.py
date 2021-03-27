@@ -11,7 +11,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorData
 
 from config import eeg_config
 from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
-    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN
+    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, DEFAULTS, rest_trials_less
 
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
@@ -84,19 +84,21 @@ def get_runs_of_n_classes(n_classes, omit_bl=False):
     return n_runs
 
 
-def get_trials_size(n_class, equal_trials, ignored_runs=[]):
-    trials = trials_for_classes_per_subject_avail[n_class]
-    if equal_trials:
-        rs = [run for run in get_runs_of_n_classes(n_class) if run not in ignored_runs]
-        r = len(rs)
-        if n_class == 4:
-            r -= 3
-        if n_class == 2:
-            r -= 1
-        if n_class == 3:
-            r -= 1
-        trials = TRIALS_PER_SUBJECT_RUN * r
-    return trials
+# Returns amount of Trials per Subject (all Runs, all Classes)
+trials_per_class_for_1_runs = 7
+trials_per_class_for_2_runs = 14
+trials_per_class_for_3_runs = 21
+
+
+def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
+    if not equal_trials:
+        return trials_for_classes_per_subject_avail[n_class]
+    n_class_runs = [run for run in get_runs_of_n_classes(n_class, True) if run not in ignored_runs]
+    r = len(n_class_runs)
+    # 4class uses Task 4 only for T1 events
+    if n_class == 4:
+        r -= 3
+    return (trials_per_class_for_1_runs * n_class) * r
 
 
 # Ensure that same amount of Trials for each class is present
@@ -109,6 +111,8 @@ def get_equal_trials_per_class(data, labels, classes, trials):
             np.random.seed(39)
             np.random.shuffle(cl_idxs)
         cl_idxs = cl_idxs[:trials]
+        if (cl == 0) & (not DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN):
+            cl_idxs = cl_idxs[:-rest_trials_less]
         trials_idxs = np.concatenate((trials_idxs, cl_idxs))
     trials_idxs = np.sort(trials_idxs)
     return data[trials_idxs], labels[trials_idxs]
@@ -116,15 +120,15 @@ def get_equal_trials_per_class(data, labels, classes, trials):
 
 def split_trials(data, labels, splits, samples):
     split_size = np.math.floor(data.shape[0] / splits)
-    #data = np.array_split(data, splits, axis=2)
+    # data = np.array_split(data, splits, axis=2)
     data_split = np.zeros((data.shape[0] * splits, data.shape[1], samples))
-    labels_split = np.zeros((data.shape[0] * splits),dtype=np.int)
+    labels_split = np.zeros((data.shape[0] * splits), dtype=np.int)
     for t_idx in range(data.shape[0]):
         for split in range(splits):
-            data_split[t_idx * splits + split] = data[t_idx, :,(samples*split):(samples*(split+1))]
-            labels_split[t_idx * splits + split]= labels[t_idx]
-    #print(collections.Counter(labels))
-    #print(collections.Counter(labels_split))
+            data_split[t_idx * splits + split] = data[t_idx, :, (samples * split):(samples * (split + 1))]
+            labels_split[t_idx * splits + split] = labels[t_idx]
+    # print(collections.Counter(labels))
+    # print(collections.Counter(labels_split))
     return data_split, labels_split
 
 

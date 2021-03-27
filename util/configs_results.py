@@ -16,7 +16,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, \
-    training_ss_results_folder, eeg_config
+    training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices
 from util.misc import datetime_to_folder_str, get_str_n_classes
 
 
@@ -65,18 +65,21 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
     np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
 
 
-def save_training_numpy_data(accs, class_accuracies, losses, save_path, n_class, excluded_subjects):
-    np.savez(f"{save_path}/{n_class}class-training.npz", accs=accs, losses=losses, class_accs=class_accuracies,
+def save_training_numpy_data(test_accs, class_accuracies, train_losses, test_losses, save_path, n_class,
+                             excluded_subjects):
+    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=test_accs, train_losses=train_losses,
+             class_accs=class_accuracies, test_losses=test_losses,
+             tmin=eeg_config.EEG_TMIN, tmax=eeg_config.EEG_TMAX, slices=eeg_config.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int))
 
 
 def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
                         best_valid_losses, best_fold, early_stop=True):
     folds_str = ""
-    for i in range(len(accuracies)):
-        folds_str += f'\tFold {i + 1} {"[Best]" if i == best_fold else ""}:\t{accuracies[i]:.2f}\n'
+    for fold in range(len(accuracies)):
+        folds_str += f'\tFold {fold + 1} {"[Best]" if fold == best_fold else ""}:\t{accuracies[fold]:.2f}\n'
         if TEST_OVERFITTING:
-            folds_str += f"\t\tOverfitting (Test-Training): {accuracies[i] - accuracies_overfitting[i]:.2f}\n"
+            folds_str += f"\t\tOverfitting (Test-Training): {accuracies[fold] - accuracies_overfitting[fold]:.2f}\n"
 
     trials_str = ""
     for cl, trs in enumerate(class_trials):
@@ -111,7 +114,6 @@ def training_ss_result_str(acc, class_trials, class_accs, elapsed):
     classes_str = ""
     for l in range(len(class_accs)):
         classes_str += f'\t[{l}]: {class_accs[l]:.2f}'
-    best_epochs_str = ""
 
     return f"""#### Results ####
 Elapsed Time: {elapsed}
@@ -121,7 +123,6 @@ Trials per class:
 {trials_str}
 Avg. Class Accuracies:
 {classes_str}
-{best_epochs_str}
 ###############\n\n"""
 
 
@@ -159,7 +160,7 @@ def training_ss_config_str(config):
     return f"""#### Config ####
 {get_default_config_str(config)}
 Subject: {config.subject}
-Subject Dataset with {config.train_share * 100}% Training, {config.test_share * 100}% Test Subsets
+Runs for Testing: {config.n_test_runs}
 {get_global_config_str()}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
@@ -206,3 +207,49 @@ Nr. of classes: {config.n_classes}
 {get_str_n_classes(config.n_classes)}
 Channels: {len(config.ch_names)} {config.ch_names}
 Batch Size: {config.batch_size}"""
+
+def get_results_file(model, n_class):
+    return os.path.join(model, f"{n_class}class-training.npz")
+
+
+def get_trained_model_file(model, n_class):
+    return os.path.join(model, f"{n_class}class_{trained_model_name}")
+
+
+def load_npz(npz):
+    try:
+        return np.load(npz)
+    except FileNotFoundError:
+        raise FileNotFoundError(f'File {npz} does not exist!')
+
+
+# Load EEG_TMIN, EEG_TMAX, TRIALS_SLICES from .npz result file
+def load_global_conf_from_results(results):
+    if ('tmin' in results) & ('tmax' in results):
+        set_eeg_times(results['tmin'], results['tmax'])
+    else:
+        raise ValueError(f'There is no "tmin" or "tmax" in {results}')
+    if 'slices' in results:
+        set_eeg_trials_slices(results['slices'])
+    else:
+        raise ValueError(f'There is no "slices" in {results}')
+
+
+# Load excluded from results .npz
+# If subject is present in excluded return subject
+# else return first subject in excluded
+# if excluded is empty, return Subject 1
+def get_excluded_if_present(results, subject):
+    if subject is not None:
+        return subject
+    excluded_subjects = results['excluded_subjects']
+    if subject is None:
+        if excluded_subjects.shape[0] > 0:
+            return excluded_subjects[0]
+        else:
+            raise ValueError(
+                f'Training had no excluded Subject, please specify subject to live simulate on with --subject')
+    elif subject in excluded_subjects:
+        return subject
+    else:
+        raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {results}')

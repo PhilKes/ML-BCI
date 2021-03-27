@@ -28,12 +28,13 @@ MNE_CHANNELS = [
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 DEFAULTS = DotDict(
     EEG_TMIN=0,
-    EEG_TMAX=4,
+    EEG_TMAX=3,
     SAMPLERATE=160,
     # if True: load Run 0 for Rest Trials, ignore in other Runs
     # not relevant for 2 class Classification
     REST_TRIALS_FROM_BASELINE_RUN=True
 )
+rest_trials_less = 0
 
 
 def set_rest_from_bl_run(val):

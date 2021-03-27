@@ -4,6 +4,7 @@ Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
 On initial Run MNE downloads the Physionet Dataset into ./data/datasets
 (https://physionet.org/content/eegmmidb/1.0.0/)
 """
+import collections
 import math
 
 import mne
@@ -21,9 +22,10 @@ from tqdm import tqdm
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
-    get_equal_trials_per_class, split_trials
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS
-from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr
+    get_equal_trials_per_class, split_trials, get_runs_of_n_classes
+from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS, \
+    rest_trials_less
+from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr, print_numpy_counts
 
 
 # Returns Loaders of Training + Test Datasets from index splits
@@ -58,26 +60,32 @@ def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
     return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
 
 
-def create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names, device,
+# Returns Train/Test Loaders containing all n_class Runs of subject
+# n_test_runs specifies how many Runs are reserved for Testing
+# 2/3class: 3 Runs, 4class: 6 Runs
+def create_n_class_loaders_from_subject(subject, n_class, n_test_runs, batch_size, ch_names, device):
+    n_class_runs = get_runs_of_n_classes(n_class)
+    train_runs = n_class_runs[:-n_test_runs]
+    test_runs = n_class_runs[-n_test_runs:]
+    loader_train = create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
+                                                   ignored_runs=test_runs)
+    loader_test = create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
+                                                  ignored_runs=train_runs)
+    return loader_train, loader_test
+
+
+# Creates Loader containing all n_class Runs of subject
+# ignored_runs[] will not be loaded
+def create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
                                     ignored_runs=[]):
-    preloaded_data, preloaded_labels = load_subjects_data([used_subject], n_class, ch_names, ignored_runs=ignored_runs)
+    preloaded_data, preloaded_labels = load_subjects_data([subject], n_class, ch_names, ignored_runs=ignored_runs)
     preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
                                              preloaded_data.shape[3]))
     preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
-
-    print("data", preloaded_data.shape)
-    print("labels", preloaded_labels.shape)
-
     data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
                              torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
-    # lengths = [np.math.ceil(preloaded_data.shape[0] * train_share), np.math.floor(preloaded_data.shape[0] * test_share)]
-    # train_set, test_set = random_split(data_set, lengths)
-    print()
-
-    loader_train = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
-    # loader_test = DataLoader(test_set, batch_size, sampler=RandomSampler(test_set), pin_memory=False)
-
-    return loader_train
+    loader_data = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
+    return loader_data
 
 
 def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equal_trials=False):
@@ -86,6 +94,8 @@ def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equ
                                                           equal_trials=equal_trials)
     return create_loader_from_subjects(subjects, n_class, device, preloaded_data,
                                        preloaded_labels, batch_size, equal_trials=equal_trials)
+
+
 
 
 # Loads all Subjects Data + Labels for n_class Classification
@@ -97,9 +107,11 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
     trials = get_trials_size(n_class, equal_trials, ignored_runs)
     trials_per_run_class = np.math.floor(trials / n_class)
     trials = trials * eeg_config.TRIALS_SLICES
+    if n_class > 2:
+        trials -= rest_trials_less
 
     preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
-    preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.float32)
+    preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
     print("Preload Shape", preloaded_data.shape)
     for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
         data, labels = load_n_classes_tasks(subject, n_class, ch_names, equal_trials, trials_per_run_class,
@@ -112,6 +124,8 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
         preloaded_labels[i] = labels
     if normalize:
         preloaded_data = normalize_data(preloaded_data)
+    print_numpy_counts(preloaded_labels)
+    # print(collections.Counter(preloaded_labels))
     return preloaded_data, preloaded_labels
 
 
@@ -142,6 +156,7 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 # if baseline run is not long enough for all needed trials
 # random Trials are generated from baseline run
 def mne_load_rests(subject, trials, ch_names, samples):
+    used_trials = trials - rest_trials_less
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
     chs = len(ch_names)
@@ -151,7 +166,7 @@ def mne_load_rests(subject, trials, ch_names, samples):
     X_cop = np.array(X, copy=True)
     X = split_np_into_chunks(X, samples)
 
-    trials_diff = trials - X.shape[0]
+    trials_diff = used_trials - X.shape[0]
     if trials_diff > 0:
         for m in range(trials_diff):
             np.random.seed(m)
@@ -269,7 +284,7 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject = get_trials_size(n_classes, equal_trials) * eeg_config.TRIALS_SLICES
+        self.trials_per_subject = get_trials_size(n_classes, equal_trials) * eeg_config.TRIALS_SLICES - rest_trials_less
         self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None

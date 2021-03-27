@@ -12,7 +12,7 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import training_results_folder, chs_names_txt
+from config import chs_names_txt
 
 
 def print_subjects_ranges(train, test):
@@ -29,7 +29,8 @@ def print_subjects_ranges(train, test):
 # Loads list of ch_names from training results folder
 def load_chs_of_model(model_path):
     try:
-        chs = np.genfromtxt(os.path.join(model_path, chs_names_txt), dtype='str')
+        path = os.path.join(model_path, chs_names_txt)
+        chs = np.genfromtxt(path, dtype='str')
     except OSError:
         raise FileNotFoundError("Please specify a valid model path (folder with training results, ch_names.txt,...)")
     return chs
@@ -75,6 +76,12 @@ def unified_shuffle_arr(a, b):
     return a[p], b[p]
 
 
+# Prints counts of all present values in arr
+def print_numpy_counts(arr):
+    unique, counts = np.unique(arr, return_counts=True)
+    print(dict(zip(unique, counts)))
+
+
 # Returns an array with groups of length (size/groups)
 # All elements in one group have same value
 def groups_labels(size, groups):
@@ -106,27 +113,3 @@ def get_class_avgs(n_class, class_accs):
     for cl in range(n_class):
         avg_class_accs[cl] = np.average([float(class_accs[sp][cl]) for sp in range(class_accs.shape[0])])
     return avg_class_accs
-
-
-# Load excluded from results .npz
-# If subject is present in excluded return subject
-# else return first subject in excluded
-# if excluded is empty, return Subject 1
-def get_excluded_if_present(n_class_model_results, subject):
-    if subject is not None:
-        return subject
-    try:
-        results = np.load(n_class_model_results)
-    except FileNotFoundError:
-        raise FileNotFoundError(f'File {n_class_model_results} does not exist!')
-    excluded_subjects = results['excluded_subjects']
-    if subject is None:
-        if excluded_subjects.shape[0] > 0:
-            return excluded_subjects[0]
-        else:
-            raise ValueError(
-                f'Training had no excluded Subject, please specify subject to live simulate on with --subject')
-    elif subject in excluded_subjects:
-        return subject
-    else:
-        raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {n_class_model_results}')
