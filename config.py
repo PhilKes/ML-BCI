@@ -47,10 +47,10 @@ eeg_config = DotDict(EEG_TMIN=DEFAULTS.EEG_TMIN,
 
 
 def set_eeg_trials_slices(slices):
-    #eeg_config.EEG_TMIN = 0
-    #eeg_config.EEG_TMAX = 4
+    # eeg_config.EEG_TMIN = 0
+    # eeg_config.EEG_TMAX = 4
     eeg_config.TRIALS_SLICES = slices
-    eeg_config.SAMPLES = math.floor(((eeg_config.EEG_TMAX - eeg_config.EEG_TMIN ) * eeg_config.SAMPLERATE)/slices)
+    eeg_config.SAMPLES = math.floor(((eeg_config.EEG_TMAX - eeg_config.EEG_TMIN) * eeg_config.SAMPLERATE) / slices)
 
 
 def set_eeg_times(tmin, tmax):

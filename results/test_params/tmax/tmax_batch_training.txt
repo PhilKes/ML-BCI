@@ -1,5 +1,0 @@
-                3class Acc  3class OF
-tmax_1           72.668178  -6.099773
-(tmax_3)         73.85      -8.22  (default)(taken from /results/2_3_class_params/batch_size/conf_bs_16)
-tmax_4           74.708995  -8.269085
-tmin_-1_tmax_5   81.300076  -9.028723

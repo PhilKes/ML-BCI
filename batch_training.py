@@ -6,78 +6,63 @@ import numpy
 import pandas as pd
 
 from config import results_folder, set_eeg_times, reset_eeg_times
+from data.physionet_dataset import set_rest_from_bl_run, set_rest_trials_less, set_rests_config
 from main import single_run
 
-default_options = ['-train']
+default_options = ['-train', '--epochs', '50']
 start = datetime.now()
 
-folder = "test_params"
+folder = "3class_excluded_1_epochs_50_params"
 n_classes = ['3']
+default_excluded = ['--excluded', '1']
 # All Configurations to execute Training with
 confs = {
-    # 'tmax': {
-    #     # main.py -train Params for each run
-    #     'params': [[], [], []],
-    #     # name for subfolder for each run
-    #     'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
-    #     # Initialize methods for each run to set global settings (optional)
-    #     # len(params) = len(names) = len(init)
-    #     'init': [
-    #         lambda: set_eeg_times(0, 1),
-    #         lambda: set_eeg_times(0, 4),
-    #         lambda: set_eeg_times(-1, 5),
-    #     ],
-    #     # Execute after all runs finished -> reset changed parameters (optional)
-    #     'after': lambda: reset_eeg_times(),
-    # },
-    # 'batch_size': {
-    #     'params': [
-    #         ['--bs', '16'],
-    #         ['--bs', '32'],
-    #     ],
-    #     # Name for each run
-    #     'names': ['bs_16', 'bs_32']
-    # },
-    # 'excluded': {
-    #     'params': [
-    #         ['--excluded', '1'],
-    #         ['--excluded', '1', '20'],
-    #     ],
-    #     'names': ['s_001', 's_001_020', ]
-    # },
-    # Key is the subfolder name
-
-    # 'pool': {
-    #     'params': [[], []],
-    #     'names': ['pool_4', 'pool_8'],
-    #     'init': [
-    #         lambda: set_poolsize(4),
-    #         lambda: set_poolsize(8),
-    #     ],
-    #     'after': lambda: set_poolsize(4)
-    # },
-
-    # 'chs': {
-    #     'params': [
-    #         ['--ch_motorimg', '16_bs'],
-    #         ['--ch_motorimg', '16'],
-    #         ['--ch_motorimg', '16_2'],
-    #         ['--ch_motorimg', '16_openbci'],
-    #     ],
-    #     'names': ['chs_16_bs', 'chs_16', 'chs_16_2', 'chs_16_openbci', ]
-    # }
-    # 'rest_trials': {
-    #     'params': [[], []],
-    #     'names': ['from_bl_run', 'from_runs'],
-    #     'init': [
-    #         lambda: set_rest_from_bl_run(True),
-    #         lambda: set_rest_from_bl_run(False),
-    #     ],
-    #     'after': lambda: set_rest_from_bl_run(True)
-    # },
-    'slicing': {
-        'params': [[], ['--trials_slices', '2'], ['--trials_slices', '4']],
-        'names': ['no_slices', '2_slices', '4_slices'],
+    'defaults': {
+        'params': [[]],
+        'names': ['defaults']
+    },
+    'tmax': {
+        # main.py -train Params for each run
+        'params': [['--tmin', '0', '--tmax', '1'],
+                   ['--tmin', '0', '--tmax', '4'],
+                   ['--tmin', '-1', '--tmax', '5']],
+        # name for subfolder for each run
+        'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
+        # Initialize methods for each run to set global settings (optional)
+        # len(params) = len(names) = len(init)
+        # 'init': [
+        #     lambda: set_eeg_times(0, 1),
+        #     lambda: set_eeg_times(0, 4),
+        #     lambda: set_eeg_times(-1, 5),
+        # ],
+        # Execute after all runs finished -> reset changed parameters (optional)
+        'after': lambda: reset_eeg_times(),
+    },
+    'rest_trials': {
+        'params': [[], [], [], []],
+        'names': ['from_bl_run', 'from_bl_run_4_less_rests', 'from_runs', 'from_runs_4_less_rests'],
+        'init': [
+            lambda: set_rests_config(True, 0),
+            lambda: set_rests_config(True, 4),
+            lambda: set_rests_config(False, 0),
+            lambda: set_rests_config(False, 4),
+        ],
+        'after': lambda: set_rests_config(True, 0)
+    },
+    'slicing_4s': {
+        'params': [['--tmin', '0', '--tmax', '4'],
+                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'],
+                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+                   ],
+        'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
+        'init': [
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: set_rest_from_bl_run(False),
+        ],
+        'after': lambda: set_rest_from_bl_run(True)
     },
 }
 
@@ -98,7 +83,8 @@ for conf_name in confs:
             conf['init'][run]()
         params = conf['params'][run]
         n_classes_accs, n_classes_ofs = single_run(
-            ['-train', '--n_classes'] + n_classes +
+            default_options +
+            ['--n_classes'] + n_classes + default_excluded +
             ['--name', f"{conf_folder}/conf_{conf['names'][run]}"] + params)
         for n_class in range(classes):
             runs_results[run, n_class, 0] = n_classes_accs[n_class]
