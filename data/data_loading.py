@@ -33,7 +33,7 @@ from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuff
 # also returns Validtion Loader containing validation_subjects subject for loss calculation
 def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
-                               equal_trials=False, used_subjects=ALL_SUBJECTS):
+                               equal_trials=True, used_subjects=ALL_SUBJECTS):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [used_subjects[idx] for idx in subjects_train_idxs]
     subjects_test = [used_subjects[idx] for idx in subjects_test_idxs]
@@ -51,7 +51,7 @@ def create_loaders_from_splits(splits, validation_subjects, n_class, device, pre
 
 # Creates DataLoader with Random Sampling from subject list
 def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
-                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=False):
+                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=True):
     ds_train = TrialsDataset(subjects, n_class, device,
                              preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
                              ch_names=ch_names, equal_trials=equal_trials)
@@ -88,7 +88,7 @@ def create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, devi
     return loader_data
 
 
-def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equal_trials=False):
+def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equal_trials=True):
     print(f"Preloading Subjects [{subjects[0]}-{subjects[-1]}] Data in memory")
     preloaded_data, preloaded_labels = load_subjects_data(subjects, n_class, ch_names,
                                                           equal_trials=equal_trials)
@@ -131,7 +131,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
 
 
 # Loads corresponding tasks for n_classes Classification
-def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=False,
+def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=True,
                          trials_per_run_class=TRIALS_PER_SUBJECT_RUN,
                          ignored_runs=[]):
     tasks = n_classes_tasks[n_classes].copy()
@@ -186,7 +186,7 @@ def mne_load_rests(subject, trials, ch_names, samples):
 
 # Merges runs from different tasks + correcting labels for n_class classification
 def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
-                   equal_trials=False, trials_per_run_class=TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
+                   equal_trials=True, trials_per_run_class=TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
                    ignored_runs=[]):
     load_samples = eeg_config.SAMPLES * eeg_config.TRIALS_SLICES
     all_data = np.zeros((0, len(ch_names), load_samples))
@@ -276,7 +276,7 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
 class TrialsDataset(Dataset):
 
     def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
-                 ch_names=MNE_CHANNELS, equal_trials=False, used_subjects=ALL_SUBJECTS):
+                 ch_names=MNE_CHANNELS, equal_trials=True, used_subjects=ALL_SUBJECTS):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1

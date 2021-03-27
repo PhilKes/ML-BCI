@@ -228,7 +228,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        load_global_conf_from_results(n_class_results)
+        # load_global_conf_from_results(n_class_results)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
         class_models[n_class] = get_model(n_class, chs, device, model_path)
@@ -249,7 +249,8 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 
         # Preloads 1 chunk of Subjects and executes 1 gpu_warmup
         if continuous:
-            loader_data = create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size, device)
+            loader_data = create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size, device,
+                                                  equal_trials)
             # Warm up GPU with random data
             if device.type != 'cpu':
                 gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
@@ -259,7 +260,8 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
                 # Benchmarking is executed per subject chunk over all Subjects
                 # Infers over 1 subject chunks, loads next subject chunk + gpu_warmup, ...
                 for ch_idx, subjects_chunk in enumerate(preload_chunks):
-                    loader_data = create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device)
+                    loader_data = create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device,
+                                                          equal_trials)
                     # Warm up GPU with random data
                     if device.type != 'cpu':
                         gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)

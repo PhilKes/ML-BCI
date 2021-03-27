@@ -31,7 +31,8 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
             x_values=None, ticks=None, fig_size=None, vspans=[], vlines=[], min_x=None, max_x=None):
     # use LaTeX fonts in the plot
-    plt.rc('text', usetex=False)
+    if PLOT_TO_PDF:
+        plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
     if (fig_size is not None):
         plt.rcParams.update({'font.size': 22})
@@ -98,7 +99,7 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
     width = (1.0 / len(batch_sizes)) - 0.1  # the width of the bars
 
     # use LaTeX fonts in the plot
-    plt.rc('text', usetex=True)
+    plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
 
     fig, ax = plt.subplots()
@@ -135,8 +136,6 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
             autolabel(rect)
 
     fig.tight_layout()
-
-    plt.show()
     if save_path is not None:
         fig = plt.gcf()
         # save as PDF
@@ -144,6 +143,8 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
         else:
             fig.savefig(f"{save_path}/{title}.png")
+    plt.show()
+
 
 
 # Create Plot from numpy file

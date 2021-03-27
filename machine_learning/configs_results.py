@@ -137,7 +137,7 @@ Accuracies:{acc_avg:.2f}
 
 
 def benchmark_single_result_str(trials, acc, num_batches, batch_lat, trial_inf_time):
-    f"""Accuracy on the {trials} trials: {acc:.2f}
+    return f"""Accuracy on the {trials} trials: {acc:.2f}
     Batches:{num_batches} Trials:{trials}
     Batch Latency: {batch_lat:.5f}
     Trial Inf. Time: {trial_inf_time}
@@ -207,6 +207,7 @@ Nr. of classes: {config.n_classes}
 {get_str_n_classes(config.n_classes)}
 Channels: {len(config.ch_names)} {config.ch_names}
 Batch Size: {config.batch_size}"""
+
 
 def get_results_file(model, n_class):
     return os.path.join(model, f"{n_class}class-training.npz")
