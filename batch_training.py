@@ -66,7 +66,7 @@ confs = {
     },
 }
 
-# Loop to exectue alls Configurations
+# Loop to execute all Configurations
 # Create .csv and .txt files with all Runs of a batch
 # e.g. /batch_sizes/..._batch_training.txt
 for conf_name in confs:
@@ -78,6 +78,8 @@ for conf_name in confs:
     # (runs, len(n_classes), 2 (acc + OF))
     classes = len(n_classes)
     runs_results = numpy.zeros((runs, classes, 2))
+    # Execute each run consisting of
+    # name, params, init(optional)
     for run in range(runs):
         if 'init' in conf.keys():
             conf['init'][run]()
@@ -86,19 +88,20 @@ for conf_name in confs:
             default_options +
             ['--n_classes'] + n_classes + default_excluded +
             ['--name', f"{conf_folder}/conf_{conf['names'][run]}"] + params)
+        # Store run results (Accuracies/Overfittings)
         for n_class in range(classes):
             runs_results[run, n_class, 0] = n_classes_accs[n_class]
             runs_results[run, n_class, 1] = n_classes_ofs[n_class]
     if 'after' in conf.keys():
         conf['after']()
-    # numpy.savetxt(f"{conf_folder}/acc_of_results.csv", res, delimiter=',', header="Acc,OF", comments="")
+    # Prepare results for Pandas
     runs_results = runs_results.reshape((runs, classes * 2), order='F')
-    # res_rows = numpy.zeros((runs, len(n_classes) * 2))
     columns = []
     for n_class in n_classes:
         columns.append(f"{n_class}class Acc")
         columns.append(f"{n_class}class OF")
     df = pd.DataFrame(data=runs_results, index=conf['names'], columns=columns)
+    # Write results into .csv and .txt
     df.to_csv(f"{results_folder}/{conf_folder}/batch_training_results.csv")
     with open(os.path.join(f"{results_folder}/{conf_folder}", f'{conf_name}_batch_training.txt'),
               'w') as outfile:

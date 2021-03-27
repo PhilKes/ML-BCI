@@ -23,7 +23,7 @@ from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_
 from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.models.eegnet import EEGNet
-from util.configs_results import training_config_str, create_results_folders, save_training_results, \
+from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     get_trained_model_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -298,7 +298,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
 
     for class_idx, n_class in enumerate(n_classes):
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        #TODO UNCOMMENT load_global_conf_from_results(n_class_results)
+        load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         run = n_classes_live_run[n_class]

@@ -26,7 +26,7 @@ from config import LR, eeg_config
 # loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
 # best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
 # best_epoch: best_epoch with lowest test_loss if early_stop=True
-from util.configs_results import benchmark_single_result_str
+from machine_learning.configs_results import benchmark_single_result_str
 
 
 def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):

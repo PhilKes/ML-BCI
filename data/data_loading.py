@@ -124,6 +124,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
         preloaded_labels[i] = labels
     if normalize:
         preloaded_data = normalize_data(preloaded_data)
+    print("Trials per class loaded:")
     print_numpy_counts(preloaded_labels)
     # print(collections.Counter(preloaded_labels))
     return preloaded_data, preloaded_labels

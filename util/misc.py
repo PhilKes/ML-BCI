@@ -64,7 +64,7 @@ def split_np_into_chunks(arr, chunk_size):
     return arr2
 
 
-def list_to_string(list):
+def list_to_str(list):
     return ','.join([str(i) for i in list])
 
 
