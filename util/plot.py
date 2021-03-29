@@ -9,14 +9,14 @@ import numpy as np
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
+from matplotlib import lines
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import PLOT_TO_PDF
+from config import PLOT_TO_PDF, eeg_config
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black']
-
 
 
 # Plots data with Matplot
@@ -29,7 +29,9 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black
 # vlines: List of vertical Lines to draw
 #         Item Tuple: (X,color_idx)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
-            x_values=None, ticks=None, fig_size=None, vspans=[], vlines=[], min_x=None, max_x=None):
+            x_values=None, ticks=None, fig_size=None,
+            vspans=[], vlines=[], vlines_label=None,
+            min_x=None, max_x=None):
     # use LaTeX fonts in the plot
     if PLOT_TO_PDF:
         plt.rc('text', usetex=False)
@@ -66,7 +68,6 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     if data.ndim == 2:
         for i in range(len(data)):
             plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i])
-            plt.legend()
         plt.grid()
     else:
         if bar_plot:
@@ -81,6 +82,15 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     for vline in vlines:
         plt.axvline(vline[0], color=colors[vline[1]], alpha=0.75, linestyle='--')
 
+    handles, labels = ax.get_legend_handles_labels()
+    if len(vlines) > 0 & (vlines_label is not None):
+        vertical_line = lines.Line2D([], [], linestyle='--', color=colors[vlines[0][1]],
+                                     markersize=10, markeredgewidth=1.5)
+        handles.append(vertical_line)
+        labels.append(vlines_label)
+
+    plt.legend(handles, labels, loc="center left")
+
     if save_path is not None:
         fig = plt.gcf()
         # np.save(f"{save_path}/{title}.npy", data)
@@ -90,6 +100,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
         else:
             fig.savefig(f"{save_path}/{title}.png")
     # fig.tight_layout()
+
     plt.show()
 
 
@@ -146,7 +157,6 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
     plt.show()
 
 
-
 # Create Plot from numpy file
 # if save = True save plot as .png
 def plot_numpy(np_file_path, xlabel, ylabel, save):
@@ -201,10 +211,11 @@ def create_plot_vspans(vspan_start_xs, color_idx, max_x):
 
 # Generate vertical Lines (vlines) for plot
 # Of Trials where interval of Training is highlighted
-def create_vlines_from_trials_epochs(raw, vline_xs, tdelta):
+def create_vlines_from_trials_epochs(raw, vline_xs, tdelta, slices):
     vlines = []
     for trial_start_time in vline_xs:
-        trial_tdelta_sample = raw.time_as_index(trial_start_time + tdelta)
-        # -1: color_idx -> see plot.py colors[]
-        vlines.append((trial_tdelta_sample, -1))
+        for i in range(1, slices + 1):
+            trial_tdelta_sample = raw.time_as_index(trial_start_time + (tdelta / slices) * i)
+            # -1: color_idx -> see plot.py colors[]
+            vlines.append((trial_tdelta_sample, -1))
     return vlines

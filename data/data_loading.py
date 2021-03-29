@@ -23,8 +23,7 @@ from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZ
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS, \
-    rest_trials_less
+from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS
 from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr, print_numpy_counts
 
 
@@ -96,8 +95,6 @@ def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equ
                                        preloaded_labels, batch_size, equal_trials=equal_trials)
 
 
-
-
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage for ALL_SUBJECTS (~2GB)
 # used_runs can be passed to force to load only these runs
@@ -108,7 +105,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
     trials_per_run_class = np.math.floor(trials / n_class)
     trials = trials * eeg_config.TRIALS_SLICES
     if n_class > 2:
-        trials -= rest_trials_less
+        trials -= DEFAULTS.REST_TRIALS_LESS
 
     preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
@@ -157,7 +154,7 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 # if baseline run is not long enough for all needed trials
 # random Trials are generated from baseline run
 def mne_load_rests(subject, trials, ch_names, samples):
-    used_trials = trials - rest_trials_less
+    used_trials = trials - DEFAULTS.REST_TRIALS_LESS
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
     chs = len(ch_names)
@@ -285,7 +282,7 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject = get_trials_size(n_classes, equal_trials) * eeg_config.TRIALS_SLICES - rest_trials_less
+        self.trials_per_subject = get_trials_size(n_classes, equal_trials) * eeg_config.TRIALS_SLICES - DEFAULTS.REST_TRIALS_LESS
         self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None

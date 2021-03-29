@@ -32,11 +32,12 @@ DEFAULTS = DotDict(
     SAMPLERATE=160,
     # if True: load Run 0 for Rest Trials, ignore in other Runs
     # not relevant for 2 class Classification
-    REST_TRIALS_FROM_BASELINE_RUN=True
+    REST_TRIALS_FROM_BASELINE_RUN=True,
+    REST_TRIALS_LESS=0
 )
-rest_trials_less = 0
 
 
+# How many less Rest Trials than for other classes (per Subject)
 def set_rests_config(from_bl_run=None, less_rests=None):
     if from_bl_run is not None:
         set_rest_from_bl_run(from_bl_run)
@@ -49,7 +50,7 @@ def set_rest_from_bl_run(val):
 
 
 def set_rest_trials_less(val):
-    DEFAULTS.rest_trials_less = val
+    DEFAULTS.REST_TRIALS_LESS = val
 
 
 # Amount of picked Trials in 1 Run of 1 Subject

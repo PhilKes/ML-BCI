@@ -11,7 +11,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorData
 
 from config import eeg_config
 from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
-    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, DEFAULTS, rest_trials_less
+    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, DEFAULTS
 
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
@@ -111,8 +111,8 @@ def get_equal_trials_per_class(data, labels, classes, trials):
             np.random.seed(39)
             np.random.shuffle(cl_idxs)
         cl_idxs = cl_idxs[:trials]
-        if (cl == 0) & (not DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN):
-            cl_idxs = cl_idxs[:-rest_trials_less]
+        if (cl == 0) & (not DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN) & (DEFAULTS.REST_TRIALS_LESS > 0):
+            cl_idxs = cl_idxs[:-DEFAULTS.REST_TRIALS_LESS]
         trials_idxs = np.concatenate((trials_idxs, cl_idxs))
     trials_idxs = np.sort(trials_idxs)
     return data[trials_idxs], labels[trials_idxs]
@@ -130,6 +130,29 @@ def split_trials(data, labels, splits, samples):
     # print(collections.Counter(labels))
     # print(collections.Counter(labels_split))
     return data_split, labels_split
+
+
+# Calculates relative area of correct Prediction per Trial
+def get_correctly_predicted_areas(sample_predictions, trials_classes, trials_start_samples, max_samples):
+    print()
+    trials_correct_areas_relative = np.zeros((len(trials_classes)))
+    trials_correct_areas = np.zeros((len(trials_classes)))
+    # Entire Area of a Trial (Amount of Samples * 100 (percent))
+    trials_areas = np.zeros((len(trials_classes)))
+    for idx, trial_class in enumerate(trials_classes):
+        first_sample = trials_start_samples[idx]
+        # If 1st Trial, Prediction only starts if now_sample> eeg_config.SAMPLES
+        if idx == 0:
+            first_sample += eeg_config.SAMPLES
+        if idx == len(trials_classes) - 1:
+            last_sample = max_samples
+        else:
+            last_sample = trials_start_samples[idx + 1]
+        trials_correct_areas[idx] = np.sum(sample_predictions[trial_class, first_sample:last_sample])
+        trials_areas[idx] = (last_sample - first_sample) * 100
+        trials_correct_areas_relative[idx] = trials_correct_areas[idx] / trials_areas[idx]
+        # print(f"Trial {idx:02d}: {trials_correct_areas_relative[idx]:.3f}")
+    return trials_correct_areas_relative
 
 
 # If multiple tasks are used (4classes classification)

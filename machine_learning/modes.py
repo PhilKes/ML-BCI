@@ -19,7 +19,8 @@ from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
 from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
     create_preloaded_loader, create_n_class_loaders_from_subject
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
+from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, \
+    get_correctly_predicted_areas
 from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.models.eegnet import EEGNet
@@ -27,7 +28,8 @@ from machine_learning.configs_results import training_config_str, create_results
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     get_trained_model_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
-    training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str
+    training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
+    live_sim_result_str
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
@@ -181,6 +183,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
+        load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", type='train_ss')
@@ -203,7 +206,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(test_accuracy, class_accuracies,
                                  epoch_losses_train, epoch_losses_test,
-                                 dir_results, n_class, [])
+                                 dir_results, n_class, [used_subject])
 
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
@@ -228,7 +231,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        # load_global_conf_from_results(n_class_results)
+        load_global_conf_from_results(n_class_results)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
         class_models[n_class] = get_model(n_class, chs, device, model_path)
@@ -297,8 +300,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
              n_classes=N_CLASSES,
              device=torch.device("cpu"), tag=None, equal_trials=True):
     dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
-
     for class_idx, n_class in enumerate(n_classes):
+        start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
@@ -319,6 +322,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         X = get_data_from_raw(raw)
 
         max_sample = raw.n_times
+        slices = eeg_config.TRIALS_SLICES
         # times = raw.times[:max_sample]
         trials_start_times = raw.annotations.onset
         trials_classes = map_trial_labels_to_classes(raw.annotations.description)
@@ -334,7 +338,14 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         # Highlight Trials and mark the trained on positions of each Trial
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
         tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
-        vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta)
+        vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
+
+        trials_correct_areas_relative = get_correctly_predicted_areas(sample_predictions, trials_classes,
+                                                                      trials_start_samples,
+                                                                      max_sample)
+        for trial, trial_correct_area_relative in enumerate(trials_correct_areas_relative):
+            print(f"Trial {trial:02d}: {trial_correct_area_relative:.3f} (Class {trials_classes[trial]})")
+        print(f"Average Correct Area per Trial: {np.average(trials_correct_areas_relative):.3f}")
 
         # matplot(sample_predictions,
         #         f"{n_class}class Live Simulation_S{subject:03d}",
@@ -356,11 +367,17 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
             matplot(sample_predictions,
                     f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1}",
                     'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
-                    vspans=vspans[first_trial:last_trial + 1], vlines=vlines[first_trial:last_trial + 1],
+                    vspans=vspans[first_trial:last_trial + 1],
+                    vlines=vlines[(first_trial * slices):(last_trial + 1) * slices],
+                    vlines_label="Trained timepoints",
                     ticks=trials_start_samples[first_trial:last_trial + 1],
                     min_x=first_sample, max_x=last_sample,
                     x_values=trials_start_times[first_trial:last_trial + 1],
                     labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+
+        res_str = live_sim_result_str(n_class, trials_correct_areas_relative, datetime.now() - start)
+        print(res_str)
+        save_live_sim_results(n_class, res_str, dir_results, tag)
     return
 
 

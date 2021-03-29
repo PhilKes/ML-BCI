@@ -26,7 +26,7 @@ N_CLASSES = [2, 3, 4]
 # Learning Rate Settings
 LR = DotDict(
     start=0.01,
-    milestones=[20, 50],
+    milestones=[20, 40],
     gamma=0.1
 )
 

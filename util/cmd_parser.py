@@ -105,11 +105,11 @@ def check_train_arguments(parser, args):
                 f"Only {list_to_str(MOTORIMG_CHANNELS.keys())} channels are available for --ch_motorimg option")
             pass
         args.ch_names = MOTORIMG_CHANNELS[args.ch_motorimg]
-        if args.name is None:
-            start = datetime.now()
-            args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
-        else:
-            args.name = args.name + f"_motor_img{args.ch_motorimg}"
+        # TODO if args.name is None:
+        #     start = datetime.now()
+        #     args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
+        # else:
+        #     args.name = args.name + f"_motor_img{args.ch_motorimg}"
     if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):
         print(args.ch_names)
         parser.error("Channel names (--ch_names) must be a list of EEG Channels (see config.py MNE_CHANNELS)")

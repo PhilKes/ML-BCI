@@ -58,6 +58,14 @@ def save_training_results(n_class, str_res,
     file_result.close()
 
 
+# Saves config + results.txt in dir_results
+def save_live_sim_results(n_class, str_res,
+                          dir_results, tag=None):
+    file_result = open(f"{dir_results}/{n_class}class-live_sim{'' if tag is None else f'_{tag}'}.txt", "w+")
+    file_result.write(str_res)
+    file_result.close()
+
+
 def save_config(str_conf, ch_names, dir_results, tag=None):
     file_result = open(f"{dir_results}/config{'' if tag is None else f'_{tag}'}.txt", "w+")
     file_result.write(str_conf)
@@ -133,6 +141,14 @@ Avg. Batch Latency:{batch_lat_avg}
 Inference time per Trial:{trial_inf_time_avg}
 Trials per second:{(1 / trial_inf_time_avg):.2f}
 Accuracies:{acc_avg:.2f}
+###############\n\n"""
+
+
+def live_sim_result_str(n_class, sums, elapsed):
+    return f"""#### Results ####
+Classes:{n_class}
+Elapsed Time: {str(elapsed)}
+Avg correctly predicted Area of Trial:{np.average(sums):.2f}
 ###############\n\n"""
 
 
