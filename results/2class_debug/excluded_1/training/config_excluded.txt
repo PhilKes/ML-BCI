@@ -10,7 +10,7 @@ EEG Epoch interval: [0;3]s
 Bandpass Filter: [None;None]
 Notch Filter (60Hz): False
 Early Stopping: False
-Epochs: 100
+Epochs: 3
 Learning Rate: initial = 0.01, Epoch milestones = [20, 40], gamma = 0.1
 ###############
 

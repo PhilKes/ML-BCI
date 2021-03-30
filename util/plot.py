@@ -31,7 +31,7 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
             x_values=None, ticks=None, fig_size=None,
             vspans=[], vlines=[], vlines_label=None,
-            min_x=None, max_x=None):
+            min_x=None, max_x=None, color_offset=0):
     # use LaTeX fonts in the plot
     if PLOT_TO_PDF:
         plt.rc('text', usetex=False)
@@ -67,7 +67,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     # Plot multiple lines
     if data.ndim == 2:
         for i in range(len(data)):
-            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i])
+            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i+color_offset])
         plt.grid()
     else:
         if bar_plot:

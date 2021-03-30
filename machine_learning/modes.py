@@ -23,6 +23,7 @@ from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_
     get_correctly_predicted_areas
 from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
+from machine_learning.models.dosenet import DoseNet
 from machine_learning.models.eegnet import EEGNet
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
@@ -332,7 +333,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         # if eeg_config.TRIALS_SLICES is not None:
         #     used_samples = math.floor(used_samples / eeg_config.TRIALS_SLICES)
         sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, device)
-        sample_predictions = sample_predictions * 100
+        # sample_predictions = sample_predictions * 100
         sample_predictions = np.swapaxes(sample_predictions, 0, 1)
 
         # Highlight Trials and mark the trained on positions of each Trial
@@ -340,9 +341,11 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
         vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
 
-        trials_correct_areas_relative = get_correctly_predicted_areas(sample_predictions, trials_classes,
-                                                                      trials_start_samples,
-                                                                      max_sample)
+        # trials_correct_areas_relative = get_correctly_predicted_areas(sample_predictions, trials_classes,
+        #                                                               trials_start_samples,
+        #                                                               max_sample)
+        trials_correct_areas_relative = np.zeros((len(trials_classes)))
+
         for trial, trial_correct_area_relative in enumerate(trials_correct_areas_relative):
             print(f"Trial {trial:02d}: {trial_correct_area_relative:.3f} (Class {trials_classes[trial]})")
         print(f"Average Correct Area per Trial: {np.average(trials_correct_areas_relative):.3f}")
@@ -356,6 +359,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         # Split into multiple plots, otherwise too long
         plot_splits = 3
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
+        n_class_offset = 0 if n_class > 2 else 1
         for i in range(plot_splits):
             first_trial = i * trials_split_size
             last_trial = (i + 1) * trials_split_size - 1
@@ -366,14 +370,15 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
                     f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1}",
-                    'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+                    'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0),
                     vspans=vspans[first_trial:last_trial + 1],
+                    color_offset=n_class_offset,
                     vlines=vlines[(first_trial * slices):(last_trial + 1) * slices],
                     vlines_label="Trained timepoints",
                     ticks=trials_start_samples[first_trial:last_trial + 1],
                     min_x=first_sample, max_x=last_sample,
                     x_values=trials_start_times[first_trial:last_trial + 1],
-                    labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+                    labels=[f"T{i + n_class_offset}" for i in range(n_class)], save_path=dir_results)
 
         res_str = live_sim_result_str(n_class, trials_correct_areas_relative, datetime.now() - start)
         print(res_str)
@@ -394,6 +399,7 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
 # pretrained state will be loaded if present
 def get_model(n_class, chs, device, model_path=None):
     model = EEGNet(N=n_class, T=eeg_config.SAMPLES, C=chs)
+    # model = DoseNet(C=chs, n_class=n_class, T=eeg_config.SAMPLES)
     if model_path is not None:
         model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
     model.to(device)

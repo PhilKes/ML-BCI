@@ -204,5 +204,7 @@ def do_predict_single(model, X, device=torch.device("cpu")):
         output = model(X)
         # print("Out",output)
         # _, predicted = torch.max(output.data.cpu(), 1)
-        predicted = F.softmax(output, dim=1)
+        #predicted = F.softmax(output, dim=1)
+        predicted = output
+    # TODO no softmax -> plot max y
     return predicted.cpu()
