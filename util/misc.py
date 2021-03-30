@@ -1,6 +1,7 @@
 """
 Miscellaneous Utility Methods
 """
+import collections
 import math
 import os
 
@@ -93,7 +94,7 @@ def groups_labels(size, groups):
     while groups_vals.shape[0] > size:
         groups_vals = np.delete(groups_vals, np.where(groups_vals == group)[0][0])
         group = (group + 1) % groups
-    # print(collections.Counter(groups_vals))
+    #print(collections.Counter(groups_vals))
     return groups_vals
 
 

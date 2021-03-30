@@ -252,21 +252,15 @@ def load_global_conf_from_results(results):
         raise ValueError(f'There is no "slices" in {results}')
 
 
-# Load excluded from results .npz
-# If subject is present in excluded return subject
-# else return first subject in excluded
-# if excluded is empty, return Subject 1
+# return subject if not none
+# otherwise return 1st excluded subject in results
+# if no Subjects were excluded raise Error
 def get_excluded_if_present(results, subject):
     if subject is not None:
         return subject
     excluded_subjects = results['excluded_subjects']
-    if subject is None:
-        if excluded_subjects.shape[0] > 0:
-            return excluded_subjects[0]
-        else:
-            raise ValueError(
-                f'Training had no excluded Subject, please specify subject to live simulate on with --subject')
-    elif subject in excluded_subjects:
-        return subject
+    if excluded_subjects.shape[0] > 0:
+        return excluded_subjects[0]
     else:
-        raise ValueError(f'Subject {subject} is not in excluded Subjects of model: {results}')
+        raise ValueError(
+            f'Training had no excluded Subject, please specify subject to use with --subject')

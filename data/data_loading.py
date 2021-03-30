@@ -37,26 +37,37 @@ def create_loaders_from_splits(splits, validation_subjects, n_class, device, pre
     subjects_train = [used_subjects[idx] for idx in subjects_train_idxs]
     subjects_test = [used_subjects[idx] for idx in subjects_test_idxs]
     print_subjects_ranges(subjects_train, subjects_test)
-    validation_loader = None
+    # Only pass preloaded data for subjects, not ALL_SUBJECTS
+    # have to get correct idxs for subjects
+    # subjects_idxs= [ALL_SUBJECTS.index(i) for i in subjects]
+    loader_valid = None
     if len(validation_subjects) > 0:
-        validation_loader = create_loader_from_subjects(validation_subjects, n_class, device, preloaded_data,
-                                                        preloaded_labels, bs, ch_names, equal_trials)
-    return create_loader_from_subjects(subjects_train, n_class, device,
-                                       preloaded_data, preloaded_labels, bs, ch_names, equal_trials), \
-           create_loader_from_subjects(subjects_test, n_class, device,
-                                       preloaded_data, preloaded_labels, bs, ch_names, equal_trials), \
-           validation_loader
+        subjects_valid_idxs = [used_subjects.index(i) for i in validation_subjects]
+        loader_valid = create_loader_from_subjects(validation_subjects, n_class, device,
+                                                   preloaded_data[subjects_valid_idxs, :, :, :],
+                                                   preloaded_labels[subjects_valid_idxs, :],
+                                                   bs, ch_names, equal_trials)
+
+    loader_train = create_loader_from_subjects(subjects_train, n_class, device,
+                                               preloaded_data[subjects_train_idxs, :, :, :],
+                                               preloaded_labels[subjects_train_idxs, :],
+                                               bs, ch_names, equal_trials)
+    loader_test = create_loader_from_subjects(subjects_test, n_class, device,
+                                              preloaded_data[subjects_test_idxs, :, :, :],
+                                              preloaded_labels[subjects_test_idxs, :],
+                                              bs, ch_names, equal_trials)
+    return loader_train, loader_test, loader_valid
 
 
 # Creates DataLoader with Random Sampling from subject list
-def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None,
-                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=True):
-    ds_train = TrialsDataset(subjects, n_class, device,
-                             preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
-                             ch_names=ch_names, equal_trials=equal_trials)
+def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None,
+                                bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=True):
+    trials_ds = TrialsDataset(subjects, n_class, device,
+                              preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
+                              ch_names=ch_names, equal_trials=equal_trials)
     # Sample the trials in random order
-    sampler_train = RandomSampler(ds_train)
-    return DataLoader(ds_train, bs, sampler=sampler_train, pin_memory=False)
+    sampler_train = RandomSampler(trials_ds)
+    return DataLoader(trials_ds, bs, sampler=sampler_train, pin_memory=False)
 
 
 # Returns Train/Test Loaders containing all n_class Runs of subject
@@ -73,7 +84,7 @@ def create_n_class_loaders_from_subject(subject, n_class, n_test_runs, batch_siz
     return loader_train, loader_test
 
 
-# Creates Loader containing all n_class Runs of subject
+# Creates Loader containing all Trials of n_class Runs of subject
 # ignored_runs[] will not be loaded
 def create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
                                     ignored_runs=[]):
@@ -274,7 +285,7 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
 class TrialsDataset(Dataset):
 
     def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
-                 ch_names=MNE_CHANNELS, equal_trials=True, used_subjects=ALL_SUBJECTS):
+                 ch_names=MNE_CHANNELS, equal_trials=True):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -289,7 +300,6 @@ class TrialsDataset(Dataset):
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
         self.ch_names = ch_names
-        self.used_subjects = used_subjects
 
     # Length of Dataset (all trials)
     def __len__(self):
@@ -307,10 +317,7 @@ class TrialsDataset(Dataset):
 
         # Immediately return from preloaded data if available
         if self.preloaded_data is not None:
-            if self.preloaded_data.shape[0] == len(self.used_subjects):
-                idx = self.used_subjects.index(subject)
-            else:
-                idx = self.subjects.index(subject)
+            idx = self.subjects.index(subject)
             return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
 
         # If Subject is in current buffer, skip MNE Loading
