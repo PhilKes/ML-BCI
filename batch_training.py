@@ -22,10 +22,10 @@ train_ss = True
 live_sim = True
 # All Configurations to execute Training with
 confs = {
-    'defaults': {
-        'params': [[] + excluded_params],
-        'names': ['defaults']
-    },
+    # 'defaults': {
+    #     'params': [[] + excluded_params],
+    #     'names': ['defaults']
+    # },
     # 'tmax': {
     #     # main.py -train Params for each run
     #     'params': [['--tmin', '0', '--tmax', '1'] + excluded_params,
@@ -43,19 +43,19 @@ confs = {
     #     # Execute after all runs finished -> reset changed parameters (optional)
     #     'after': lambda: reset_eeg_times(),
     # },
-    'slicing_4s': {
-        'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
-        'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
-        'init': [
-            lambda: None,
-            lambda: None,
-            lambda: None,
-            lambda: set_rest_from_bl_run(False)],
-        'after': lambda: set_rest_from_bl_run(True)
-    },
+    # 'slicing_4s': {
+    #     'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
+    #     'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
+    #     'init': [
+    #         lambda: None,
+    #         lambda: None,
+    #         lambda: None,
+    #         lambda: set_rest_from_bl_run(False)],
+    #     'after': lambda: set_rest_from_bl_run(True)
+    # },
     'chs': {
         'params': [['--ch_motorimg', '16'] + excluded_params,
                    ['--ch_motorimg', '16_2'] + excluded_params,

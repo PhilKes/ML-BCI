@@ -259,6 +259,7 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
     raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
     raw = concatenate_raws(raw_files)
     raw.rename_channels(lambda x: x.strip('.'))
+    raw.pick_channels(ch_names)
     if notch:
         picks = mne.pick_channels(raw.info['ch_names'], ch_names)
         raw.notch_filter(60.0, picks=picks, filter_length='auto',
@@ -282,7 +283,8 @@ class TrialsDataset(Dataset):
         self.n_classes = n_classes
         self.runs = []
         self.device = device
-        self.trials_per_subject = get_trials_size(n_classes, equal_trials) * eeg_config.TRIALS_SLICES - DEFAULTS.REST_TRIALS_LESS
+        self.trials_per_subject = get_trials_size(n_classes,
+                                                  equal_trials) * eeg_config.TRIALS_SLICES - DEFAULTS.REST_TRIALS_LESS
         self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
