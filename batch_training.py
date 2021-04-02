@@ -20,12 +20,25 @@ n_classes = ['2']
 excluded_subject = 1
 excluded_params = ['--excluded', f'{excluded_subject}']
 train_ss = True
-live_sim = True
+live_sim = False
 # All Configurations to execute Training with
 confs = {
     'defaults': {
         'params': [[] + excluded_params],
         'names': ['defaults']
+    },
+    'slicing_4s': {
+        'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
+                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
+                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
+                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
+        'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
+        'init': [
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: set_rest_from_bl_run(False)],
+        'after': lambda: set_rest_from_bl_run(True)
     },
     'tmax': {
         # main.py -train Params for each run
@@ -44,19 +57,6 @@ confs = {
         # Execute after all runs finished -> reset changed parameters (optional)
         'after': lambda: reset_eeg_times(),
     },
-    'slicing_4s': {
-        'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
-        'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
-        'init': [
-            lambda: None,
-            lambda: None,
-            lambda: None,
-            lambda: set_rest_from_bl_run(False)],
-        'after': lambda: set_rest_from_bl_run(True)
-    },
     'rest_trials': {
         'params': [[] + excluded_params, [] + excluded_params, [] + excluded_params, [] + excluded_params],
         'names': ['from_bl_run_4_less_rests', 'from_bl_run', 'from_runs', 'from_runs_4_less_rests'],
@@ -69,10 +69,19 @@ confs = {
         'after': lambda: set_rests_config(True, 0)
     },
     'excluded': {
-        'params': [['--excluded', '10'],
-                   ['--excluded', '80'],
-                   ['--excluded', '10', '80']],
-        'names': ['excl_10', 'excl_50', 'excl_10_80']
+        'params': [['--excluded', '42'],
+                   ['--excluded', '61'],
+                   ['--excluded', '42', '61']],
+        'names': ['excl_42', 'excl_61', 'excl_42_61']
+    },
+    'pool': {
+        'params': [[] + excluded_params, [] + excluded_params],
+        'names': ['pool_4', 'pool_8'],
+        'init': [
+            lambda: set_poolsize(4),
+            lambda: set_poolsize(8),
+        ],
+        'after': lambda: set_poolsize(4)
     },
     'chs': {
         'params': [['--ch_motorimg', '16'] + excluded_params,
@@ -81,15 +90,6 @@ confs = {
                    ['--ch_motorimg', '16_bs'] + excluded_params],
         'names': ['motorimg_16', 'motorimg_16_2', 'motorimg_16_openbci', 'motorimg_16_bs']
     },
-    # 'pool': {
-    #     'params': [[], []],
-    #     'names': ['pool_4', 'pool_8'],
-    #     'init': [
-    #         lambda: set_poolsize(4),
-    #         lambda: set_poolsize(8),
-    #     ],
-    #     'after': lambda: set_poolsize(4)
-    # }
 
 }
 
@@ -126,10 +126,12 @@ for conf_name in confs:
                     f"{results_folder}/{training_folder}{training_results_folder}/"] +
                 ['--n_classes'] + n_classes)
         if train_ss & live_sim:
-            single_run(
-                live_sim_options + [
-                    f"{results_folder}/{training_folder}{training_results_folder}{training_ss_results_folder}/S{excluded_subject:03d}/"] +
-                ['--n_classes'] + n_classes)
+            train_ss_folder=f"{results_folder}/{training_folder}{training_results_folder}{training_ss_results_folder}"
+            # Live sim on all /training_ss/*
+            for x in os.listdir(train_ss_folder):
+                single_run(
+                    live_sim_options + [os.path.join(train_ss, x)] +
+                    ['--n_classes'] + n_classes)
 
     if 'after' in conf.keys():
         conf['after']()

@@ -133,7 +133,7 @@ def split_trials(data, labels, splits, samples):
 
 
 # Calculates relative area of correct Prediction per Trial
-def get_correctly_predicted_areas(sample_predictions, trials_classes, trials_start_samples, max_samples):
+def get_correctly_predicted_areas(n_class, sample_predictions, trials_classes, trials_start_samples, max_samples):
     print()
     trials_correct_areas_relative = np.zeros((len(trials_classes)))
     trials_correct_areas = np.zeros((len(trials_classes)))
@@ -148,6 +148,7 @@ def get_correctly_predicted_areas(sample_predictions, trials_classes, trials_sta
             last_sample = max_samples
         else:
             last_sample = trials_start_samples[idx + 1]
+        # TODO calculate area without softmax + if for n_class==2
         trials_correct_areas[idx] = np.sum(sample_predictions[trial_class, first_sample:last_sample])
         trials_areas[idx] = (last_sample - first_sample) * 100
         trials_correct_areas_relative[idx] = trials_correct_areas[idx] / trials_areas[idx]

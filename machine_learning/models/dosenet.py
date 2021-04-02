@@ -14,11 +14,6 @@ from machine_learning.models.eegnet import get_padding
 class DoseNet(nn.Module):
     def __init__(self, C, n_class, T, l1=0):
         super(DoseNet, self).__init__()
-        # self.fc21 = nn.Linear(in_count, 50)
-        # self.fc323= nn.Linear(50, 25)
-        # self.fc343 = nn.Linear(25, out_count)
-        # self.softmax = nn.Softmax(dim=1)
-        # self.con33v2 = nn.Conv2d(F1, D * F1, (C, 1), groups=F1, bias=False)
         input_shape = (T, C, 1)
         # TODO l1: weight_decay in optim.Adam(weight_decay=l1)
         kernel_size1 = (30, 1)
@@ -27,7 +22,7 @@ class DoseNet(nn.Module):
                                in_channels=T,
                                kernel_size=kernel_size1)
         kernel_size2 = (1, C)
-        # TODO Padding valid
+        # TODO Padding 'valid'
         self.conv2 = nn.Conv2d(out_channels=40,
                                in_channels=40,
                                kernel_size=kernel_size2)

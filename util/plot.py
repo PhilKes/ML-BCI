@@ -30,7 +30,7 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black
 #         Item Tuple: (X,color_idx)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
             x_values=None, ticks=None, fig_size=None,
-            vspans=[], vlines=[], vlines_label=None,
+            vspans=[], vlines=[], vlines_label=None,legend_loc=None,
             min_x=None, max_x=None, color_offset=0):
     # use LaTeX fonts in the plot
     if PLOT_TO_PDF:
@@ -89,7 +89,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
         handles.append(vertical_line)
         labels.append(vlines_label)
 
-    plt.legend(handles, labels, loc="center left")
+    plt.legend(handles, labels, loc='best' if legend_loc is None else legend_loc)
 
     if save_path is not None:
         fig = plt.gcf()

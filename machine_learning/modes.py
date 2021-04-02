@@ -341,7 +341,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
         vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
 
-        # trials_correct_areas_relative = get_correctly_predicted_areas(sample_predictions, trials_classes,
+        # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,
         #                                                               trials_start_samples,
         #                                                               max_sample)
         trials_correct_areas_relative = np.zeros((len(trials_classes)))
@@ -374,7 +374,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
                     vspans=vspans[first_trial:last_trial + 1],
                     color_offset=n_class_offset,
                     vlines=vlines[(first_trial * slices):(last_trial + 1) * slices],
-                    vlines_label="Trained timepoints",
+                    vlines_label="Trained timepoints", legend_loc='lower left',
                     ticks=trials_start_samples[first_trial:last_trial + 1],
                     min_x=first_sample, max_x=last_sample,
                     x_values=trials_start_times[first_trial:last_trial + 1],

@@ -123,6 +123,17 @@ class EEGNet(t.nn.Module):
         x = self.conv2(x)  # output dim: (s, D * F1, 1, T-1)
         x = self.batch_norm2(x)
         x = self.activation1(x)
+        # Shape of x:
+        #  pool_size = 8:
+        #   before pool1:
+        #     (16, 16, 1, 480)
+        #   after pool1:
+        #     16, 16, 1, 60)
+        #  pool_size = 4:
+        #   before pool1:
+        #    (16, 16, 1, 480)
+        #   after pool1:
+        #    (16, 16, 1, 120)
         x = self.pool1(x)  # output dim: (s, D * F1, 1, T // 8)
         x = self.dropout1(x)
 
@@ -308,5 +319,6 @@ class PermutedFlatten(t.nn.Flatten):
 # Source:
 # https://stackoverflow.com/questions/58307036/is-there-really-no-padding-same-option-for-pytorchs-conv2d
 # Calculates correct Padding for Conv2d Layer for given kernel size
+# -> equivalent to padding='same' of Keras
 def get_padding(kernel_size):
     return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
