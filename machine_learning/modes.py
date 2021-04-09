@@ -187,7 +187,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
-        dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", type='train_ss')
+        dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", mode='train_ss')
         save_config(training_ss_config_str(config), ch_names, dir_results, tag)
         print(f"Loading pretrained model from '{model_path}'")
 
@@ -219,13 +219,13 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
                  warm_ups=GPU_WARMUPS,
                  subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
-                 ch_names=MNE_CHANNELS, equal_trials=True, continuous=False, ):
+                 ch_names=MNE_CHANNELS, equal_trials=True, continuous=False):
     config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                      trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
 
     print(benchmark_config_str(config))
-    dir_results = create_results_folders(path=f"{model_path}", name=name, type='benchmark')
+    dir_results = create_results_folders(path=f"{model_path}", name=name, mode='benchmark')
 
     class_models = {}
     batch_lat_avgs, trial_inf_time_avgs = np.zeros((len(n_classes))), np.zeros((len(n_classes)))
@@ -300,7 +300,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
              n_classes=N_CLASSES,
              device=torch.device("cpu"), tag=None, equal_trials=True):
-    dir_results = create_results_folders(path=f"{model_path}", name=name, type='live_sim')
+    dir_results = create_results_folders(path=f"{model_path}", name=name, mode='live_sim')
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))

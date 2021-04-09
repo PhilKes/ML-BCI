@@ -15,80 +15,79 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "2class_excluded_params"
-n_classes = ['2']
+folder = "plots_training"
+n_classes = ['2', '3', '4']
 excluded_subject = 1
 excluded_params = ['--excluded', f'{excluded_subject}']
-train_ss = True
+train_ss = False
 live_sim = False
 # All Configurations to execute Training with
 confs = {
     'defaults': {
-        'params': [[] + excluded_params],
+        'params': [[]],
         'names': ['defaults']
     },
-    'slicing_4s': {
-        'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
-        'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
-        'init': [
-            lambda: None,
-            lambda: None,
-            lambda: None,
-            lambda: set_rest_from_bl_run(False)],
-        'after': lambda: set_rest_from_bl_run(True)
-    },
-    'tmax': {
-        # main.py -train Params for each run
-        'params': [['--tmin', '0', '--tmax', '1'] + excluded_params,
-                   ['--tmin', '0', '--tmax', '4'] + excluded_params,
-                   ['--tmin', '-1', '--tmax', '5'] + excluded_params],
-        # name for subfolder for each run
-        'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
-        # Initialize methods for each run to set global settings (optional)
-        # len(params) = len(names) = len(init)
-        # 'init': [
-        #     lambda: set_eeg_times(0, 1),
-        #     lambda: set_eeg_times(0, 4),
-        #     lambda: set_eeg_times(-1, 5),
-        # ],
-        # Execute after all runs finished -> reset changed parameters (optional)
-        'after': lambda: reset_eeg_times(),
-    },
-    'rest_trials': {
-        'params': [[] + excluded_params, [] + excluded_params, [] + excluded_params, [] + excluded_params],
-        'names': ['from_bl_run_4_less_rests', 'from_bl_run', 'from_runs', 'from_runs_4_less_rests'],
-        'init': [
-            lambda: set_rests_config(True, 4),
-            lambda: set_rests_config(True, 0),
-            lambda: set_rests_config(False, 0),
-            lambda: set_rests_config(False, 4),
-        ],
-        'after': lambda: set_rests_config(True, 0)
-    },
-    'excluded': {
-        'params': [['--excluded', '42'],
-                   ['--excluded', '61'],
-                   ['--excluded', '42', '61']],
-        'names': ['excl_42', 'excl_61', 'excl_42_61']
-    },
-    'pool': {
-        'params': [[] + excluded_params, [] + excluded_params],
-        'names': ['pool_4', 'pool_8'],
-        'init': [
-            lambda: set_poolsize(4),
-            lambda: set_poolsize(8),
-        ],
-        'after': lambda: set_poolsize(4)
-    },
+    # 'slicing_4s': {
+    #     'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
+    #     'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
+    #     'init': [
+    #         lambda: None,
+    #         lambda: None,
+    #         lambda: None,
+    #         lambda: set_rest_from_bl_run(False)],
+    #     'after': lambda: set_rest_from_bl_run(True)
+    # },
+    # 'tmax': {
+    #     # main.py -train Params for each run
+    #     'params': [['--tmin', '0', '--tmax', '1'] + excluded_params,
+    #                ['--tmin', '0', '--tmax', '4'] + excluded_params,
+    #                ['--tmin', '-1', '--tmax', '5'] + excluded_params],
+    #     # name for subfolder for each run
+    #     'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
+    #     # Initialize methods for each run to set global settings (optional)
+    #     # len(params) = len(names) = len(init)
+    #     # 'init': [
+    #     #     lambda: set_eeg_times(0, 1),
+    #     #     lambda: set_eeg_times(0, 4),
+    #     #     lambda: set_eeg_times(-1, 5),
+    #     # ],
+    #     # Execute after all runs finished -> reset changed parameters (optional)
+    #     'after': lambda: reset_eeg_times(),
+    # },
+    # 'rest_trials': {
+    #     'params': [[] + excluded_params, [] + excluded_params, [] + excluded_params, [] + excluded_params],
+    #     'names': ['from_bl_run_4_less_rests', 'from_bl_run', 'from_runs', 'from_runs_4_less_rests'],
+    #     'init': [
+    #         lambda: set_rests_config(True, 4),
+    #         lambda: set_rests_config(True, 0),
+    #         lambda: set_rests_config(False, 0),
+    #         lambda: set_rests_config(False, 4),
+    #     ],
+    #     'after': lambda: set_rests_config(True, 0)
+    # },
+
+    # 'pool': {
+    #     'params': [[], []],
+    #     'names': ['pool_4', 'pool_8'],
+    #     'init': [
+    #         lambda: set_poolsize(4),
+    #         lambda: set_poolsize(8),
+    #     ],
+    #     'after': lambda: set_poolsize(4)
+    # },
     'chs': {
         'params': [['--ch_motorimg', '16'] + excluded_params,
                    ['--ch_motorimg', '16_2'] + excluded_params,
                    ['--ch_motorimg', '16_openbci'] + excluded_params,
                    ['--ch_motorimg', '16_bs'] + excluded_params],
         'names': ['motorimg_16', 'motorimg_16_2', 'motorimg_16_openbci', 'motorimg_16_bs']
+    },
+    'excluded': {
+        'params': [['--excluded', '42']],
+        'names': ['excl_42']
     },
 
 }
@@ -126,7 +125,7 @@ for conf_name in confs:
                     f"{results_folder}/{training_folder}{training_results_folder}/"] +
                 ['--n_classes'] + n_classes)
         if train_ss & live_sim:
-            train_ss_folder=f"{results_folder}/{training_folder}{training_results_folder}{training_ss_results_folder}"
+            train_ss_folder = f"{results_folder}/{training_folder}{training_results_folder}{training_ss_results_folder}"
             # Live sim on all /training_ss/*
             for x in os.listdir(train_ss_folder):
                 single_run(
@@ -143,8 +142,9 @@ for conf_name in confs:
         columns.append(f"{n_class}class OF")
     df = pd.DataFrame(data=runs_results, index=conf['names'], columns=columns)
     # Write results into .csv and .txt
-    df.to_csv(f"{results_folder}/{conf_folder}/batch_training_results.csv")
-    with open(os.path.join(f"{results_folder}/{conf_folder}", f'{conf_name}_batch_training.txt'),
+    classes_str = ",".join(n_classes)
+    df.to_csv(f"{results_folder}/{conf_folder}/{classes_str}_batch_training_results.csv")
+    with open(os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'),
               'w') as outfile:
         df.to_string(outfile)
     print(df)

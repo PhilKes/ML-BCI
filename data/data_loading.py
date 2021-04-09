@@ -23,7 +23,7 @@ from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZ
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, DEFAULTS
+from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET
 from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr, print_numpy_counts
 
 
@@ -116,7 +116,7 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
     trials_per_run_class = np.math.floor(trials / n_class)
     trials = trials * eeg_config.TRIALS_SLICES
     if n_class > 2:
-        trials -= DEFAULTS.REST_TRIALS_LESS
+        trials -= PHYSIONET.REST_TRIALS_LESS
 
     preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
@@ -143,7 +143,7 @@ def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials
                          trials_per_run_class=TRIALS_PER_SUBJECT_RUN,
                          ignored_runs=[]):
     tasks = n_classes_tasks[n_classes].copy()
-    if (not DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
+    if (not PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
         tasks.remove(0)
     data, labels = load_task_runs(subject, tasks,
                                   exclude_bothfists=(n_classes == 4), exclude_rests=(n_classes == 2),
@@ -165,7 +165,7 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 # if baseline run is not long enough for all needed trials
 # random Trials are generated from baseline run
 def mne_load_rests(subject, trials, ch_names, samples):
-    used_trials = trials - DEFAULTS.REST_TRIALS_LESS
+    used_trials = trials - PHYSIONET.REST_TRIALS_LESS
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
     chs = len(ch_names)
@@ -202,12 +202,12 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
     # Load Subject Data of all Tasks
     for task_idx, task in enumerate(tasks):
         # Task = 0 -> Rest Trials "T0"
-        if DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
+        if PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
             data, labels = mne_load_rests(subject, trials_per_run_class, ch_names, load_samples)
         else:
             # if Rest Trials are loaded from Baseline Run, ignore "TO"s in all other Runs
             # exclude_rests is True for 2class Classification
-            if DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN | exclude_rests:
+            if PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN | exclude_rests:
                 tasks_event_dict = {'T1': 2, 'T2': 3}
             else:
                 tasks_event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
@@ -295,7 +295,7 @@ class TrialsDataset(Dataset):
         self.runs = []
         self.device = device
         self.trials_per_subject = get_trials_size(n_classes,
-                                                  equal_trials) * eeg_config.TRIALS_SLICES - DEFAULTS.REST_TRIALS_LESS
+                                                  equal_trials) * eeg_config.TRIALS_SLICES - PHYSIONET.REST_TRIALS_LESS
         self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None

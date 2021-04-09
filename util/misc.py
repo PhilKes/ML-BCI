@@ -2,6 +2,7 @@
 Miscellaneous Utility Methods
 """
 import collections
+import errno
 import math
 import os
 
@@ -83,6 +84,15 @@ def print_numpy_counts(arr):
     print(dict(zip(unique, counts)))
 
 
+def makedir(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+        pass
+
+
 # Returns an array with groups of length (size/groups)
 # All elements in one group have same value
 def groups_labels(size, groups):
@@ -94,7 +104,7 @@ def groups_labels(size, groups):
     while groups_vals.shape[0] > size:
         groups_vals = np.delete(groups_vals, np.where(groups_vals == group)[0][0])
         group = (group + 1) % groups
-    #print(collections.Counter(groups_vals))
+    # print(collections.Counter(groups_vals))
     return groups_vals
 
 

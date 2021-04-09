@@ -30,14 +30,14 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black
 #         Item Tuple: (X,color_idx)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
             x_values=None, ticks=None, fig_size=None,
-            vspans=[], vlines=[], vlines_label=None,legend_loc=None,
+            vspans=[], vlines=[], vlines_label=None, legend_loc=None, show_legend=True,
             min_x=None, max_x=None, color_offset=0):
     # use LaTeX fonts in the plot
-    if PLOT_TO_PDF:
-        plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
     if (fig_size is not None):
         plt.rcParams.update({'font.size': 22})
+    else:
+        plt.rcParams.update({'font.size': 10})
 
     fig, ax = plt.subplots()
     if fig_size is not None:
@@ -67,7 +67,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     # Plot multiple lines
     if data.ndim == 2:
         for i in range(len(data)):
-            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i+color_offset])
+            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i + color_offset])
         plt.grid()
     else:
         if bar_plot:
@@ -88,17 +88,16 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
                                      markersize=10, markeredgewidth=1.5)
         handles.append(vertical_line)
         labels.append(vlines_label)
-
-    plt.legend(handles, labels, loc='best' if legend_loc is None else legend_loc)
+    if show_legend:
+        plt.legend(handles, labels, loc='best' if legend_loc is None else legend_loc)
 
     if save_path is not None:
         fig = plt.gcf()
         # np.save(f"{save_path}/{title}.npy", data)
         # save as PDF
+        fig.savefig(f"{save_path}/{title}.png")
         if PLOT_TO_PDF:
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
-        else:
-            fig.savefig(f"{save_path}/{title}.png")
     # fig.tight_layout()
 
     plt.show()
@@ -110,7 +109,6 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
     width = (1.0 / len(batch_sizes)) - 0.1  # the width of the bars
 
     # use LaTeX fonts in the plot
-    plt.rc('text', usetex=False)
     plt.rc('font', family='serif')
 
     fig, ax = plt.subplots()
@@ -174,11 +172,12 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
                              epoch_losses_valid,
                              best_fold, batch_size, folds, early_stop):
-    matplot(accuracies, f"{n_class}class Cross Validation", "Folds Iteration", "Accuracy in %",
-            save_path=dir_results,
+    matplot(np.append(np.roll(accuracies, 1), accuracies[-1]), f"{n_class}class Cross Validation", "Fold",
+            "Accuracy in %",
+            save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
     matplot(avg_class_accuracies, f"{n_class}class Accuracies {'' if tag is None else tag}", "Class",
-            "Accuracy in %",
+            "Accuracy in %", show_legend=False,
             save_path=dir_results,
             bar_plot=True, max_y=100.0)
     matplot(epoch_losses_train, f"{n_class}class Training Losses {'' if tag is None else tag}", 'Epoch',

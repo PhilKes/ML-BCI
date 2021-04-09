@@ -1,9 +1,8 @@
 """
 Helper functions for printing Statistics
-Saving results, etc.
+Saving result strings, etc.
 """
 
-import errno
 import os
 
 import numpy as np
@@ -17,18 +16,18 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, \
     training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices
-from util.misc import datetime_to_folder_str, get_str_n_classes
+from util.misc import datetime_to_folder_str, get_str_n_classes, makedir
 
 
-def create_results_folders(path=None, name=None, datetime=None, type='train'):
+def create_results_folders(path=None, name=None, datetime=None, mode='train'):
     if path is not None:
-        if type == 'train':
+        if mode == 'train':
             folder = f"{results_folder}/{path}{training_results_folder}"
-        elif type == 'benchmark':
+        elif mode == 'benchmark':
             folder = f"{path}{benchmark_results_folder}{'' if name is None else f'/{name}'}"
-        elif type == 'live_sim':
+        elif mode == 'live_sim':
             folder = f"{path}{live_sim_results_folder}{'' if name is None else f'/{name}'}"
-        elif type == 'train_ss':
+        elif mode == 'train_ss':
             folder = f"{path}{training_ss_results_folder}{'' if name is None else f'/{name}'}"
 
     else:
@@ -202,18 +201,9 @@ Run: {config.run}
 ###############\n\n"""
 
 
-def makedir(path):
-    try:
-        os.makedirs(path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise e
-        pass
-
-
 def get_global_config_str():
     return f"""EEG Epoch interval: [{eeg_config.EEG_TMIN};{eeg_config.EEG_TMAX}]s
-Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]
+Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}"""
 
 

@@ -39,7 +39,7 @@ def add_common_arguments(parser):
     parser.add_argument('--tag', type=str, default=None, required=False,
                         help='Optional Tag for results files (e.g. for different batch sizes)')
     parser.add_argument('--device', type=str, default="gpu", required=False,
-                        help='Either "gpu" or "cpu"')
+                        help='Device to use, either "gpu" or "cpu"')
     parser.add_argument('--bs', type=int, default=BATCH_SIZE,
                         help=f'Trial Batch Size (default:{BATCH_SIZE})')
     parser.add_argument('--model', type=str, default=None,

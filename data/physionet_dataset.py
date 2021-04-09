@@ -26,7 +26,7 @@ MNE_CHANNELS = [
     'Iz']
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
-DEFAULTS = DotDict(
+PHYSIONET = DotDict(
     EEG_TMIN=0,
     EEG_TMAX=3,
     SAMPLERATE=160,
@@ -46,11 +46,11 @@ def set_rests_config(from_bl_run=None, less_rests=None):
 
 
 def set_rest_from_bl_run(val):
-    DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN = val
+    PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN = val
 
 
 def set_rest_trials_less(val):
-    DEFAULTS.REST_TRIALS_LESS = val
+    PHYSIONET.REST_TRIALS_LESS = val
 
 
 # Amount of picked Trials in 1 Run of 1 Subject

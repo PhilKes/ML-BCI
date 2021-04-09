@@ -11,7 +11,7 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorData
 
 from config import eeg_config
 from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
-    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, DEFAULTS
+    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, PHYSIONET
 
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
@@ -111,8 +111,8 @@ def get_equal_trials_per_class(data, labels, classes, trials):
             np.random.seed(39)
             np.random.shuffle(cl_idxs)
         cl_idxs = cl_idxs[:trials]
-        if (cl == 0) & (not DEFAULTS.REST_TRIALS_FROM_BASELINE_RUN) & (DEFAULTS.REST_TRIALS_LESS > 0):
-            cl_idxs = cl_idxs[:-DEFAULTS.REST_TRIALS_LESS]
+        if (cl == 0) & (not PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN) & (PHYSIONET.REST_TRIALS_LESS > 0):
+            cl_idxs = cl_idxs[:-PHYSIONET.REST_TRIALS_LESS]
         trials_idxs = np.concatenate((trials_idxs, cl_idxs))
     trials_idxs = np.sort(trials_idxs)
     return data[trials_idxs], labels[trials_idxs]

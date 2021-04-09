@@ -3,10 +3,10 @@ Configuration File containing global default values
 """
 import math
 
-from data.physionet_dataset import DEFAULTS
+from data.physionet_dataset import PHYSIONET
 from util.dot_dict import DotDict
 
-PLOT_TO_PDF = False
+PLOT_TO_PDF = True
 VERBOSE = False
 # Calculate the difference in accuracy between (new) Validation Dataset and known Training Dataset
 # if True the differences are stored in the results.txt
@@ -39,11 +39,11 @@ GPU_WARMUPS = 20
 eegnet_config = DotDict(pool_size=4)
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
-eeg_config = DotDict(EEG_TMIN=DEFAULTS.EEG_TMIN,
-                     EEG_TMAX=DEFAULTS.EEG_TMAX,
+eeg_config = DotDict(EEG_TMIN=PHYSIONET.EEG_TMIN,
+                     EEG_TMAX=PHYSIONET.EEG_TMAX,
                      TRIAL_SLICES=1,
-                     SAMPLERATE=DEFAULTS.SAMPLERATE,
-                     SAMPLES=(DEFAULTS.EEG_TMAX - DEFAULTS.EEG_TMIN) * DEFAULTS.SAMPLERATE)
+                     SAMPLERATE=PHYSIONET.SAMPLERATE,
+                     SAMPLES=(PHYSIONET.EEG_TMAX - PHYSIONET.EEG_TMIN) * PHYSIONET.SAMPLERATE)
 
 
 def set_eeg_trials_slices(slices):
@@ -60,10 +60,10 @@ def set_eeg_times(tmin, tmax):
 
 
 def reset_eeg_times():
-    eeg_config.EEG_TMIN = DEFAULTS.EEG_TMIN
-    eeg_config.EEG_TMAX = DEFAULTS.EEG_TMAX
-    eeg_config.SAMPLERATE = DEFAULTS.SAMPLERATE
-    eeg_config.SAMPLES = (DEFAULTS.EEG_TMAX - DEFAULTS.EEG_TMIN) * DEFAULTS.SAMPLERATE
+    eeg_config.EEG_TMIN = PHYSIONET.EEG_TMIN
+    eeg_config.EEG_TMAX = PHYSIONET.EEG_TMAX
+    eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
+    eeg_config.SAMPLES = (PHYSIONET.EEG_TMAX - PHYSIONET.EEG_TMIN) * PHYSIONET.SAMPLERATE
 
 
 def set_poolsize(size):

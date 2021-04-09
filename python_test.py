@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder
-from data.data_loading import load_n_classes_tasks
+from data.data_loading import load_n_classes_tasks, mne_load_subject_raw
 from data.data_utils import get_trials_size
 from machine_learning.modes import live_sim
 
@@ -322,8 +322,11 @@ def check_bad_data(subjects, n_classes):
 # x3=get_trials_size(3,ignored_runs=[12,4])
 # x4=get_trials_size(4)
 # print(x1,x2,x3,x4)
-path=f"{results_folder}/2class_excluded_params/excluded/conf_excl_42{training_results_folder}{training_ss_results_folder}"
-for x in os.listdir(path):
-    print(os.path.join(path, x))
+# path=f"{results_folder}/2class_excluded_params/excluded/conf_excl_42{training_results_folder}{training_ss_results_folder}"
+# for x in os.listdir(path):
+#     print(os.path.join(path, x))
+#
 
-
+raw= mne_load_subject_raw(1,4)
+raw.plot(n_channels=1)
+raw.plot_sensors()
