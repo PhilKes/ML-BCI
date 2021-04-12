@@ -176,16 +176,16 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             "Accuracy in %",
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
-    matplot(avg_class_accuracies, f"{n_class}class Accuracies {'' if tag is None else tag}", "Class",
+    matplot(avg_class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
             "Accuracy in %", show_legend=False,
             save_path=dir_results,
             bar_plot=True, max_y=100.0)
-    matplot(epoch_losses_train, f"{n_class}class Training Losses {'' if tag is None else tag}", 'Epoch',
+    matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
     matplot(epoch_losses_valid,
-            f"{n_class}class Test Losses {'' if tag is None else tag}", 'Epoch',
+            f"{n_class}class Test Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})',
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))

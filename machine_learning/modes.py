@@ -39,11 +39,11 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
-# if torch.cuda.is_available():
-#     import ctypes
-#     from torch2trt import torch2trt
-#
-#     _cudart = ctypes.CDLL('libcudart.so')
+if torch.cuda.is_available():
+    import ctypes
+    from torch2trt import torch2trt
+
+    _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs Training + Testing
@@ -338,7 +338,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
 
         # Highlight Trials and mark the trained on positions of each Trial
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
-        tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
+        tdelta = eeg_config.TMAX - eeg_config.TMIN
         vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
 
         # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,

@@ -49,10 +49,10 @@ def add_common_arguments(parser):
 
     parser.add_argument('--trials_slices', type=int, default=eeg_config.TRIAL_SLICES,
                         help=f'Will slice every Trial into n x Trials (default: {eeg_config.TRIAL_SLICES})')
-    parser.add_argument('--tmin', type=int, default=eeg_config.EEG_TMIN,
-                        help=f'Start Time of every Trial Epoch (default: {eeg_config.EEG_TMIN})')
-    parser.add_argument('--tmax', type=int, default=eeg_config.EEG_TMAX,
-                        help=f'End Time of every Trial Epoch (default: {eeg_config.EEG_TMAX})')
+    parser.add_argument('--tmin', type=int, default=eeg_config.TMIN,
+                        help=f'Start Time of every Trial Epoch (default: {eeg_config.TMIN})')
+    parser.add_argument('--tmax', type=int, default=eeg_config.TMAX,
+                        help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
 
 
 def check_common_arguments(parser, args):

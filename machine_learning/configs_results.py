@@ -76,7 +76,7 @@ def save_training_numpy_data(test_accs, class_accuracies, train_losses, test_los
                              excluded_subjects):
     np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=test_accs, train_losses=train_losses,
              class_accs=class_accuracies, test_losses=test_losses,
-             tmin=eeg_config.EEG_TMIN, tmax=eeg_config.EEG_TMAX, slices=eeg_config.TRIALS_SLICES,
+             tmin=eeg_config.TMIN, tmax=eeg_config.TMAX, slices=eeg_config.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int))
 
 
@@ -202,7 +202,7 @@ Run: {config.run}
 
 
 def get_global_config_str():
-    return f"""EEG Epoch interval: [{eeg_config.EEG_TMIN};{eeg_config.EEG_TMAX}]s
+    return f"""EEG Epoch interval: [{eeg_config.TMIN};{eeg_config.TMAX}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}"""
 
@@ -230,7 +230,7 @@ def load_npz(npz):
         raise FileNotFoundError(f'File {npz} does not exist!')
 
 
-# Load EEG_TMIN, EEG_TMAX, TRIALS_SLICES from .npz result file
+# Load TMIN, TMAX, TRIALS_SLICES from .npz result file
 def load_global_conf_from_results(results):
     if ('tmin' in results) & ('tmax' in results):
         set_eeg_times(results['tmin'], results['tmax'])

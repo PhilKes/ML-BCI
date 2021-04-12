@@ -15,7 +15,7 @@ from data.physionet_dataset import trials_for_classes_per_subject_avail, n_class
 
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
-    tdelta = eeg_config.EEG_TMAX - eeg_config.EEG_TMIN
+    tdelta = eeg_config.TMAX - eeg_config.TMIN
     if (time - tdelta) < 0:
         raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
     raw1 = raw.copy()

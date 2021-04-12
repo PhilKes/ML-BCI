@@ -26,7 +26,7 @@ N_CLASSES = [2, 3, 4]
 # Learning Rate Settings
 LR = DotDict(
     start=0.01,
-    milestones=[20, 40],
+    milestones=[20, 50],
     gamma=0.1
 )
 
@@ -39,31 +39,31 @@ GPU_WARMUPS = 20
 eegnet_config = DotDict(pool_size=4)
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
-eeg_config = DotDict(EEG_TMIN=PHYSIONET.EEG_TMIN,
-                     EEG_TMAX=PHYSIONET.EEG_TMAX,
+eeg_config = DotDict(TMIN=PHYSIONET.TMIN,
+                     TMAX=PHYSIONET.TMAX,
                      TRIAL_SLICES=1,
                      SAMPLERATE=PHYSIONET.SAMPLERATE,
-                     SAMPLES=(PHYSIONET.EEG_TMAX - PHYSIONET.EEG_TMIN) * PHYSIONET.SAMPLERATE)
+                     SAMPLES=(PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
 
 
 def set_eeg_trials_slices(slices):
-    # eeg_config.EEG_TMIN = 0
-    # eeg_config.EEG_TMAX = 4
+    # eeg_config.TMIN = 0
+    # eeg_config.TMAX = 4
     eeg_config.TRIALS_SLICES = slices
-    eeg_config.SAMPLES = math.floor(((eeg_config.EEG_TMAX - eeg_config.EEG_TMIN) * eeg_config.SAMPLERATE) / slices)
+    eeg_config.SAMPLES = math.floor(((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE) / slices)
 
 
 def set_eeg_times(tmin, tmax):
-    eeg_config.EEG_TMIN = tmin
-    eeg_config.EEG_TMAX = tmax
+    eeg_config.TMIN = tmin
+    eeg_config.TMAX = tmax
     eeg_config.SAMPLES = (tmax - tmin) * eeg_config.SAMPLERATE
 
 
 def reset_eeg_times():
-    eeg_config.EEG_TMIN = PHYSIONET.EEG_TMIN
-    eeg_config.EEG_TMAX = PHYSIONET.EEG_TMAX
+    eeg_config.TMIN = PHYSIONET.TMIN
+    eeg_config.TMAX = PHYSIONET.TMAX
     eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
-    eeg_config.SAMPLES = (PHYSIONET.EEG_TMAX - PHYSIONET.EEG_TMIN) * PHYSIONET.SAMPLERATE
+    eeg_config.SAMPLES = (PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE
 
 
 def set_poolsize(size):
