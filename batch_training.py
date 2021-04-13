@@ -15,7 +15,7 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "plots_training"
+folder = "plots_training2"
 n_classes = ['2', '3', '4']
 excluded_subject = 1
 excluded_params = ['--excluded', f'{excluded_subject}']

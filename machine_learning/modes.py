@@ -39,11 +39,11 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
-if torch.cuda.is_available():
-    import ctypes
-    from torch2trt import torch2trt
-
-    _cudart = ctypes.CDLL('libcudart.so')
+# if torch.cuda.is_available():
+#     import ctypes
+#     from torch2trt import torch2trt
+#
+#     _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs Training + Testing
@@ -357,7 +357,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
         np.save(os.path.join(dir_results, f"{n_class}class_predictions"), sample_predictions)
         # Split into multiple plots, otherwise too long
-        plot_splits = 3
+        plot_splits = 5
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
         n_class_offset = 0 if n_class > 2 else 1
         for i in range(plot_splits):
@@ -370,9 +370,9 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
                     f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1}",
-                    'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0),
+                    'Time in sec.', f'Prediction in %', fig_size=(40.0, 10.0),
                     vspans=vspans[first_trial:last_trial + 1],
-                    color_offset=n_class_offset,
+                    color_offset=n_class_offset,font_size=26.0,
                     vlines=vlines[(first_trial * slices):(last_trial + 1) * slices],
                     vlines_label="Trained timepoints", legend_loc='lower left',
                     ticks=trials_start_samples[first_trial:last_trial + 1],

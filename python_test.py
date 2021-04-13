@@ -4,15 +4,19 @@ Python script for miscellaneous testing of libraries
 """
 import math
 import os
+import random
 
 import mne
 import numpy as np
 import torch
 
-from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder
+from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder, eeg_config
 from data.data_loading import load_n_classes_tasks, mne_load_subject_raw
-from data.data_utils import get_trials_size
+from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels_to_classes, map_times_to_samples
+from data.physionet_dataset import n_classes_live_run, MNE_CHANNELS
+from machine_learning.inference_training import do_predict_on_samples
 from machine_learning.modes import live_sim
+from util.plot import matplot
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -327,6 +331,51 @@ def check_bad_data(subjects, n_classes):
 #     print(os.path.join(path, x))
 #
 
-raw= mne_load_subject_raw(1,4)
-raw.plot(n_channels=1)
-raw.plot_sensors()
+# raw= mne_load_subject_raw(1,4)
+# raw.plot(n_channels=1)
+# raw.plot_sensors()
+
+def print_eeg_live(used_subject=1, n_class=3, ch_names=MNE_CHANNELS):
+    ch_names=random.sample(MNE_CHANNELS,4)
+    dir_results="./results/plots_training"
+    # Load Raw Subject Run for n_class
+    raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
+    # Get Data from raw Run
+    X = get_data_from_raw(raw)
+
+    max_sample = raw.n_times
+    slices = 5
+    # times = raw.times[:max_sample]
+    trials_start_times = raw.annotations.onset
+
+    # Get samples of Trials Start Times
+    trials_start_samples = map_times_to_samples(raw, trials_start_times)
+
+    # matplot(sample_predictions,
+    #         f"{n_class}class Live Simulation_S{subject:03d}",
+    #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+    #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
+    #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+    # Split into multiple plots, otherwise too long
+    plot_splits = 5
+    trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
+    n_class_offset = 0 if n_class > 2 else 1
+    for i in range(plot_splits):
+        first_trial = i * trials_split_size
+        last_trial = (i + 1) * trials_split_size - 1
+        first_sample = trials_start_samples[first_trial]
+        if i == plot_splits - 1:
+            last_sample = max_sample
+        else:
+            last_sample = trials_start_samples[last_trial + 1]
+        matplot(X,
+                f"EEG Recording (4 EEG Channels)",
+                'Time in sec.', f'Prediction in %', fig_size=(40.0, 10.0),
+                color_offset=n_class_offset, font_size=26.0,
+                vlines_label="Trained timepoints", legend_loc='lower right',
+                ticks=trials_start_samples[first_trial:last_trial + 1],
+                min_x=first_sample, max_x=last_sample,
+                x_values=trials_start_times[first_trial:last_trial + 1],
+                labels=ch_names, save_path=dir_results)
+
+print_eeg_live()

@@ -16,7 +16,11 @@ from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import PLOT_TO_PDF, eeg_config
 
-colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black']
+colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple','tab:brown',
+          'skyblue','darkorange','tab:gray','tab:pink', 'black']
+
+def get_color(idx):
+    return colors[idx%len(colors)]
 
 
 # Plots data with Matplot
@@ -29,7 +33,7 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'black
 # vlines: List of vertical Lines to draw
 #         Item Tuple: (X,color_idx)
 def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_path=None, bar_plot=False,
-            x_values=None, ticks=None, fig_size=None,
+            x_values=None, ticks=None, fig_size=None,font_size=17.0,
             vspans=[], vlines=[], vlines_label=None, legend_loc=None, show_legend=True,
             min_x=None, max_x=None, color_offset=0):
     # use LaTeX fonts in the plot
@@ -38,6 +42,8 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
         plt.rcParams.update({'font.size': 22})
     else:
         plt.rcParams.update({'font.size': 10})
+    if font_size is not None:
+        plt.rcParams.update({'font.size': font_size})
 
     fig, ax = plt.subplots()
     if fig_size is not None:
@@ -60,6 +66,10 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
         ax.set_xticks(ticks)
         ax.set_xticklabels(x_values)
         # plt.xticks(ticks=ticks,labels=x_values)
+    elif data.shape[-1] > 60:
+        multiple = 10 if data.shape[-1] % 10 == 0 else 5
+        plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(multiple))
+        plt.xticks(rotation=90)
     elif data.shape[-1] > 30:
         multiple = 5 if data.shape[-1] % 5 == 0 else 4
         plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(multiple))
@@ -67,24 +77,24 @@ def matplot(data, title='', xlabel='', ylabel='', labels=[], max_y=None, save_pa
     # Plot multiple lines
     if data.ndim == 2:
         for i in range(len(data)):
-            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=colors[i + color_offset])
+            plt.plot(data[i], label=labels[i] if len(labels) >= i else "", color=get_color(i + color_offset))
         plt.grid()
     else:
         if bar_plot:
             ax.bar(np.arange(len(data)), data, 0.35, )
             ax.axhline(np.average(data), color='red', linestyle='--')
         else:
-            plt.plot(data, label=labels[0] if len(labels) > 0 else "", color=colors[0])
+            plt.plot(data, label=labels[0] if len(labels) > 0 else "", color=get_color(0))
             plt.grid()
 
     for vspan in vspans:
-        plt.axvspan(vspan[0], vspan[1], color=colors[vspan[2]], alpha=0.5)
+        plt.axvspan(vspan[0], vspan[1], color=get_color(vspan[2]), alpha=0.5)
     for vline in vlines:
-        plt.axvline(vline[0], color=colors[vline[1]], alpha=0.75, linestyle='--')
+        plt.axvline(vline[0], color=get_color(vline[1]), alpha=0.75, linestyle='--')
 
     handles, labels = ax.get_legend_handles_labels()
     if len(vlines) > 0 & (vlines_label is not None):
-        vertical_line = lines.Line2D([], [], linestyle='--', color=colors[vlines[0][1]],
+        vertical_line = lines.Line2D([], [], linestyle='--', color=get_color(vlines[0][1]),
                                      markersize=10, markeredgewidth=1.5)
         handles.append(vertical_line)
         labels.append(vlines_label)
@@ -172,7 +182,7 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
                              epoch_losses_valid,
                              best_fold, batch_size, folds, early_stop):
-    matplot(np.append(np.roll(accuracies, 1), accuracies[-1]), f"{n_class}class Cross Validation", "Fold",
+    matplot(accuracies, f"{n_class}class Cross Validation", "Fold",
             "Accuracy in %",
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
