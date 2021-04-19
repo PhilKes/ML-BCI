@@ -124,10 +124,9 @@ def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
                 sample_idx += 1
 
     acc = 100 * accuracy_score(act_labels, pred_labels)
-    class_accuracies = get_class_accuracies(act_labels, pred_labels)
     print(F'Accuracy on the {len(data_loader.dataset)} test trials: %0.2f %%' % (
         acc))
-    print(F'Class Accuracies: {class_accuracies}')
+    print(F'Class Accuracies: {get_class_accuracies(act_labels, pred_labels)}')
     print("Testing finished ######")
     return acc, act_labels, pred_labels
 

@@ -385,8 +385,6 @@ actual_predicted= np.load("./results/2class_debug/excluded_1/training/3class_tra
 act_labels= actual_predicted['actual_labels']
 pred_labels= actual_predicted['pred_labels']
 
-#df = pd.DataFrame(data=actual_predicted, columns=['Actual','Predict'])
-#print(df)
 
 conf_mat=confusion_matrix(act_labels, pred_labels)
 print(conf_mat)
@@ -394,6 +392,9 @@ print(conf_mat)
 # Per-class accuracy
 class_accuracy=100*conf_mat.diagonal()/conf_mat.sum(1)
 print(class_accuracy)
+
+df = pd.DataFrame(data=conf_mat, columns=['P TO','P T1','P T2'], index=['A TO','A T1','A T2'])
+print(df)
 
 
 

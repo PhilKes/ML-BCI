@@ -6,7 +6,7 @@ from sklearn.metrics import confusion_matrix
 def get_class_accuracies(act_labels, pred_labels):
     conf_mat = confusion_matrix(act_labels, pred_labels)
     cm = conf_mat.astype('float') / conf_mat.sum(axis=1)[:, np.newaxis]
-    return cm.diagonal()
+    return 100 * cm.diagonal()
 
 
 # Source https://stackoverflow.com/questions/39770376/scikit-learn-get-accuracy-scores-for-each-class
