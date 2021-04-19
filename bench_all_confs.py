@@ -4,18 +4,19 @@ Script to execute benchmarking of all possible Configurations
 Executes main.py for every Configuration in benchmark mode and
 saves results in a parent folder (./results/benchmark/all_confs-{DateTime})
 Creates results.npz file containing all Batch Latency Avgs and Inference Time per Trial Avgs
-results can be visualized with visualize_results.py (provide --folder {parent_folder}
+results can be visualized with visualize_bench_all.py (provide --folder {parent_folder}
 """
 import argparse
 import numpy as np
 from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES
 from main import single_run
+from util.visualize_bench_all import visualize_benchmarks
 
 parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')
 parser.add_argument('--model', type=str, default=None,
                     help='Relative Folder path of model used to benchmark (in ./results/.../training folder)')
-parser.add_argument('--bs', nargs='+', type=int, default=[BATCH_SIZE],
+parser.add_argument('--bs', nargs='+', type=int, default=[8, 16, 32],
                     help=f'Trial Batch Size (default:{BATCH_SIZE})')
 parser.add_argument('--all', dest='continuous', action='store_false',
                     help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
@@ -36,10 +37,16 @@ if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
 # otherwise Error at outputs=net(inputs)(RuntimeError: NNPACK SpatialConvolution_updateOutput failed)
 # maybe related to: https://github.com/pytorch/pytorch/pull/49464
 all_confs = [
-    # ['--device', 'cpu'],
+    ['--device', 'cpu'],
     ['--device', 'gpu'],
     ['--device', 'gpu', '--trt'],
     ['--device', 'gpu', '--trt', '--fp16'],
+]
+conf_names = [
+    'c_cpu',
+    'c_gpu',
+    'c_gpu_trt_fp32',
+    'c_gpu_trt_fp16',
 ]
 if args.continuous:
     if args.iters == 1:
@@ -65,10 +72,12 @@ for i, conf in enumerate(all_confs):
     print(f"Conf {i} {conf}")
     for bs_idx, bs in enumerate(args.bs):
         # Make sure that batch_size !> 15 if CPU is used
-        batch_size = str(15) if (conf[1] == 'cpu') & (bs > 15) else str(bs)
+        if (conf[1] == 'cpu') & (int(bs) > 15):
+            continue
+        batch_size = str(bs)
         batch_lat_avgs[i][bs_idx], trial_inf_time_avgs[i][bs_idx] = single_run(default_options + conf +
-                                                                               ['--name', f"conf_{i}",
-                                                                                '--tag', f"bs_{bs}",
+                                                                               ['--name', conf_names[i],
+                                                                                '--tag', f"bs_{batch_size}",
                                                                                 '--bs', batch_size])
 # Save all results with numpy
 # Shapes:
@@ -80,4 +89,7 @@ np.savez(f"{parent_folder}/results.npz",
          batch_sizes=np.array(args.bs, dtype=np.int),
          batch_lat_avgs=batch_lat_avgs,
          trial_inf_time_avgs=trial_inf_time_avgs,
-         n_classes=np.array(args.n_classes, dtype=np.int))
+         n_classes=np.array(args.n_classes, dtype=np.int),
+         conf_names=conf_names)
+
+visualize_benchmarks(['--model', parent_folder])

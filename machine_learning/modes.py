@@ -31,6 +31,7 @@ from machine_learning.configs_results import training_config_str, create_results
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
     live_sim_result_str
+from machine_learning.util import get_class_accuracies, get_trials_per_class
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
@@ -105,6 +106,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         print(f"######### {n_class}Class-Classification")
         fold_accuracies = np.zeros((folds))
         best_losses_test, best_epochs_valid = np.full((folds), fill_value=np.inf), np.zeros((folds), dtype=np.int)
+        best_fold_act_labels, best_fold_pred_labels = None, None
         best_fold = -1
         class_accuracies, class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
         accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
@@ -135,29 +137,32 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
                 best_losses_test[fold] = best_epoch_loss_test
 
             print("## Testing ##")
-            test_accuracy, test_class_hits = do_test(model, loader_test, device, n_class)
+            test_accuracy, act_labels, pred_labels = do_test(model, loader_test, device, n_class)
             # Test overfitting by testing on Training Dataset
             if TEST_OVERFITTING:
                 print("## Testing on Training Dataset ##")
-                accuracies_overfitting[fold], train_class_hits = do_test(model, loader_train, device, n_class)
+                accuracies_overfitting[fold], _, __ = do_test(model, loader_train, device, n_class)
             # If not using early stopping, determine which fold has the highest accuracy
             if (not early_stop) & (test_accuracy > np.max(fold_accuracies)):
                 best_n_class_models[n_class] = model.state_dict().copy()
                 best_fold = fold
+                best_fold_act_labels = act_labels
+                best_fold_pred_labels = pred_labels
             fold_accuracies[fold] = test_accuracy
-            class_trials, class_accuracies[fold] = get_class_prediction_stats(n_class, test_class_hits)
+            class_trials, class_accuracies[fold] = get_trials_per_class(n_class, act_labels), \
+                                                   get_class_accuracies(act_labels, pred_labels)
         elapsed = datetime.now() - start
         # Calculate average accuracies per class
         avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
         res_str = training_result_str(fold_accuracies, accuracies_overfitting, class_trials, avg_class_accuracies,
-                                      elapsed,
-                                      best_epochs_valid, best_losses_test, best_fold, early_stop=early_stop)
+                                      elapsed, best_epochs_valid, best_losses_test, best_fold,(act_labels,pred_labels),
+                                      early_stop=early_stop)
         print(res_str)
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(fold_accuracies, class_accuracies, epoch_losses_train, epoch_losses_test, dir_results,
-                                 n_class, excluded)
+                                 n_class, excluded, labels=(best_fold_act_labels, best_fold_pred_labels))
         # Plot Statistics and save as .png s
         plot_training_statistics(dir_results, tag, n_class, fold_accuracies, avg_class_accuracies, epoch_losses_train,
                                  epoch_losses_test, best_fold, batch_size, folds, early_stop)
@@ -197,7 +202,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 
         epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
                                                                 num_epochs, device)
-        test_accuracy[0], test_class_hits = do_test(model, loader_test, device, n_class)
+        test_accuracy[0], test_class_hits, _, __ = do_test(model, loader_test, device, n_class)
 
         elapsed = datetime.now() - start
         class_trials, class_accuracies = get_class_prediction_stats(n_class, test_class_hits)
@@ -370,9 +375,10 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
                     f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1}",
-                    'Time in sec.', f'Prediction in %', fig_size=(40.0, 10.0),
+                    'Time in sec.', f'Prediction Outputs', fig_size=(30.0, 8.0),
                     vspans=vspans[first_trial:last_trial + 1],
-                    color_offset=n_class_offset,font_size=26.0,
+                    color_offset=n_class_offset, font_size=26.0,
+                    legend_hor=True,
                     vlines=vlines[(first_trial * slices):(last_trial + 1) * slices],
                     vlines_label="Trained timepoints", legend_loc='lower left',
                     ticks=trials_start_samples[first_trial:last_trial + 1],

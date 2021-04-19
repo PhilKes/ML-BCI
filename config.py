@@ -35,6 +35,8 @@ BATCH_SIZE = 16
 # Benchmark Settings
 SUBJECTS_CS = 10
 GPU_WARMUPS = 20
+# Jetson Nano cant handle bigger Batch Sizes when device'cpu'
+JETSON_CPU_MAX_BS= 15
 
 eegnet_config = DotDict(pool_size=4)
 

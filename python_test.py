@@ -11,12 +11,12 @@ import numpy as np
 import torch
 
 from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder, eeg_config
-from data.data_loading import load_n_classes_tasks, mne_load_subject_raw
+from data.data_loading import load_n_classes_tasks, mne_load_subject_raw, plot_live_sim_subject_run
 from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels_to_classes, map_times_to_samples
 from data.physionet_dataset import n_classes_live_run, MNE_CHANNELS
 from machine_learning.inference_training import do_predict_on_samples
 from machine_learning.modes import live_sim
-from util.plot import matplot
+from util.plot import matplot, matplot_legend, plot_accuracies
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -335,47 +335,65 @@ def check_bad_data(subjects, n_classes):
 # raw.plot(n_channels=1)
 # raw.plot_sensors()
 
-def print_eeg_live(used_subject=1, n_class=3, ch_names=MNE_CHANNELS):
-    ch_names=random.sample(MNE_CHANNELS,4)
-    dir_results="./results/plots_training"
-    # Load Raw Subject Run for n_class
-    raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
-    # Get Data from raw Run
-    X = get_data_from_raw(raw)
 
-    max_sample = raw.n_times
-    slices = 5
-    # times = raw.times[:max_sample]
-    trials_start_times = raw.annotations.onset
+# plot_live_sim_subject_run()
 
-    # Get samples of Trials Start Times
-    trials_start_samples = map_times_to_samples(raw, trials_start_times)
+# matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, bars=True, hor=True,
+#               save_path='./results/plots_training3', title='bs_legend')
 
-    # matplot(sample_predictions,
-    #         f"{n_class}class Live Simulation_S{subject:03d}",
-    #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
-    #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
-    #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
-    # Split into multiple plots, otherwise too long
-    plot_splits = 5
-    trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
-    n_class_offset = 0 if n_class > 2 else 1
-    for i in range(plot_splits):
-        first_trial = i * trials_split_size
-        last_trial = (i + 1) * trials_split_size - 1
-        first_sample = trials_start_samples[first_trial]
-        if i == plot_splits - 1:
-            last_sample = max_sample
-        else:
-            last_sample = trials_start_samples[last_trial + 1]
-        matplot(X,
-                f"EEG Recording (4 EEG Channels)",
-                'Time in sec.', f'Prediction in %', fig_size=(40.0, 10.0),
-                color_offset=n_class_offset, font_size=26.0,
-                vlines_label="Trained timepoints", legend_loc='lower right',
-                ticks=trials_start_samples[first_trial:last_trial + 1],
-                min_x=first_sample, max_x=last_sample,
-                x_values=trials_start_times[first_trial:last_trial + 1],
-                labels=ch_names, save_path=dir_results)
+defaults=np.asarray([82.222222,74.346183,65.69161])
 
-print_eeg_live()
+# Trials Slicing
+cl2_accs = np.asarray([ 70.578231, 63.452381])
+cl3_accs = np.asarray([ 56.507937, 48.310658])
+cl4_accs = np.asarray([ 41.802721, 35.246599])
+# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+#                 'Trials Slicing Accuracies',
+#                 ['0', '2', '4'],
+#                 './results/plots_training3/slicing',
+#                 xlabel='k Slices',
+#                 defaults=defaults
+#                 )
+
+# Channel Selection
+# cl2_accs=np.asarray([79.185941, 78.953515, 78.965986, 80.942177])
+# cl3_accs=np.asarray([67.893424, 67.202570, 69.123205, 69.858655])
+# cl4_accs=np.asarray([56.558957 , 56.397959, 58.505669, 61.540249])
+# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+#                 'EEG Channel Selection Accuracies',
+#                 ['0','16', '16_2', '16_openbci', '16_bs'],
+#                 './results/plots_training3/chs',
+#                 defaults=defaults,
+#                 )
+
+# Time Window
+# cl2_accs = np.asarray([ 80.93, 82.31])
+# cl3_accs = np.asarray([ 71.32, 74.33])
+# cl4_accs = np.asarray([ 60.52, 65.90])
+# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+#                 'Trials Slicing Accuracies',
+#                 ['0', '1s', '3s'],
+#                 './results/plots_training3/slicing',
+#                 xlabel='k Slices',
+#                 defaults=defaults
+#                 )
+
+import pandas as pd
+from sklearn.metrics import confusion_matrix
+
+actual_predicted= np.load("./results/2class_debug/excluded_1/training/3class_training_actual_predicted.npz")
+act_labels= actual_predicted['actual_labels']
+pred_labels= actual_predicted['pred_labels']
+
+#df = pd.DataFrame(data=actual_predicted, columns=['Actual','Predict'])
+#print(df)
+
+conf_mat=confusion_matrix(act_labels, pred_labels)
+print(conf_mat)
+
+# Per-class accuracy
+class_accuracy=100*conf_mat.diagonal()/conf_mat.sum(1)
+print(class_accuracy)
+
+
+

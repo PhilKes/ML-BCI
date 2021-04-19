@@ -6,6 +6,7 @@ On initial Run MNE downloads the Physionet Dataset into ./data/datasets
 """
 import collections
 import math
+import random
 
 import mne
 import numpy as np
@@ -22,14 +23,18 @@ from tqdm import tqdm
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
-    get_equal_trials_per_class, split_trials, get_runs_of_n_classes
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET
+    get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples
+from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET, \
+    n_classes_live_run
 from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr, print_numpy_counts
 
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
 # also returns Validtion Loader containing validation_subjects subject for loss calculation
+from util.plot import matplot
+
+
 def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
                                equal_trials=True, used_subjects=ALL_SUBJECTS):
@@ -346,3 +351,48 @@ class TrialsDataset(Dataset):
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y
+
+
+def plot_live_sim_subject_run(used_subject=1, n_class=3, ch_names=MNE_CHANNELS):
+    ch_names = random.sample(MNE_CHANNELS, 4)
+    ch_names = ['F4', 'Oz', 'F7', 'F6']
+    dir_results = "./results/plots_training"
+    # Load Raw Subject Run for n_class
+    raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
+    # Get Data from raw Run
+    X = get_data_from_raw(raw)
+
+    max_sample = raw.n_times
+    slices = 5
+    # times = raw.times[:max_sample]
+    trials_start_times = raw.annotations.onset
+
+    # Get samples of Trials Start Times
+    trials_start_samples = map_times_to_samples(raw, trials_start_times)
+
+    # matplot(sample_predictions,
+    #         f"{n_class}class Live Simulation_S{subject:03d}",
+    #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+    #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
+    #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
+    # Split into multiple plots, otherwise too long
+    plot_splits = 8
+    trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
+    n_class_offset = 0 if n_class > 2 else 1
+    for i in range(plot_splits):
+        first_trial = i * trials_split_size
+        last_trial = (i + 1) * trials_split_size - 1
+        first_sample = trials_start_samples[first_trial]
+        if i == plot_splits - 1:
+            last_sample = max_sample
+        else:
+            last_sample = trials_start_samples[last_trial + 1]
+        matplot(X,
+                f"EEG Recording (4 EEG Channels)",
+                'Time in sec.', f'Prediction in %', fig_size=(20.0, 10.0),
+                color_offset=n_class_offset, font_size=32.0,
+                vlines_label="Trained timepoints", legend_loc='lower right',
+                ticks=trials_start_samples[first_trial:last_trial + 1],
+                min_x=first_sample, max_x=last_sample,
+                x_values=trials_start_times[first_trial:last_trial + 1],
+                labels=ch_names, save_path=dir_results)

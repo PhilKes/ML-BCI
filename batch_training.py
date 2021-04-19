@@ -15,7 +15,7 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "plots_training2"
+folder = "plots_training4"
 n_classes = ['2', '3', '4']
 excluded_subject = 1
 excluded_params = ['--excluded', f'{excluded_subject}']
@@ -27,36 +27,48 @@ confs = {
         'params': [[]],
         'names': ['defaults']
     },
-    # 'slicing_4s': {
-    #     'params': [['--tmin', '0', '--tmax', '4'] + excluded_params,
-    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'] + excluded_params,
-    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params,
-    #                ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'] + excluded_params],
-    #     'names': ['no_slices', '2_slices', '4_slices', '4_slices_rests_from_runs'],
-    #     'init': [
-    #         lambda: None,
-    #         lambda: None,
-    #         lambda: None,
-    #         lambda: set_rest_from_bl_run(False)],
-    #     'after': lambda: set_rest_from_bl_run(True)
-    # },
-    # 'tmax': {
-    #     # main.py -train Params for each run
-    #     'params': [['--tmin', '0', '--tmax', '1'] + excluded_params,
-    #                ['--tmin', '0', '--tmax', '4'] + excluded_params,
-    #                ['--tmin', '-1', '--tmax', '5'] + excluded_params],
-    #     # name for subfolder for each run
-    #     'names': ['tmax_1', 'tmax_4', 'tmin_-1_tmax_5'],
-    #     # Initialize methods for each run to set global settings (optional)
-    #     # len(params) = len(names) = len(init)
-    #     # 'init': [
-    #     #     lambda: set_eeg_times(0, 1),
-    #     #     lambda: set_eeg_times(0, 4),
-    #     #     lambda: set_eeg_times(-1, 5),
-    #     # ],
-    #     # Execute after all runs finished -> reset changed parameters (optional)
-    #     'after': lambda: reset_eeg_times(),
-    # },
+    'slicing': {
+        'params': [
+            # ['--tmin', '0', '--tmax', '4'],
+            ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'],
+            ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+            ['--tmin', '0', '--tmax', '4', '--trials_slices', '8']],
+        'names': [
+            # 'no_slices',
+            '2_slices',
+            '4_slices'
+            '8_slices'
+        ],
+        'init': [
+            lambda: None,
+            lambda: None,
+            lambda: None
+        ],
+        'after': lambda: set_rest_from_bl_run(True)
+    },
+    'tmin_tmax': {
+        # main.py -train Params for each run
+        'params': [
+            ['--tmin', '0', '--tmax', '1'],
+            ['--tmin', '0', '--tmax', '3'],
+            ['--tmin', '-0.5', '--tmax', '3'],
+            ['--tmin', '0', '--tmax', '4'],
+            ['--tmin', '-1', '--tmax', '5']
+        ],
+        # name for subfolder for each run
+        'names': [
+            'tmax_1', 'tmax_3',
+            'tmin_-05_tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
+        # Initialize methods for each run to set global settings (optional)
+        # len(params) = len(names) = len(init)
+        # 'init': [
+        #     lambda: set_eeg_times(0, 1),
+        #     lambda: set_eeg_times(0, 4),
+        #     lambda: set_eeg_times(-1, 5),
+        # ],
+        # Execute after all runs finished -> reset changed parameters (optional)
+        'after': lambda: reset_eeg_times(),
+    },
     # 'rest_trials': {
     #     'params': [[] + excluded_params, [] + excluded_params, [] + excluded_params, [] + excluded_params],
     #     'names': ['from_bl_run_4_less_rests', 'from_bl_run', 'from_runs', 'from_runs_4_less_rests'],
@@ -79,17 +91,16 @@ confs = {
     #     'after': lambda: set_poolsize(4)
     # },
     'chs': {
-        'params': [['--ch_motorimg', '16'] + excluded_params,
-                   ['--ch_motorimg', '16_2'] + excluded_params,
-                   ['--ch_motorimg', '16_openbci'] + excluded_params,
-                   ['--ch_motorimg', '16_bs'] + excluded_params],
+        'params': [['--ch_motorimg', '16'],
+                   ['--ch_motorimg', '16_2'],
+                   ['--ch_motorimg', '16_openbci'],
+                   ['--ch_motorimg', '16_bs']],
         'names': ['motorimg_16', 'motorimg_16_2', 'motorimg_16_openbci', 'motorimg_16_bs']
     },
     'excluded': {
         'params': [['--excluded', '42']],
         'names': ['excl_42']
     },
-
 }
 
 # Loop to execute all Configurations
@@ -139,6 +150,7 @@ for conf_name in confs:
     columns = []
     for n_class in n_classes:
         columns.append(f"{n_class}class Acc")
+    for n_class in n_classes:
         columns.append(f"{n_class}class OF")
     df = pd.DataFrame(data=runs_results, index=conf['names'], columns=columns)
     # Write results into .csv and .txt

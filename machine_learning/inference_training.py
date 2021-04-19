@@ -9,6 +9,7 @@ import numpy as np
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
+from sklearn.metrics import accuracy_score
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
@@ -27,6 +28,7 @@ from config import LR, eeg_config
 # best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
 # best_epoch: best_epoch with lowest test_loss if early_stop=True
 from machine_learning.configs_results import benchmark_single_result_str
+from machine_learning.util import get_class_accuracies
 
 
 def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
@@ -89,7 +91,7 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("c
                   (epoch, epoch_loss_train, epoch_loss_valid))
             loss_values_valid[epoch] = epoch_loss_valid
         else:
-            print('[%3d] Training loss/batch: %f' %(epoch, epoch_loss_train))
+            print('[%3d] Training loss/batch: %f' % (epoch, epoch_loss_train))
         loss_values_train[epoch] = epoch_loss_train
 
         lr_scheduler.step()
@@ -101,8 +103,9 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("c
 # Tests labeled data with trained net
 def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
     print("###### Testing started")
-    total, correct = 0.0, 0.0
-    class_hits = [[] for i in range(n_class)]
+    act_labels = np.zeros((len(data_loader.dataset)), dtype=np.int)
+    pred_labels = np.zeros((len(data_loader.dataset)), dtype=np.int)
+    sample_idx = 0
     with torch.no_grad():
         model.eval()
         for data in data_loader:
@@ -114,26 +117,19 @@ def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
             #   revert np.eye -> [0 0 1] = 2, [1 0 0] = 0
             #   labels = np.argmax(labels.cpu(), axis=1)
             labels = labels.cpu()
-            total += labels.size(0)
             for (pred, label) in zip(predicted, labels):
                 pred, label = int(pred.item()), int(label.item())
-                if pred == label:
-                    correct += 1
-                    class_hits[label].append(1)
-                else:
-                    class_hits[label].append(0)
+                act_labels[sample_idx] = label
+                pred_labels[sample_idx] = pred
+                sample_idx += 1
 
-    acc = (100 * correct / total)
-    class_accuracies = np.zeros(n_class)
-    print("Trials for classes:")
-    for i in range(n_class):
-        print(len(class_hits[i]))
-        class_accuracies[i] = (100 * (sum(class_hits[i]) / len(class_hits[i])))
+    acc = 100 * accuracy_score(act_labels, pred_labels)
+    class_accuracies = get_class_accuracies(act_labels, pred_labels)
     print(F'Accuracy on the {len(data_loader.dataset)} test trials: %0.2f %%' % (
         acc))
     print(F'Class Accuracies: {class_accuracies}')
     print("Testing finished ######")
-    return acc, class_hits
+    return acc, act_labels, pred_labels
 
 
 # Benchmarks net on Inference Time in Batches
@@ -204,7 +200,7 @@ def do_predict_single(model, X, device=torch.device("cpu")):
         output = model(X)
         # print("Out",output)
         # _, predicted = torch.max(output.data.cpu(), 1)
-        #predicted = F.softmax(output, dim=1)
+        # predicted = F.softmax(output, dim=1)
         predicted = output
     # TODO no softmax -> plot max y
     return predicted.cpu()
