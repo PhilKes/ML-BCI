@@ -1,6 +1,7 @@
 """
 Helper functions for Plotting using matplotlib
 """
+import itertools
 import math
 import os
 
@@ -11,11 +12,13 @@ import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from matplotlib import lines
+from sklearn.metrics import confusion_matrix
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import PLOT_TO_PDF, eeg_config
+from config import PLOT_TO_PDF, eeg_config, N_CLASSES
+from data.physionet_dataset import class_labels
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']
@@ -33,6 +36,8 @@ def get_color(idx):
 # vspans: List of vertical Rectangles to draw
 #         Item Tuple: (X1,X2,color_idx)
 # vlines: List of vertical Lines to draw
+#         Item Tuple: (X,color_idx)
+# hlines: List of horizontal dotted Lines to draw
 #         Item Tuple: (X,color_idx)
 def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_path=None, bar_plot=False,
             x_values=None, ticks=None, fig_size=None, font_size=17.0,
@@ -338,3 +343,56 @@ def create_vlines_from_trials_epochs(raw, vline_xs, tdelta, slices):
             # -1: color_idx -> see plot.py colors[]
             vlines.append((trial_tdelta_sample, -1))
     return vlines
+
+
+def plot_confusion_matrix(cm, classes, normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues,
+                          save_path=None
+                          ):
+    plt.rc('font', family='serif')
+    plt.rcParams.update({'font.size': 15})
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt), horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('Actual label')
+    plt.xlabel('Predicted label')
+
+    if save_path is not None:
+        fig = plt.gcf()
+        # np.save(f"{save_path}/{title}.npy", data)
+        # save as PDF
+        fig.savefig(f"{save_path}/{title}.png")
+        if PLOT_TO_PDF:
+            fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
+
+    plt.show()
+
+
+# Plot n_classes Confusion Matrices of Training Results
+def plot_confusion_matrices(model_path, n_classes=N_CLASSES):
+    for n_class in n_classes:
+        actual_predicted = np.load(os.path.join(model_path, f"{n_class}class_training_actual_predicted.npz"))
+        conf_mat = confusion_matrix(actual_predicted['actual_labels'], actual_predicted['pred_labels'])
+        plot_confusion_matrix(conf_mat, class_labels[n_class],
+                              title=f'{n_class}class Confusion Matrix of best Fold',
+                              save_path=model_path)

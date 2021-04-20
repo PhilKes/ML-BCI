@@ -10,7 +10,7 @@ import numpy as np
 
 from machine_learning.models.eegnet import get_padding
 
-
+# TODO
 class DoseNet(nn.Module):
     def __init__(self, C, n_class, T, l1=0):
         super(DoseNet, self).__init__()

@@ -10,13 +10,14 @@ import mne
 import numpy as np
 import torch
 
-from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder, eeg_config
+from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder, eeg_config, \
+    MOTORIMG_CHANNELS_16
 from data.data_loading import load_n_classes_tasks, mne_load_subject_raw, plot_live_sim_subject_run
 from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels_to_classes, map_times_to_samples
 from data.physionet_dataset import n_classes_live_run, MNE_CHANNELS
 from machine_learning.inference_training import do_predict_on_samples
 from machine_learning.modes import live_sim
-from util.plot import matplot, matplot_legend, plot_accuracies
+from util.plot import matplot, matplot_legend, plot_accuracies, plot_confusion_matrix, plot_confusion_matrices
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -341,12 +342,12 @@ def check_bad_data(subjects, n_classes):
 # matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, bars=True, hor=True,
 #               save_path='./results/plots_training3', title='bs_legend')
 
-defaults=np.asarray([82.222222,74.346183,65.69161])
+defaults = np.asarray([82.222222, 74.346183, 65.69161])
 
 # Trials Slicing
-cl2_accs = np.asarray([ 70.578231, 63.452381])
-cl3_accs = np.asarray([ 56.507937, 48.310658])
-cl4_accs = np.asarray([ 41.802721, 35.246599])
+cl2_accs = np.asarray([70.578231, 63.452381])
+cl3_accs = np.asarray([56.507937, 48.310658])
+cl4_accs = np.asarray([41.802721, 35.246599])
 # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
 #                 'Trials Slicing Accuracies',
 #                 ['0', '2', '4'],
@@ -378,23 +379,31 @@ cl4_accs = np.asarray([ 41.802721, 35.246599])
 #                 defaults=defaults
 #                 )
 
-import pandas as pd
-from sklearn.metrics import confusion_matrix
+# import pandas as pd
+# from sklearn.metrics import confusion_matrix
+#
+# actual_predicted= np.load("./results/plots_training4/defaults/conf_defaults/training/2class_training_actual_predicted.npz")
+# act_labels= actual_predicted['actual_labels']
+# pred_labels= actual_predicted['pred_labels']
+#
+#
+# conf_mat=confusion_matrix(act_labels, pred_labels)
+# plot_confusion_matrix(conf_mat,['T1','T2'],
+#                       title=f'2class Confusion Matrix',
+#                       save_path='./results/plots_training4/defaults/conf_defaults')
+# print(conf_mat)
+#
+# # Per-class accuracy
+# class_accuracy=100*conf_mat.diagonal()/conf_mat.sum(1)
+# print(class_accuracy)
+#
+# df = pd.DataFrame(data=conf_mat, columns=['P TO','P T1','P T2'], index=['A TO','A T1','A T2'])
+# print(df)
+#
 
-actual_predicted= np.load("./results/2class_debug/excluded_1/training/3class_training_actual_predicted.npz")
-act_labels= actual_predicted['actual_labels']
-pred_labels= actual_predicted['pred_labels']
+#plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
+#plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
 
-
-conf_mat=confusion_matrix(act_labels, pred_labels)
-print(conf_mat)
-
-# Per-class accuracy
-class_accuracy=100*conf_mat.diagonal()/conf_mat.sum(1)
-print(class_accuracy)
-
-df = pd.DataFrame(data=conf_mat, columns=['P TO','P T1','P T2'], index=['A TO','A T1','A T2'])
-print(df)
-
+plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")
 
 

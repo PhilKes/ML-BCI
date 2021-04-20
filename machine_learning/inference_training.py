@@ -117,6 +117,7 @@ def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
             #   revert np.eye -> [0 0 1] = 2, [1 0 0] = 0
             #   labels = np.argmax(labels.cpu(), axis=1)
             labels = labels.cpu()
+            # Get actual and predicted label for current batch
             for (pred, label) in zip(predicted, labels):
                 pred, label = int(pred.item()), int(label.item())
                 act_labels[sample_idx] = label
@@ -201,5 +202,4 @@ def do_predict_single(model, X, device=torch.device("cpu")):
         # _, predicted = torch.max(output.data.cpu(), 1)
         # predicted = F.softmax(output, dim=1)
         predicted = output
-    # TODO no softmax -> plot max y
     return predicted.cpu()

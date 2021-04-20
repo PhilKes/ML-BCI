@@ -97,4 +97,10 @@ classes_trials = {
     },
 }
 
+class_labels = {
+    2: ['L', 'R'],
+    3: ['Rest', 'L', 'R'],
+    4: ['Rest', 'L', 'R', 'D'],
+}
+
 mne_dataset = eegbci

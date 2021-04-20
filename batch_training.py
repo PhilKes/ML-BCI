@@ -30,13 +30,13 @@ confs = {
     'slicing': {
         'params': [
             # ['--tmin', '0', '--tmax', '4'],
-            ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'],
-            ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+            # ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'],
+            # ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
             ['--tmin', '0', '--tmax', '4', '--trials_slices', '8']],
         'names': [
             # 'no_slices',
-            '2_slices',
-            '4_slices'
+            # '2_slices',
+            # '4_slices',
             '8_slices'
         ],
         'init': [

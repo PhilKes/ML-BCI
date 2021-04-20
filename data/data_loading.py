@@ -26,8 +26,7 @@ from data.data_utils import dec_label, increase_label, normalize_data, get_trial
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples
 from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET, \
     n_classes_live_run
-from util.misc import print_subjects_ranges, split_np_into_chunks, unified_shuffle_arr, print_numpy_counts
-
+from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
@@ -353,12 +352,12 @@ class TrialsDataset(Dataset):
         return X, y
 
 
-def plot_live_sim_subject_run(used_subject=1, n_class=3, ch_names=MNE_CHANNELS):
-    ch_names = random.sample(MNE_CHANNELS, 4)
-    ch_names = ['F4', 'Oz', 'F7', 'F6']
-    dir_results = "./results/plots_training"
+# Plots Subject Run with raw EEG Channel data
+def plot_live_sim_subject_run(subject=1, n_class=3, save_path="./results/plots_training", ch_names=MNE_CHANNELS):
+    # ch_names = ['F4', 'Oz', 'F7', 'F6']
+
     # Load Raw Subject Run for n_class
-    raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
+    raw = mne_load_subject_raw(subject, n_classes_live_run[n_class], ch_names=ch_names)
     # Get Data from raw Run
     X = get_data_from_raw(raw)
 
@@ -388,11 +387,11 @@ def plot_live_sim_subject_run(used_subject=1, n_class=3, ch_names=MNE_CHANNELS):
         else:
             last_sample = trials_start_samples[last_trial + 1]
         matplot(X,
-                f"EEG Recording (4 EEG Channels)",
+                f"EEG Recording ({len(ch_names)} EEG Channels)",
                 'Time in sec.', f'Prediction in %', fig_size=(20.0, 10.0),
                 color_offset=n_class_offset, font_size=32.0,
                 vlines_label="Trained timepoints", legend_loc='lower right',
                 ticks=trials_start_samples[first_trial:last_trial + 1],
                 min_x=first_sample, max_x=last_sample,
                 x_values=trials_start_times[first_trial:last_trial + 1],
-                labels=ch_names, save_path=dir_results)
+                labels=ch_names, save_path=save_path)

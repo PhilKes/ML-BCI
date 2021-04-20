@@ -19,32 +19,20 @@ from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
 from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
     create_preloaded_loader, create_n_class_loaders_from_subject
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, \
-    get_correctly_predicted_areas
+from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
 from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
-from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
-from machine_learning.models.dosenet import DoseNet
-from machine_learning.models.eegnet import EEGNet
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     get_trained_model_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
     live_sim_result_str
-from machine_learning.util import get_class_accuracies, get_trials_per_class
+from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
+from machine_learning.models.eegnet import EEGNet
+from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
-
-
-# Torch to TensorRT for model optimizations
-# https://github.com/NVIDIA-AI-IOT/torch2trt
-# Comment out if TensorRt is not installed
-# if torch.cuda.is_available():
-#     import ctypes
-#     from torch2trt import torch2trt
-#
-#     _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Runs Training + Testing
@@ -152,10 +140,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             class_trials, class_accuracies[fold] = get_trials_per_class(n_class, act_labels), \
                                                    get_class_accuracies(act_labels, pred_labels)
         elapsed = datetime.now() - start
-        # Calculate average accuracies per class
         avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
         res_str = training_result_str(fold_accuracies, accuracies_overfitting, class_trials, avg_class_accuracies,
-                                      elapsed, best_epochs_valid, best_losses_test, best_fold,(act_labels,pred_labels),
+                                      elapsed, best_epochs_valid, best_losses_test, best_fold,
+                                      (best_fold_act_labels, best_fold_pred_labels),
                                       early_stop=early_stop)
         print(res_str)
 
@@ -202,7 +190,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 
         epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
                                                                 num_epochs, device)
-        test_accuracy[0], test_class_hits, _, __ = do_test(model, loader_test, device, n_class)
+        test_accuracy[0], _, __ = do_test(model, loader_test, device, n_class)
 
         elapsed = datetime.now() - start
         class_trials, class_accuracies = get_class_prediction_stats(n_class, test_class_hits)
@@ -390,36 +378,3 @@ def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
         print(res_str)
         save_live_sim_results(n_class, res_str, dir_results, tag)
     return
-
-
-# Run some example Inferences to warm up the GPU
-def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
-    print("Warming up GPU")
-    for u in range(warm_ups):
-        with torch.no_grad():
-            data = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
-            y = model(data.half() if fp16 else data)
-
-
-# Return EEGNet model
-# pretrained state will be loaded if present
-def get_model(n_class, chs, device, model_path=None):
-    model = EEGNet(N=n_class, T=eeg_config.SAMPLES, C=chs)
-    # model = DoseNet(C=chs, n_class=n_class, T=eeg_config.SAMPLES)
-    if model_path is not None:
-        model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
-    model.to(device)
-    return model
-
-
-# Returns EEGNet model optimized with TensorRT (fp16/32)
-def get_tensorrt_model(model, batch_size, chs, device, fp16):
-    t = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
-    # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
-    # TensorRT either with fp16 ("half") or fp32
-    if fp16:
-        t = t.half()
-        model = model.half()
-    model = torch2trt(model, [t], max_batch_size=batch_size, fp16_mode=fp16)
-    print(f"Optimized EEGNet model with TensorRT (fp{'16' if fp16 else '32'})")
-    return model
