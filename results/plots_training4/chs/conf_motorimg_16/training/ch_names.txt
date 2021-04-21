@@ -1,0 +1,16 @@
+Fc5
+Fc3
+Fc1
+Fc2
+Fc4
+Fc6
+C3
+C1
+C2
+C4
+Cp5
+Cp3
+Cp1
+Cp2
+Cp4
+Cp6

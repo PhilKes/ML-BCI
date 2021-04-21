@@ -1,0 +1,2 @@
+          2class Acc  3class Acc  4class Acc  2class OF  3class OF  4class OF
+defaults   82.131519   72.637944   65.272109   -5.53288  -7.705971  -7.230726

@@ -1,0 +1,6 @@
+#### Results ####
+Classes:3
+Elapsed Time: 0:01:46.532248
+Avg correctly predicted Area of Trial:0.00
+###############
+

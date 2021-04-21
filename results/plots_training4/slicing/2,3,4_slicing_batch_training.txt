@@ -1,0 +1,2 @@
+          2class Acc  3class Acc  4class Acc  2class OF  3class OF  4class OF
+8_slices   60.651927   40.733182   32.285998   -2.57157  -5.265023  -4.870323

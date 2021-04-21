@@ -125,6 +125,8 @@ MOTORIMG_CHANNELS_16_bs = [
     'P7', 'Po7', 'O1', 'Oz', 'O2', 'Po4', 'P8',
     'Iz'
 ]
+# Inspired by:
+# https://www.sciencedirect.com/science/article/pii/S0925231215002295
 MOTORIMG_CHANNELS_16_csp = [
     'Af3', 'Afz',
     'F3', 'Fz',

@@ -96,6 +96,13 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
             plt.grid()
 
     handles, llabels = ax.get_legend_handles_labels()
+
+    # X Labels font size
+    # for tick in ax.xaxis.get_major_ticks():
+    #     tick.label.set_fontsize(13)
+    #     # specify integer or one of preset strings, e.g.
+    #     # tick.label.set_fontsize('x-small')
+
     for i, hline in enumerate(hlines):
         avline = ax.axhline(hline, color=hlines_colors[i] if hlines_colors is not None else 'red', linestyle='--')
 

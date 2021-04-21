@@ -349,29 +349,29 @@ defaults = np.asarray([82.131519, 72.637944, 65.272109])
 cl2_accs = np.asarray([71.76, 58.78, 60.651927])
 cl3_accs = np.asarray([56.15, 47.49, 40.733182])
 cl4_accs = np.asarray([41.802721, 35.10, 32.285998])
-plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-                'Trials Slicing Accuracies',
-                ['2', '4', '8'],
-                './results/plots_training4/slicing',
-                xlabel='k Slices',
-                defaults=defaults
-                )
+# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+#                 'Trials Slicing Accuracies',
+#                 ['2', '4', '8'],
+#                 './results/plots_training4/slicing',
+#                 xlabel='k Slices',
+#                 defaults=defaults
+#                 )
 
 # Channel Selection
-cl2_accs = np.asarray([79.185941, 78.953515, 78.965986, 80.942177])
-cl3_accs = np.asarray([67.893424, 67.202570, 69.123205, 69.858655])
-cl4_accs = np.asarray([56.558957, 56.397959, 58.505669, 61.540249])
+cl2_accs = np.asarray([78.752834, 79.433107, 79.297052, 80.589569])
+cl3_accs = np.asarray([67.951625, 67.089947, 68.465608, 71.156463])
+cl4_accs = np.asarray([56.893424, 56.734694, 58.015873, 61.678005])
 # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-#                 'EEG Channel Selection Accuracies',
-#                 ['chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_csp', 'chs_16_bs'],
+#                 'EEG 16-Channel Selections Accuracies',
+#                 ['chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_bs'],
 #                 './results/plots_training4/chs',
 #                 defaults=defaults,
 #                 )
 
 # Time Window
-cl2_accs = np.asarray([80.93, 82.31])
-cl3_accs = np.asarray([71.32, 74.33])
-cl4_accs = np.asarray([60.52, 65.90])
+cl2_accs = np.asarray([80.793651, 82.244898, 81.655329, 82.539683, 88.548753])
+cl3_accs = np.asarray([73.091459, 74.270597, 75.177627, 70.506425, 80.982615])
+cl4_accs = np.asarray([62.335601, 65.079365, 65.272109, 65.034014, 71.031746])
 # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
 #                 'Trial Time Window Accuracies',
 #                 ['[0;1]', '[0;3]', '[-0.5;3]', '[0;4]', '[-1;5]'],

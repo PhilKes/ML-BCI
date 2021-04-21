@@ -190,10 +190,11 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 
         epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
                                                                 num_epochs, device)
-        test_accuracy[0], _, __ = do_test(model, loader_test, device, n_class)
+        test_accuracy[0], act_labels, pred_labels = do_test(model, loader_test, device, n_class)
 
         elapsed = datetime.now() - start
-        class_trials, class_accuracies = get_class_prediction_stats(n_class, test_class_hits)
+        class_trials, class_accuracies = get_trials_per_class(n_class, act_labels), \
+                                               get_class_accuracies(act_labels, pred_labels)
 
         res_str = training_ss_result_str(test_accuracy[0], class_trials, class_accuracies, elapsed)
         print(res_str)
