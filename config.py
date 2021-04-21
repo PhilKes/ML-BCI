@@ -36,7 +36,7 @@ BATCH_SIZE = 16
 SUBJECTS_CS = 10
 GPU_WARMUPS = 20
 # Jetson Nano cant handle bigger Batch Sizes when device'cpu'
-JETSON_CPU_MAX_BS= 15
+JETSON_CPU_MAX_BS = 15
 
 eegnet_config = DotDict(pool_size=4)
 
@@ -125,6 +125,15 @@ MOTORIMG_CHANNELS_16_bs = [
     'P7', 'Po7', 'O1', 'Oz', 'O2', 'Po4', 'P8',
     'Iz'
 ]
+MOTORIMG_CHANNELS_16_csp = [
+    'Af3', 'Afz',
+    'F3', 'Fz',
+    'Fc3', 'Fc2',
+    'C5', 'C3', 'C1', 'Cz',
+    'Cp3', 'Cp1',
+    'P3', 'P1', 'Pz',
+    'Poz'
+]
 MOTORIMG_CHANNELS_14 = [
     'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4',
     'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
@@ -196,6 +205,7 @@ MOTORIMG_CHANNELS = {
     '14_3': MOTORIMG_CHANNELS_14_3, '14_4': MOTORIMG_CHANNELS_14_4,
     '16': MOTORIMG_CHANNELS_16, '16_2': MOTORIMG_CHANNELS_16_2,
     '16_openbci': MOTORIMG_CHANNELS_16_openbci,
+    '16_csp': MOTORIMG_CHANNELS_16_csp,
     '16_bs': MOTORIMG_CHANNELS_16_bs,
     '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21
 }

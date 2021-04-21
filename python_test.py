@@ -342,68 +342,45 @@ def check_bad_data(subjects, n_classes):
 # matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, bars=True, hor=True,
 #               save_path='./results/plots_training3', title='bs_legend')
 
-defaults = np.asarray([82.222222, 74.346183, 65.69161])
+# plots_training4:
+defaults = np.asarray([82.131519, 72.637944, 65.272109])
 
 # Trials Slicing
-cl2_accs = np.asarray([70.578231, 63.452381])
-cl3_accs = np.asarray([56.507937, 48.310658])
-cl4_accs = np.asarray([41.802721, 35.246599])
-# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-#                 'Trials Slicing Accuracies',
-#                 ['0', '2', '4'],
-#                 './results/plots_training3/slicing',
-#                 xlabel='k Slices',
-#                 defaults=defaults
-#                 )
+cl2_accs = np.asarray([71.76, 58.78, 60.651927])
+cl3_accs = np.asarray([56.15, 47.49, 40.733182])
+cl4_accs = np.asarray([41.802721, 35.10, 32.285998])
+plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+                'Trials Slicing Accuracies',
+                ['2', '4', '8'],
+                './results/plots_training4/slicing',
+                xlabel='k Slices',
+                defaults=defaults
+                )
 
 # Channel Selection
-# cl2_accs=np.asarray([79.185941, 78.953515, 78.965986, 80.942177])
-# cl3_accs=np.asarray([67.893424, 67.202570, 69.123205, 69.858655])
-# cl4_accs=np.asarray([56.558957 , 56.397959, 58.505669, 61.540249])
+cl2_accs = np.asarray([79.185941, 78.953515, 78.965986, 80.942177])
+cl3_accs = np.asarray([67.893424, 67.202570, 69.123205, 69.858655])
+cl4_accs = np.asarray([56.558957, 56.397959, 58.505669, 61.540249])
 # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
 #                 'EEG Channel Selection Accuracies',
-#                 ['0','16', '16_2', '16_openbci', '16_bs'],
-#                 './results/plots_training3/chs',
+#                 ['chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_csp', 'chs_16_bs'],
+#                 './results/plots_training4/chs',
 #                 defaults=defaults,
 #                 )
 
 # Time Window
-# cl2_accs = np.asarray([ 80.93, 82.31])
-# cl3_accs = np.asarray([ 71.32, 74.33])
-# cl4_accs = np.asarray([ 60.52, 65.90])
+cl2_accs = np.asarray([80.93, 82.31])
+cl3_accs = np.asarray([71.32, 74.33])
+cl4_accs = np.asarray([60.52, 65.90])
 # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-#                 'Trials Slicing Accuracies',
-#                 ['0', '1s', '3s'],
-#                 './results/plots_training3/slicing',
-#                 xlabel='k Slices',
+#                 'Trial Time Window Accuracies',
+#                 ['[0;1]', '[0;3]', '[-0.5;3]', '[0;4]', '[-1;5]'],
+#                 './results/plots_training4/tmin_tmax',
+#                 xlabel='Time Window in sec.',
 #                 defaults=defaults
 #                 )
 
-# import pandas as pd
-# from sklearn.metrics import confusion_matrix
-#
-# actual_predicted= np.load("./results/plots_training4/defaults/conf_defaults/training/2class_training_actual_predicted.npz")
-# act_labels= actual_predicted['actual_labels']
-# pred_labels= actual_predicted['pred_labels']
-#
-#
-# conf_mat=confusion_matrix(act_labels, pred_labels)
-# plot_confusion_matrix(conf_mat,['T1','T2'],
-#                       title=f'2class Confusion Matrix',
-#                       save_path='./results/plots_training4/defaults/conf_defaults')
-# print(conf_mat)
-#
-# # Per-class accuracy
-# class_accuracy=100*conf_mat.diagonal()/conf_mat.sum(1)
-# print(class_accuracy)
-#
-# df = pd.DataFrame(data=conf_mat, columns=['P TO','P T1','P T2'], index=['A TO','A T1','A T2'])
-# print(df)
-#
+# plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
+# plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
 
-#plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
-#plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
-
-plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")
-
-
+# plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")

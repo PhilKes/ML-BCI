@@ -306,7 +306,7 @@ def plot_accuracies(accs_2cl, accs_3cl, accs_4cl, title,
     labels = ['2class', '3class', '4class']
     x = np.zeros((3, accs_2cl.shape[-1]))
     x[0], x[1], x[2], = accs_2cl, accs_3cl, accs_4cl
-
+    x_values = ['0'] + x_values
     matplot(data=x, title=title,
             ylabel='Accuracy in %',
             x_values=x_values,
@@ -374,8 +374,8 @@ def plot_confusion_matrix(cm, classes, normalize=False,
                  color="white" if cm[i, j] > thresh else "black")
 
     plt.tight_layout()
-    plt.ylabel('Actual label')
-    plt.xlabel('Predicted label')
+    plt.ylabel('Actual class')
+    plt.xlabel('Predicted class')
 
     if save_path is not None:
         fig = plt.gcf()
