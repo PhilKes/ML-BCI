@@ -73,10 +73,10 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
     np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
 
 
-def save_training_numpy_data(test_accs, class_accuracies, train_losses, test_losses, save_path, n_class,
+def save_training_numpy_data(fold_accs, class_accuracies, epoch_losses_train, epoch_losses_test, save_path, n_class,
                              excluded_subjects, labels=None):
-    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=test_accs, train_losses=train_losses,
-             class_accs=class_accuracies, test_losses=test_losses,
+    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=fold_accs, train_losses=epoch_losses_train,
+             class_accs=class_accuracies, test_losses=epoch_losses_test,
              tmin=eeg_config.TMIN, tmax=eeg_config.TMAX, slices=eeg_config.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int))
     if labels is not None:

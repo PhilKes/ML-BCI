@@ -17,8 +17,9 @@ from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
-from config import PLOT_TO_PDF, eeg_config, N_CLASSES
+from config import PLOT_TO_PDF, eeg_config, N_CLASSES, BATCH_SIZE
 from data.physionet_dataset import class_labels
+from util.misc import get_class_avgs
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']
@@ -271,7 +272,7 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Plots Losses, Accuracies of Training, Validation, Testing
-def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_accuracies, epoch_losses_train,
+def plot_training_statistics(dir_results, tag, n_class, accuracies, class_accuracies, epoch_losses_train,
                              epoch_losses_valid,
                              best_fold, batch_size, folds, early_stop):
     matplot(np.append(np.roll(accuracies, 1), accuracies[-1]), f"{n_class}class Cross Validation", "Fold",
@@ -279,9 +280,10 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             hlines=[np.average(accuracies)],
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
-    matplot(avg_class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
+    matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
             "Accuracy in %", show_legend=False,
-            save_path=dir_results, hlines=[np.average(avg_class_accuracies)],
+            x_values=['0'] + class_labels[n_class],
+            save_path=dir_results, hlines=[np.average(class_accuracies)],
             bar_plot=True, max_y=100.0)
     matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})', min_x=-5, max_x=epoch_losses_train.shape[-1] + 5,
@@ -300,6 +302,28 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, avg_class_ac
             f'loss per batch (size = {batch_size})', min_x=-5,
             max_x=train_valid_data.shape[-1] + 5,
             labels=['Training Loss', 'Testing Loss'], save_path=dir_results)
+
+
+# Load previous training results and replot all statistics
+def load_and_plot_training(model_path):
+    # TODO save best fold nr in training-results.npzs
+    # -> have to manually tell which was best fold from results.txt
+    best_folds = {2: 2, 3: 2, 4: 2}
+    for n_class in N_CLASSES:
+        stats = np.load(os.path.join(model_path, f'{n_class}class-training.npz'))
+
+        avg_class_accuracies = get_class_avgs(n_class, stats['class_accs'])
+
+        plot_training_statistics(model_path, None, n_class,
+                                 stats['test_accs'],
+                                 avg_class_accuracies,
+                                 stats['train_losses'],
+                                 stats['test_losses'],
+                                 best_folds[n_class],
+                                 BATCH_SIZE,
+                                 5,
+                                 False
+                                 )
 
 
 # Plot 2,3,4class Accuracy values in 1 plot for a Parameter Testing
