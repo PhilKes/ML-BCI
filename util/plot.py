@@ -4,6 +4,7 @@ Helper functions for Plotting using matplotlib
 import itertools
 import math
 import os
+import string
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -12,7 +13,7 @@ import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from matplotlib import lines
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, accuracy_score
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
@@ -280,7 +281,7 @@ def plot_training_statistics(dir_results, tag, n_class, accuracies, class_accura
             hlines=[np.average(accuracies)],
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
-    matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag}", "Class",
+    matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag} of best Fold", "Class",
             "Accuracy in %", show_legend=False,
             x_values=['0'] + class_labels[n_class],
             save_path=dir_results, hlines=[np.average(class_accuracies)],
@@ -311,9 +312,13 @@ def load_and_plot_training(model_path):
     best_folds = {2: 2, 3: 2, 4: 2}
     for n_class in N_CLASSES:
         stats = np.load(os.path.join(model_path, f'{n_class}class-training.npz'))
-
-        avg_class_accuracies = get_class_avgs(n_class, stats['class_accs'])
-
+        class_accs = stats['class_accs']
+        # avg_class_accuracies = get_class_avgs(n_class, stats['class_accs'])
+        avg_class_accuracies = np.zeros(n_class)
+        print(f"{n_class} class accs:")
+        print(f"{class_accs[best_folds[n_class]]}")
+        for cl in range(n_class):
+            avg_class_accuracies[cl] = float(class_accs[best_folds[n_class]][cl])
         plot_training_statistics(model_path, None, n_class,
                                  stats['test_accs'],
                                  avg_class_accuracies,
@@ -376,7 +381,8 @@ def create_vlines_from_trials_epochs(raw, vline_xs, tdelta, slices):
     return vlines
 
 
-def plot_confusion_matrix(cm, classes, normalize=False,
+def plot_confusion_matrix(cm, classes, recalls, precisions,acc,
+                          normalize=False,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues,
                           save_path=None
@@ -390,13 +396,22 @@ def plot_confusion_matrix(cm, classes, normalize=False,
     else:
         print('Confusion matrix, without normalization')
 
+    # Recall + Precision Values in x- and y-labels
+    classes_with_precision = []
+    for i, cl in enumerate(classes):
+        classes_with_precision.append(cl + f'\n{precisions[i]:.3f}')
+
+    classes_with_recall = []
+    for i, cl in enumerate(classes):
+        classes_with_recall.append(cl + f'\n{recalls[i]:.3f}')
+
     print(cm)
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
+    # plt.title(title)
+    # plt.colorbar()
     tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes)
-    plt.yticks(tick_marks, classes)
+    plt.xticks(tick_marks, classes_with_precision)
+    plt.yticks(tick_marks, classes_with_recall)
 
     fmt = '.2f' if normalize else 'd'
     thresh = cm.max() / 2.
@@ -404,9 +419,35 @@ def plot_confusion_matrix(cm, classes, normalize=False,
         plt.text(j, i, format(cm[i, j], fmt), horizontalalignment="center",
                  color="white" if cm[i, j] > thresh else "black")
 
+    ax = plt.gca()
+    ax.set_title(title, pad=26)
+    ax.yaxis.tick_right()
+    plt.tick_params(axis='y', which='both', labelleft=False, labelright=True)
+
     plt.tight_layout()
     plt.ylabel('Actual class')
     plt.xlabel('Predicted class')
+    ax.xaxis.set_label_coords(0.5, 1.08)
+
+    plt.text(1.03, 1.04, 'Recall', transform=ax.transAxes)
+    plt.text(-0.33, -.14, 'Precision', transform=ax.transAxes)
+
+    plt.text(1.04, -.14, f'{acc:.3f}', transform=ax.transAxes)
+
+    # Grid for Precision + Recall
+    ax2 = plt.axes([0, 0, 1, 1], facecolor=(0, 0, 0, 0))
+    ax2.set_axis_off()
+    x_axis_length = 1.5
+    if len(classes) == 3:
+        x_axis_length -= 0.165
+    elif len(classes) == 4:
+        x_axis_length -= 0.25
+    for i in range(len(classes) + 1):
+        x_cl = 0.0 + (x_axis_length / (len(classes) + 1)) * i
+        line = lines.Line2D([x_cl, x_cl], [1.0, -.2], lw=1.5, color='black', alpha=1, transform=ax.transAxes)
+        line2 = lines.Line2D([0.0, 1.2], [x_cl, x_cl], lw=1.5, color='black', alpha=1, transform=ax.transAxes)
+        ax2.add_line(line)
+        ax2.add_line(line2)
 
     if save_path is not None:
         fig = plt.gcf()
@@ -419,11 +460,17 @@ def plot_confusion_matrix(cm, classes, normalize=False,
     plt.show()
 
 
+from sklearn.metrics import precision_recall_fscore_support as score
+
+
 # Plot n_classes Confusion Matrices of Training Results
 def plot_confusion_matrices(model_path, n_classes=N_CLASSES):
     for n_class in n_classes:
         actual_predicted = np.load(os.path.join(model_path, f"{n_class}class_training_actual_predicted.npz"))
-        conf_mat = confusion_matrix(actual_predicted['actual_labels'], actual_predicted['pred_labels'])
-        plot_confusion_matrix(conf_mat, class_labels[n_class],
+        y_true, y_pred = actual_predicted['actual_labels'], actual_predicted['pred_labels']
+        precisions, recalls, fscore, support = score(y_true, y_pred)
+        acc=accuracy_score(y_true,y_pred)
+        conf_mat = confusion_matrix(y_true, y_pred)
+        plot_confusion_matrix(conf_mat, class_labels[n_class], recalls, precisions,acc,
                               title=f'{n_class}class Confusion Matrix of best Fold',
                               save_path=model_path)

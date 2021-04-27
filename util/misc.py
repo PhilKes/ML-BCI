@@ -122,5 +122,5 @@ def get_class_prediction_stats(n_class, class_hits):
 def get_class_avgs(n_class, class_accs):
     avg_class_accs = np.zeros(n_class)
     for cl in range(n_class):
-        avg_class_accs[cl] = np.average([float(class_accs[sp][cl]) for sp in range(class_accs.shape[0])])
+        avg_class_accs[cl] = np.average([float(class_accs[fold][cl]) for fold in range(class_accs.shape[0])])
     return avg_class_accs
