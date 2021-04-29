@@ -384,6 +384,6 @@ cl4_accs = np.asarray([62.335601, 65.079365, 65.272109, 65.034014, 71.031746])
 # plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
 # plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
 
-#plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")
+plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")
 
 #load_and_plot_training("./results/plots_training4/defaults/conf_defaults/training/")

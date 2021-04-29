@@ -420,7 +420,7 @@ def plot_confusion_matrix(cm, classes, recalls, precisions,acc,
                  color="white" if cm[i, j] > thresh else "black")
 
     ax = plt.gca()
-    ax.set_title(title, pad=26)
+    ax.set_title(title, pad=28)
     ax.yaxis.tick_right()
     plt.tick_params(axis='y', which='both', labelleft=False, labelright=True)
 
@@ -429,7 +429,7 @@ def plot_confusion_matrix(cm, classes, recalls, precisions,acc,
     plt.xlabel('Predicted class')
     ax.xaxis.set_label_coords(0.5, 1.08)
 
-    plt.text(1.03, 1.04, 'Recall', transform=ax.transAxes)
+    plt.text(1.02, 1.03, 'Recall', transform=ax.transAxes)
     plt.text(-0.33, -.14, 'Precision', transform=ax.transAxes)
 
     plt.text(1.04, -.14, f'{acc:.3f}', transform=ax.transAxes)
@@ -444,8 +444,8 @@ def plot_confusion_matrix(cm, classes, recalls, precisions,acc,
         x_axis_length -= 0.25
     for i in range(len(classes) + 1):
         x_cl = 0.0 + (x_axis_length / (len(classes) + 1)) * i
-        line = lines.Line2D([x_cl, x_cl], [1.0, -.2], lw=1.5, color='black', alpha=1, transform=ax.transAxes)
-        line2 = lines.Line2D([0.0, 1.2], [x_cl, x_cl], lw=1.5, color='black', alpha=1, transform=ax.transAxes)
+        line = lines.Line2D([x_cl, x_cl], [1.0, -.15], lw=1.5, color='black', alpha=1, transform=ax.transAxes)
+        line2 = lines.Line2D([0.0, 1.225], [x_cl, x_cl], lw=1.5, color='black', alpha=1, transform=ax.transAxes)
         ax2.add_line(line)
         ax2.add_line(line2)
 
