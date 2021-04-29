@@ -1,4 +1,4 @@
-# EEGNet PyTorch
+# ML-BCI
 * EEGNet Implementation in PyTorch
 * Training, Testing, Benchmarking on [PhysioNet Dataset](https://physionet.org/content/eegmmidb/1.0.0/)
 * Proposed Implementation for use on NVIDIA Jetson Nano
