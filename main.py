@@ -41,7 +41,7 @@ def single_run(argv=sys.argv[1:]):
     elif args.train_ss:
         args.ch_names = load_chs_of_model(args.model)
         training_ss(args.model, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names)
+                    batch_size=args.bs, tag=args.tag, ch_names=args.ch_names)
     elif args.benchmark:
         args.ch_names = load_chs_of_model(args.model)
         return benchmarking(args.model, name=args.name, n_classes=args.n_classes, device=device,
@@ -51,8 +51,7 @@ def single_run(argv=sys.argv[1:]):
     elif args.live_sim:
         args.ch_names = load_chs_of_model(args.model)
         return live_sim(args.model, subject=args.subject, name=args.name, ch_names=args.ch_names,
-                        n_classes=args.n_classes, device=device, tag=args.tag,
-                        equal_trials=(not args.all_trials))
+                        n_classes=args.n_classes, device=device, tag=args.tag)
 
 
 ########################################################################################

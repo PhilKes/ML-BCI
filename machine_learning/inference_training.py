@@ -18,19 +18,21 @@ import torch.nn.functional as F  # noqa
 
 from config import LR, eeg_config
 
-# Training
-# see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
-# In every epoch: After Inference + Calc Loss + Backpropagation on Test Dataset
-# a Test Dataset of 1 Subject is used to calculate test_loss on trained model of current epoch
-# to determine best model with loweset test_loss
-# loss_values_train: Loss value of every Epoch on Training Dataset (data_loader)
-# loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
-# best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
-# best_epoch: best_epoch with lowest test_loss if early_stop=True
 from machine_learning.configs_results import benchmark_single_result_str
 from machine_learning.util import get_class_accuracies
 
 
+# Training
+# see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
+
+# In every epoch: After Inference + Calc Loss + Backpropagation on Test Dataset
+# a Test Dataset of 1 Subject is used to calculate test_loss on trained model of current epoch
+# to determine best model with loweset test_loss
+# Return values:
+# loss_values_train: Loss value of every Epoch on Training Dataset (data_loader)
+# loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
+# best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
+# best_epoch: best_epoch with lowest test_loss if early_stop=True
 def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
@@ -101,7 +103,11 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("c
 
 
 # Tests labeled data with trained net
-def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
+# Return values:
+# acc: Average accuracy across entire data_loader
+# act_labels: Actual Labels of the Trials
+# pred_labels: Predicted Labels of the Trials
+def do_test(model, data_loader):
     print("###### Testing started")
     act_labels = np.zeros((len(data_loader.dataset)), dtype=np.int)
     pred_labels = np.zeros((len(data_loader.dataset)), dtype=np.int)
@@ -134,7 +140,7 @@ def do_test(model, data_loader, device=torch.device("cpu"), n_class=3):
 
 # Benchmarks net on Inference Time in Batches
 def do_benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
-    # TODO Correct way to measure timings? (w/ device= Cuda/Cpu)
+    # TODO Best way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
     # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
     print("###### Inference started")

@@ -4,9 +4,6 @@ Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
 On initial Run MNE downloads the Physionet Dataset into ./data/datasets
 (https://physionet.org/content/eegmmidb/1.0.0/)
 """
-import collections
-import math
-import random
 
 import mne
 import numpy as np
@@ -27,13 +24,12 @@ from data.data_utils import dec_label, increase_label, normalize_data, get_trial
 from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET, \
     n_classes_live_run
 from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
+from util.plot import matplot
+
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
 # also returns Validtion Loader containing validation_subjects subject for loss calculation
-from util.plot import matplot
-
-
 def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
                                equal_trials=True, used_subjects=ALL_SUBJECTS):

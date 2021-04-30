@@ -2,10 +2,8 @@
 Helper functions for Plotting using matplotlib
 """
 import itertools
-import math
 import os
-import string
-
+import pylab
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -13,14 +11,14 @@ import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from matplotlib import lines
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
+from sklearn.metrics import precision_recall_fscore_support as score
 
-from config import PLOT_TO_PDF, eeg_config, N_CLASSES, BATCH_SIZE
+from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE
 from data.physionet_dataset import class_labels
-from util.misc import get_class_avgs
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']
@@ -143,10 +141,8 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
     plt.show()
 
 
-import pylab
-
-
-def matplot_legend(labels=[], font_size=None, bars=True, hor=True, save_path=None, title=None):
+# Plot only Legend
+def matplot_legend(labels=[], font_size=None, hor=True, save_path=None, title=None):
     # use LaTeX fonts in the plot
     plt.rc('font', family='serif')
 
@@ -381,7 +377,7 @@ def create_vlines_from_trials_epochs(raw, vline_xs, tdelta, slices):
     return vlines
 
 
-def plot_confusion_matrix(cm, classes, recalls, precisions,acc,
+def plot_confusion_matrix(cm, classes, recalls, precisions, acc,
                           normalize=False,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues,
@@ -460,17 +456,14 @@ def plot_confusion_matrix(cm, classes, recalls, precisions,acc,
     plt.show()
 
 
-from sklearn.metrics import precision_recall_fscore_support as score
-
-
 # Plot n_classes Confusion Matrices of Training Results
 def plot_confusion_matrices(model_path, n_classes=N_CLASSES):
     for n_class in n_classes:
         actual_predicted = np.load(os.path.join(model_path, f"{n_class}class_training_actual_predicted.npz"))
         y_true, y_pred = actual_predicted['actual_labels'], actual_predicted['pred_labels']
         precisions, recalls, fscore, support = score(y_true, y_pred)
-        acc=accuracy_score(y_true,y_pred)
+        acc = accuracy_score(y_true, y_pred)
         conf_mat = confusion_matrix(y_true, y_pred)
-        plot_confusion_matrix(conf_mat, class_labels[n_class], recalls, precisions,acc,
+        plot_confusion_matrix(conf_mat, class_labels[n_class], recalls, precisions, acc,
                               title=f'{n_class}class Confusion Matrix of best Fold',
                               save_path=model_path)

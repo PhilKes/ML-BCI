@@ -8,7 +8,7 @@ from util.dot_dict import DotDict
 
 PLOT_TO_PDF = True
 VERBOSE = False
-# Calculate the difference in accuracy between (new) Validation Dataset and known Training Dataset
+# Calculate the difference in accuracy between Testing Dataset and Training Dataset
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
 # Preloads all subjects data for n_classes classification Training in memory
@@ -35,12 +35,13 @@ BATCH_SIZE = 16
 # Benchmark Settings
 SUBJECTS_CS = 10
 GPU_WARMUPS = 20
-# Jetson Nano cant handle bigger Batch Sizes when device'cpu'
+# Jetson Nano cant handle bigger Batch Sizes when device='cpu'
 JETSON_CPU_MAX_BS = 15
 
 eegnet_config = DotDict(pool_size=4)
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
+# Trials Slicing (divide every Trial in equally long Slices)
 eeg_config = DotDict(TMIN=PHYSIONET.TMIN,
                      TMAX=PHYSIONET.TMAX,
                      TRIAL_SLICES=1,

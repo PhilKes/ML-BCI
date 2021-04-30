@@ -1,7 +1,6 @@
 """
 Miscellaneous Utility Methods
 """
-import collections
 import errno
 import math
 import os

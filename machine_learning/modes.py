@@ -23,22 +23,20 @@ from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_
 from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
-    get_trained_model_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
     live_sim_result_str
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
-from machine_learning.models.eegnet import EEGNet
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model
 from util.dot_dict import DotDict
-from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
+from util.misc import split_list_into_chunks, groups_labels, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
 
 
 # Runs Training + Testing
 # Cross Validation with 5 Splits (á 21 Subjects' Data)
 # Can run 2/3/4-Class Classifications
-# Saves Accuracies + Epochs in ./results/{DateTime/name}/training
+# Saves + Plots Accuracies + Epoch Losses in ./results/{DateTime/name}/training
 # save_model: Saves trained model with highest accuracy in results folder
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
@@ -125,11 +123,11 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
                 best_losses_test[fold] = best_epoch_loss_test
 
             print("## Testing ##")
-            test_accuracy, act_labels, pred_labels = do_test(model, loader_test, device, n_class)
+            test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
             # Test overfitting by testing on Training Dataset
             if TEST_OVERFITTING:
                 print("## Testing on Training Dataset ##")
-                accuracies_overfitting[fold], _, __ = do_test(model, loader_train, device, n_class)
+                accuracies_overfitting[fold], _, __ = do_test(model, loader_train)
             # If not using early stopping, determine which fold has the highest accuracy
             if (not early_stop) & (test_accuracy > np.max(fold_accuracies)):
                 best_n_class_models[n_class] = model.state_dict().copy()
@@ -165,8 +163,11 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
     return n_class_accuracy, n_class_overfitting_diff
 
 
+# Runs Subject-specific Training on pretrained model (model_path)
+# Supposed to be used before live_sim mode is executed
+# Saves further trained model
 def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=[3],
-                save_model=True, name=None, device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
+                device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
     n_test_runs = 1
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, n_test_runs=n_test_runs)
@@ -185,16 +186,17 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         print(f"Loading pretrained model from '{model_path}'")
 
         model = get_model(n_class, len(ch_names), device, model_path)
+        # Split subjects' data into Training Set (2 of 3 Runs) + Test Set (1 remaining Run)
         loader_train, loader_test = create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs, batch_size,
                                                                         ch_names, device)
 
         epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
                                                                 num_epochs, device)
-        test_accuracy[0], act_labels, pred_labels = do_test(model, loader_test, device, n_class)
+        test_accuracy[0], act_labels, pred_labels = do_test(model, loader_test)
 
         elapsed = datetime.now() - start
         class_trials, class_accuracies = get_trials_per_class(n_class, act_labels), \
-                                               get_class_accuracies(act_labels, pred_labels)
+                                         get_class_accuracies(act_labels, pred_labels)
 
         res_str = training_ss_result_str(test_accuracy[0], class_trials, class_accuracies, elapsed)
         print(res_str)
@@ -252,7 +254,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
             # Warm up GPU with random data
             if device.type != 'cpu':
                 gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
-        # Infer multiple times
+        # Infer multiple times to get an average benchmark
         for i in range(iters):
             if not continuous:
                 # Benchmarking is executed per subject chunk over all Subjects
@@ -293,7 +295,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 # Stores Prediction array as .npy
 def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
              n_classes=N_CLASSES,
-             device=torch.device("cpu"), tag=None, equal_trials=True):
+             device=torch.device("cpu"), tag=None):
     dir_results = create_results_folders(path=f"{model_path}", name=name, mode='live_sim')
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()

@@ -1,19 +1,18 @@
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch  # noqa
-
-# Torch to TensorRT for model optimizations
-# https://github.com/NVIDIA-AI-IOT/torch2trt
-# Comment out if TensorRt is not installed
 from config import eeg_config
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
 
-# if torch.cuda.is_available():
-#     import ctypes
-#     from torch2trt import torch2trt
-#
-#     _cudart = ctypes.CDLL('libcudart.so')
+# Torch to TensorRT for model optimizations
+# https://github.com/NVIDIA-AI-IOT/torch2trt
+# Comment out if TensorRt is not installed
+if torch.cuda.is_available():
+    import ctypes
+    from torch2trt import torch2trt
+
+    _cudart = ctypes.CDLL('libcudart.so')
 
 
 # Source https://stackoverflow.com/questions/39770376/scikit-learn-get-accuracy-scores-for-each-class
@@ -65,5 +64,3 @@ def get_model(n_class, chs, device, model_path=None):
         model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
     model.to(device)
     return model
-
-

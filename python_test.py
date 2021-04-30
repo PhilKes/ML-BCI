@@ -340,7 +340,7 @@ def check_bad_data(subjects, n_classes):
 
 # plot_live_sim_subject_run()
 
-# matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, bars=True, hor=True,
+# matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, hor=True,
 #               save_path='./results/plots_training3', title='bs_legend')
 
 # plots_training4:
