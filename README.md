@@ -18,7 +18,18 @@ Main Script to run Training/Benchmarking of EEGNet
 * TensorRT optimization possible with `--trt` flag 
 * Saving results (Batch Latency, Inference time per trial) in _./results/{model_path}/benchmark_
 
-`main.py --help` for all parameters
+`main.py -train_ss` 
+* Transfer Learning for further subject-specific Training of pretrained model
+* Select pretrained model with `--model` argument
+* Subject to train on with `--subject` argument
+* Saving subject-specific trained model in _./results/{model_path}/training_ss/S{subject}_
+
+`main.py -live_sim` 
+* Simulation of a live EEG run classification of a single subject with subject-specific trained model
+* Select subject-specific trained model with `--model` argument
+* Plotting the run in _./results/{model_path}/training_ss/S{subject}/live_sim_
+
+`main.py --help` for all arguments
 
 ___
 
