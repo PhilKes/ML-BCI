@@ -6,7 +6,7 @@ import math
 from data.physionet_dataset import PHYSIONET
 from util.dot_dict import DotDict
 
-PLOT_TO_PDF = True
+PLOT_TO_PDF = False
 VERBOSE = False
 # Calculate the difference in accuracy between Testing Dataset and Training Dataset
 # if True the differences are stored in the results.txt
