@@ -17,6 +17,7 @@ from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels
 from data.physionet_dataset import n_classes_live_run, MNE_CHANNELS
 from machine_learning.inference_training import do_predict_on_samples
 from machine_learning.modes import live_sim
+from machine_learning.util import print_weights_biases
 from util.plot import matplot, matplot_legend, plot_accuracies, plot_confusion_matrix, plot_confusion_matrices, \
     load_and_plot_training
 
@@ -384,6 +385,9 @@ cl4_accs = np.asarray([62.335601, 65.079365, 65.272109, 65.034014, 71.031746])
 # plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
 # plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
 
-plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")
+# plot_confusion_matrices("./results/plots_training4/defaults/conf_defaults/training/")
 
-#load_and_plot_training("./results/plots_training4/defaults/conf_defaults/training/")
+# load_and_plot_training("./results/plots_training4/defaults/conf_defaults/training/")
+
+
+print_weights_biases('./results/plots_training4/defaults/conf_defaults/training/4class_trained_model.pt')

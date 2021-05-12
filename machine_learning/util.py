@@ -5,6 +5,7 @@ from config import eeg_config
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
 
+
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
 # Comment out if TensorRt is not installed
@@ -64,3 +65,16 @@ def get_model(n_class, chs, device, model_path=None):
         model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
     model.to(device)
     return model
+
+
+# Print weights and biases of all Layers + Total number
+def print_weights_biases(model):
+    tensor_dict = torch.load(model, map_location='cpu')  # OrderedDict
+    tensor_list = list(tensor_dict.items())
+    s = 0
+    for layer_tensor_name, tensor in tensor_list:
+        n = torch.numel(tensor)
+        s += n
+        print('Layer {}: {} elements'.format(layer_tensor_name, n))
+
+    print("Total number of weights/biases: ", s)
