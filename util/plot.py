@@ -138,7 +138,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
     # fig.tight_layout()
 
-    plt.show()
+    plt.show(block=False)
 
 
 # Plot only Legend
@@ -252,7 +252,7 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
         else:
             fig.savefig(f"{save_path}/{title}.png")
-    plt.show()
+    plt.show(block=False)
 
 
 # Create Plot from numpy file
@@ -453,7 +453,7 @@ def plot_confusion_matrix(cm, classes, recalls, precisions, acc,
         if PLOT_TO_PDF:
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
 
-    plt.show()
+    plt.show(block=False)
 
 
 # Plot n_classes Confusion Matrices of Training Results

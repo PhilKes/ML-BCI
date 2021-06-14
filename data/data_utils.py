@@ -1,3 +1,11 @@
+"""
+File: data_utils.py
+
+Contains several utility functions needed during dataset loading.
+
+History:
+  2021-05-15: butterworth bandpass filter from scipy included - ms
+"""
 import collections
 
 import numpy as np
@@ -13,6 +21,37 @@ from config import eeg_config
 from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
     MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, PHYSIONET
 
+from scipy.signal import butter, sosfilt
+
+'''
+Subroutine: butter_bandpass_definition(lowcut=0.0, highcut=80.0, fs=160, order=3)
+  Defintion of a nth order Butterworth bandpass filter. Code is based on::
+  https://warrenweckesser.github.io/papers/weckesser-scipy-linear-filters.pdf
+'''
+def butter_bandpass_definition(lowcut, highcut, fs, order):
+    nyq = 0.5 * fs
+    if lowcut != None:
+        low = lowcut / nyq
+    else:
+        low = 0.0
+
+    if highcut != None:
+        high = highcut / nyq
+    else:
+        high = 0.99          # cut at: 0.5*fs
+
+    sos = butter(order, [low, high], btype='band', output = 'sos')
+    return sos
+
+'''
+Subroutine: butter_bandpass_filt(indata, lowcut, highcut, fs, order)
+  Applies the nth order Butterworth filter defined in butter_bandpass_definition()
+  to 'indata'
+'''
+def butter_bandpass_filt(indata, lowcut, highcut, fs, order):
+    sos = butter_bandpass_definition(lowcut, highcut, fs, order)
+    outdata = sosfilt(sos, indata)
+    return outdata
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
     tdelta = eeg_config.TMAX - eeg_config.TMIN

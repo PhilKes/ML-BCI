@@ -1,0 +1,17 @@
+       Todo list of ms (Manfred Strahnen)
+       ==================================
+               (2021-05-16 - ms)
+
+o First frequency band analysis:
+  - Finish measurements documented in results_2021-05-16
+  - Filter cutoff frequency verification with psd-analysis
+
+o Include phy_psd_analysis.py
+o Implement bci_psd_analysis.py
+
+o BCIC: Test of tmin, tmax selection!!!
+
+o Do measurements for a potential paper:
+  - Measure training accuracies with bandpass filtered EEG signals
+  - Psd analysis
+

@@ -20,9 +20,10 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
 
 # Training Settings
 EPOCHS = 100
-SPLITS = 5
+SPLITS = 9
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]
+
 # Learning Rate Settings
 LR = DotDict(
     start=0.01,
@@ -84,7 +85,7 @@ trained_ss_model_name = "trained_ss_model.pt"
 chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to
 # on initial Run MNE needs to download the Dataset
-datasets_folder = './data/datasets/'
+datasets_folder = '../datasets'
 
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:

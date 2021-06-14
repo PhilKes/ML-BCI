@@ -1,9 +1,23 @@
+"""
+File: cmd_parser.py
+
+Author:
+  Originally developed by Philipp Kessler (May 2021)
+
+ToDo:
+  Passing ch_names does not work as expected
+
+History:
+  2021-05-10: Common parameter mi_ds included - ms (Manfred Strahnen)
+"""
+
 import argparse
 from datetime import datetime
 
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices
 from data.data_loading import ALL_SUBJECTS
 from data.physionet_dataset import MNE_CHANNELS, excluded_subjects
+from data.bcic_dataset import BCIC_CHANNELS, BCIC_excluded_subjects
 from util.misc import datetime_to_folder_str, list_to_str
 
 
@@ -53,6 +67,8 @@ def add_common_arguments(parser):
                         help=f'Start Time of every Trial Epoch (default: {eeg_config.TMIN})')
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
                         help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
+    parser.add_argument('--dataset', type=str, default='PHYS',
+                        help='Name of the MI dataset')
 
 
 def check_common_arguments(parser, args):
@@ -78,6 +94,9 @@ def check_common_arguments(parser, args):
         parser.error(f"Can't divide {eeg_config.SAMPLES} Samples in {args.trials_slices} slices!")
     set_eeg_trials_slices(args.trials_slices)
 
+    if (args.dataset != "PHYS") & (args.dataset != "BCIC"):
+        parser.error(f"MI dataset can either be 'PHYS' or 'BCIC'")
+
 
 # Train Arguments #########################
 def add_train_arguments(parser):
@@ -86,15 +105,15 @@ def add_train_arguments(parser):
                         action='store_true', required=False)
     parser.add_argument('--epochs', type=int, default=EPOCHS,
                         help=f'Number of epochs for Training (default:{EPOCHS})')
-    parser.add_argument('--ch_names', nargs='+', type=str, default=MNE_CHANNELS,
-                        help="List of EEG Channels to use (see config.py MNE_CHANNELS for all available Channels)")
+    parser.add_argument('--ch_names', nargs='+', type=str, default=None,
+                        help="List of EEG Channels to use")
     parser.add_argument('--ch_motorimg', type=str, default=None,
                         help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_str(MOTORIMG_CHANNELS.keys())} channels)")
     parser.add_argument('--all_trials', action='store_true',
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
     parser.add_argument('--early_stop', action='store_true',
                         help=f'If present, will determine the model with the lowest loss on the validation set')
-    parser.add_argument('--excluded', nargs='+', type=int, default=[],
+    parser.add_argument('--excluded', nargs='+', type=int, default=None,
                         help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
 
 
@@ -110,9 +129,9 @@ def check_train_arguments(parser, args):
         #     args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
         # else:
         #     args.name = args.name + f"_motor_img{args.ch_motorimg}"
-    if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):
-        print(args.ch_names)
-        parser.error("Channel names (--ch_names) must be a list of EEG Channels (see config.py MNE_CHANNELS)")
+#    if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):
+#        print(args.ch_names)
+#        parser.error("Channel names (--ch_names) must be a list of EEG Channels (see config.py MNE_CHANNELS)")
 
 
 # Subject-Specific Train Arguments #########
@@ -142,7 +161,6 @@ def add_benchmark_arguments(parser):
                         help=f'Number of benchmark iterations over the Dataset in a loop (default:1)')
     parser.add_argument('--all', dest='continuous', action='store_false',
                         help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
-
 
 def check_benchmark_arguments(parser, args):
     if args.subjects_cs > len(ALL_SUBJECTS):

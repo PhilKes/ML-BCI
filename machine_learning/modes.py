@@ -4,8 +4,16 @@ All available Machine Learning modes implemented with PyTorch
 * Subject-specific Training with Transfer Learning
 * Performance Benchmarking of Inference on pretrained EEGNet
 * Live Simulation of real time Classification of a PhysioNet Dataset Run
+
+Author:
+  Originally developed by Philipp Kessler as part of his bachelor theses
+
+History:
+  2021-05-10: cv_training() changed so that BCIC dataset now can be
+              used too - ms (Manfred Strahnen)
 """
 import os
+import sys
 from datetime import datetime
 
 import numpy as np
@@ -16,11 +24,13 @@ from sklearn.model_selection import GroupKFold
 from torch import nn, Tensor  # noqa
 
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
-    trained_model_name, VALIDATION_SUBJECTS, eeg_config
+    trained_model_name, VALIDATION_SUBJECTS, eeg_config, global_config
 from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
     create_preloaded_loader, create_n_class_loaders_from_subject
+from data.bcic_data_loading import bcic_load_subjects_data, bcic_create_loaders_from_splits
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
 from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
+from data.bcic_dataset import BCIC_ALL_SUBJECTS
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -40,9 +50,17 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 # save_model: Saves trained model with highest accuracy in results folder
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[]):
+                equal_trials=True, early_stop=False, excluded=[], mi_ds = 'PHYS'):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
+
+    if mi_ds == 'PHYS':
+        print("Cross validation training with 'Physionet MI dataset' started!")
+    elif mi_ds == 'BCIC':
+        print("Cross validation training with 'BCI competition IV 2A MI dataset' started!")
+    else:
+        print("Error: Illegal dataset specified")
+        sys.exit()
 
     start = datetime.now()
     print(training_config_str(config))
@@ -58,8 +76,11 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             tag += '_excluded'
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
-    available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
-    # 84 Subjects for Train + 21 for Test (get split in 5 different Splits)
+    if mi_ds == 'PHYS':
+        available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
+    elif mi_ds == 'BCIC':
+        available_subjects = [i for i in BCIC_ALL_SUBJECTS if i not in excluded]
+
     used_subjects = available_subjects
     validation_subjects = []
     # Currently if early_stop=true:
@@ -82,9 +103,14 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
     n_class_accuracy, n_class_overfitting_diff = np.zeros(len(n_classes)), np.zeros(len(n_classes))
     for i, n_class in enumerate(n_classes):
         preloaded_data, preloaded_labels = None, None
+
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = load_subjects_data(used_subjects + validation_subjects, n_class,
+            if mi_ds == 'PHYS':
+                preloaded_data, preloaded_labels = load_subjects_data(used_subjects + validation_subjects, n_class,
+                                                                  ch_names, equal_trials, normalize=False)
+            elif mi_ds == 'BCIC':
+                preloaded_data, preloaded_labels = bcic_load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                   ch_names, equal_trials, normalize=False)
 
         cv_split = cv.split(X=used_subjects, groups=groups)
@@ -101,9 +127,16 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         for fold in range(folds):
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-            loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
+            if mi_ds == 'PHYS':
+                loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
                                                  preloaded_labels, batch_size, ch_names, equal_trials,
                                                  used_subjects=used_subjects)
+            elif mi_ds == 'BCIC':
+                loaders = bcic_create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+                                                          preloaded_data,
+                                                          preloaded_labels, batch_size, ch_names, equal_trials,
+                                                          used_subjects=used_subjects)
+
             loader_train, loader_test, loader_valid = loaders
 
             model = get_model(n_class, len(ch_names), device)

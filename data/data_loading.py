@@ -3,6 +3,9 @@ Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
 (https://neuro.inf.unibe.ch/AlgorithmsNeuroscience/Tutorial_files/DataLoading.html)
 On initial Run MNE downloads the Physionet Dataset into ./data/datasets
 (https://physionet.org/content/eegmmidb/1.0.0/)
+
+Edition History:
+2021-05-31: mne_load_subject_raw(): fmin, fmax explicitely set - ms
 """
 
 import mne
@@ -25,7 +28,7 @@ from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS
     n_classes_live_run
 from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
-
+from data.data_utils import butter_bandpass_filt
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
@@ -264,6 +267,10 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
 # Can apply Bandpassfilter + Notch Filter
 def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
                          fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
+
+    fmin = global_config.FREQ_FILTER_HIGHPASS
+    fmax = global_config.FREQ_FILTER_LOWPASS
+
     if VERBOSE:
         print(f"MNE loading Subject {subject} Runs {runs}")
     raw_fnames = mne_dataset.load_data(subject, runs, datasets_folder)
@@ -277,7 +284,9 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
                          phase='zero')
     if ((fmin is not None) | (fmax is not None)):
         # If method=”iir”, 4th order Butterworth will be used
-        raw.filter(fmin, fmax, method='iir')
+        iir_params = dict(order=7, ftype='butter', output='sos')
+        raw.filter(fmin, fmax, method='iir', iir_params=iir_params)
+#        raw.filter(fmin, fmax, l_trans_bandwidth= 0.1, h_trans_bandwidth= 0.1, method='fir', fir_design='firwin')
     return raw
 
 
