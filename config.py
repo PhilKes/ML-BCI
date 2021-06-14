@@ -74,6 +74,12 @@ def set_poolsize(size):
     eegnet_config.pool_size = size
 
 
+def set_bandpassfilter(fmin=None, fmax=None, notch=False):
+    global_config.FREQ_FILTER_HIGHPASS = fmin
+    global_config.FREQ_FILTER_LOWPASS = fmax
+    global_config.USE_NOTCH_FILTER = notch
+
+
 results_folder = './results'
 training_results_folder = f"/training"
 benchmark_results_folder = f"/benchmark"

@@ -70,68 +70,6 @@ def single_run(argv=sys.argv[1:]):
         eeg_config.SAMPLES = (int) ((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
 
     if args.train:
-        global_config.FREQ_FILTER_HIGHPASS=None
-        global_config.FREQ_FILTER_LOWPASS=None
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=0.00001
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=4.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=8.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=12.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=16.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=20.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=24.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=28.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=32.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
-        training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
-                    name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
-                    equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                    excluded=args.excluded, mi_ds=args.dataset)
-        global_config.FREQ_FILTER_HIGHPASS=36.0
-        global_config.FREQ_FILTER_LOWPASS=40.0
         return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
                            equal_trials=(not args.all_trials), early_stop=args.early_stop,

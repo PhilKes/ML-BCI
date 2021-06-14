@@ -13,28 +13,17 @@ History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
 
-import sys
-import mne
-import numpy as np
 import torch  # noqa
 import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
-from mne import Epochs
-from mne.io import concatenate_raws, read_raw_edf
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
-from tqdm import tqdm
 
-from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
-    global_config
-from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
-    get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET, \
-    n_classes_live_run
-from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
-from util.plot import matplot
-from data.bcic_iv2a_dataset   import BCIC_IV2a_dataset
+from config import DATA_PRELOAD, BATCH_SIZE
+from data.bcic_iv2a_dataset import BCIC_IV2a_dataset
+from data.physionet_dataset import ALL_SUBJECTS, MNE_CHANNELS
+from util.misc import print_subjects_ranges
 
 """
 Function: bcic_create_loaders_from_splits(...)
