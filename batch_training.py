@@ -166,6 +166,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
                   'w') as outfile:
             df.to_string(outfile)
         print(df)
+        return runs_results
 
 
 if __name__ == '__main__':
