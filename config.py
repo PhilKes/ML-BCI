@@ -91,7 +91,7 @@ trained_ss_model_name = "trained_ss_model.pt"
 chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to
 # on initial Run MNE needs to download the Dataset
-datasets_folder = '../datasets'
+datasets_folder = '/opt/datasets'
 
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:
