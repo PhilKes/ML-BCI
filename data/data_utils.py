@@ -7,6 +7,7 @@ History:
   2021-05-15: butterworth bandpass filter from scipy included - ms
 """
 import collections
+import os
 
 import numpy as np
 import torch  # noqa
@@ -16,18 +17,21 @@ from sklearn.preprocessing import MinMaxScaler
 from torch import nn, Tensor  # noqa
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
-
+import pandas as pd
 from config import eeg_config
 from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
     MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, PHYSIONET
 
 from scipy.signal import butter, sosfilt
+from config import results_folder
 
 '''
 Subroutine: butter_bandpass_definition(lowcut=0.0, highcut=80.0, fs=160, order=3)
   Defintion of a nth order Butterworth bandpass filter. Code is based on::
   https://warrenweckesser.github.io/papers/weckesser-scipy-linear-filters.pdf
 '''
+
+
 def butter_bandpass_definition(lowcut, highcut, fs, order):
     nyq = 0.5 * fs
     if lowcut != None:
@@ -38,20 +42,24 @@ def butter_bandpass_definition(lowcut, highcut, fs, order):
     if highcut != None:
         high = highcut / nyq
     else:
-        high = 0.99          # cut at: 0.5*fs
+        high = 0.99  # cut at: 0.5*fs
 
-    sos = butter(order, [low, high], btype='band', output = 'sos')
+    sos = butter(order, [low, high], btype='band', output='sos')
     return sos
+
 
 '''
 Subroutine: butter_bandpass_filt(indata, lowcut, highcut, fs, order)
   Applies the nth order Butterworth filter defined in butter_bandpass_definition()
   to 'indata'
 '''
+
+
 def butter_bandpass_filt(indata, lowcut, highcut, fs, order):
     sos = butter_bandpass_definition(lowcut, highcut, fs, order)
     outdata = sosfilt(sos, indata)
     return outdata
+
 
 def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
     tdelta = eeg_config.TMAX - eeg_config.TMIN
@@ -205,3 +213,33 @@ increase_label = np.vectorize(inc_label)
 decrease_label = np.vectorize(dec_label)
 
 
+# runs_classes_accs shape: [run,n_class,acc]
+def calc_difference_to_first_config(runs_classes_accs, amt_configs):
+    # Get idxs of 'all' (default) accuracies
+    first_conf_accs_idxs = np.arange(0, runs_classes_accs.size, amt_configs)
+    first_conf_accs = runs_classes_accs[first_conf_accs_idxs, 0]
+    # remove 'all' accuracies
+    acc_diffs = np.delete(runs_classes_accs, first_conf_accs_idxs, axis=0)
+
+    # Calculate differences between 'all' and f1/f2/f3 acc
+    for run in range(acc_diffs.shape[0]):
+        all_acc = first_conf_accs[run // amt_configs]
+        acc_diffs[run] = all_acc - acc_diffs[run]
+    return acc_diffs
+
+
+def save_accs_panda(folderName, accs, names, n_classes, tag=None):
+    columns = []
+    for n_class in n_classes:
+        columns.append(f"{n_class}class Acc Diff")
+
+    df = pd.DataFrame(data=accs, index=names, columns=columns)
+    if tag is not None:
+        folderName += f'/{tag}'
+    # Write results into .csv and .txt
+    df.to_csv(f"{results_folder}/{folderName}/{tag if tag is not None else 'training'}_neural_responses_accs.csv")
+    with open(os.path.join(f"{results_folder}/{folderName}",
+                           f"{tag if tag is not None else 'training'}_neural_responses_accs.txt"),
+              'w') as outfile:
+        df.to_string(outfile)
+    print(df)

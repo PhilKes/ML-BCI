@@ -8,6 +8,7 @@ from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
 VERBOSE = False
+SHOW_PLOTS = False
 # Calculate the difference in accuracy between Testing Dataset and Training Dataset
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
@@ -20,7 +21,7 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
 
 # Training Settings
 EPOCHS = 100
-SPLITS = 9
+SPLITS = 5
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]
 

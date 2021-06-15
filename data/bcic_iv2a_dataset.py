@@ -21,7 +21,7 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from scipy import signal
-from config import eeg_config, datasets_folder
+from config import eeg_config, datasets_folder, SHOW_PLOTS
 from data.bcic_dataset import BCIC_CHANNELS
 from data.data_utils import butter_bandpass_filt
 from config import global_config
@@ -539,7 +539,8 @@ def plot_psds(path='../../datasets/BCICompetition_IV-2a/pl_data/', sampling_rate
         plt.ylabel('Power spectral density [V**2/Hz]')
     plt.title("Power spectral density")
     plt.grid(True)
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
 
     return
 

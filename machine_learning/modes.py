@@ -50,7 +50,7 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 # save_model: Saves trained model with highest accuracy in results folder
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[], mi_ds = 'PHYS'):
+                equal_trials=True, early_stop=False, excluded=[], mi_ds='PHYS'):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
 
@@ -78,8 +78,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
 
     if mi_ds == 'PHYS':
         available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
+        folds = 5
     elif mi_ds == 'BCIC':
         available_subjects = [i for i in BCIC_ALL_SUBJECTS if i not in excluded]
+        folds = 9
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -108,10 +110,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             print("PRELOADING ALL DATA IN MEMORY")
             if mi_ds == 'PHYS':
                 preloaded_data, preloaded_labels = load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                  ch_names, equal_trials, normalize=False)
+                                                                      ch_names, equal_trials, normalize=False)
             elif mi_ds == 'BCIC':
                 preloaded_data, preloaded_labels = bcic_load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                  ch_names, equal_trials, normalize=False)
+                                                                           ch_names, equal_trials, normalize=False)
 
         cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
@@ -128,9 +130,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
             if mi_ds == 'PHYS':
-                loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
-                                                 preloaded_labels, batch_size, ch_names, equal_trials,
-                                                 used_subjects=used_subjects)
+                loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+                                                     preloaded_data,
+                                                     preloaded_labels, batch_size, ch_names, equal_trials,
+                                                     used_subjects=used_subjects)
             elif mi_ds == 'BCIC':
                 loaders = bcic_create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
                                                           preloaded_data,

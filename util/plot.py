@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from sklearn.metrics import precision_recall_fscore_support as score
 
-from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE
+from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE, SHOW_PLOTS
 from data.physionet_dataset import class_labels
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
@@ -137,8 +137,8 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
         if PLOT_TO_PDF:
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
     # fig.tight_layout()
-
-    plt.show(block=False)
+    if SHOW_PLOTS:
+        plt.show(block=False)
 
 
 # Plot only Legend
@@ -166,8 +166,9 @@ def matplot_legend(labels=[], font_size=None, hor=True, save_path=None, title=No
                          ncol=4, facecolor='white', framealpha=1, edgecolor='black', fancybox=False)
     # lines = ax.plot(range(10), pylab.randn(10), range(10), pylab.randn(10))
     # figlegend.legend(handles, labels, 'center')
-    fig.show()
-    figlegend.show()
+    if SHOW_PLOTS:
+        fig.show()
+        figlegend.show()
     if save_path is not None:
 
         # np.save(f"{save_path}/{title}.npy", data)
@@ -252,7 +253,8 @@ def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylab
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
         else:
             fig.savefig(f"{save_path}/{title}.png")
-    plt.show(block=False)
+    if SHOW_PLOTS:
+        plt.show(block=False)
 
 
 # Create Plot from numpy file
@@ -452,8 +454,8 @@ def plot_confusion_matrix(cm, classes, recalls, precisions, acc,
         fig.savefig(f"{save_path}/{title}.png")
         if PLOT_TO_PDF:
             fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
-
-    plt.show(block=False)
+    if SHOW_PLOTS:
+        plt.show(block=False)
 
 
 # Plot n_classes Confusion Matrices of Training Results
