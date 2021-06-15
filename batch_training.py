@@ -108,10 +108,12 @@ confs = {
 
 
 # Run Training for every Configuration in confs for all n_classes
+# Returns List of numpy arrays with [conf,run, n_class, (acc/OF))]
 def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
     # Loop to execute all Configurations
     # Create .csv and .txt files with all Runs of a batch
     # e.g. /batch_sizes/..._batch_training.txt
+    results_list = []
     for conf_name in configs:
         conf_folder = f"{name}/{conf_name}"
         conf = configs[conf_name]
@@ -151,6 +153,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
 
         if 'after' in conf.keys():
             conf['after']()
+        results_list.append(runs_results.copy())
         # Prepare results for Pandas
         runs_results = runs_results.reshape((runs, classes * 2), order='F')
         columns = []
@@ -166,7 +169,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
                   'w') as outfile:
             df.to_string(outfile)
         print(df)
-        return runs_results
+    return results_list
 
 
 if __name__ == '__main__':
