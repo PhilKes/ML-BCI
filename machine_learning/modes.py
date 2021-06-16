@@ -48,9 +48,11 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 # Can run 2/3/4-Class Classifications
 # Saves + Plots Accuracies + Epoch Losses in ./results/{DateTime/name}/training
 # save_model: Saves trained model with highest accuracy in results folder
+# only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
+# return n_class Accuracies + Overfittings
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[], mi_ds='PHYS'):
+                equal_trials=True, early_stop=False, excluded=[], mi_ds='PHYS', only_fold=None):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
 
@@ -102,7 +104,13 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
     cv = GroupKFold(n_splits=folds)
 
     best_n_class_models = {}
-    n_class_accuracy, n_class_overfitting_diff = np.zeros(len(n_classes)), np.zeros(len(n_classes))
+    n_class_accuracy, n_class_overfitting_diff = np.zeros(len(n_classes)), np.zeros(
+        len(n_classes))
+
+    # Only Train specified fold
+    if only_fold is not None:
+        folds = 1
+
     for i, n_class in enumerate(n_classes):
         preloaded_data, preloaded_labels = None, None
 
@@ -125,7 +133,13 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         class_accuracies, class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
         accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
         epoch_losses_train, epoch_losses_test = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
-        # Training of the 5 Folds with the different splits
+
+        # Skip folds until specified fold is reached
+        if only_fold is not None:
+            for i in range(only_fold):
+                next(cv_split)
+
+        # Training of the Folds with the different splits
         for fold in range(folds):
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
@@ -195,7 +209,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             torch.save(best_n_class_models[n_class], os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
 
         n_class_accuracy[i] = np.average(fold_accuracies)
-        n_class_overfitting_diff[i] = np.average(fold_accuracies) - np.average(accuracies_overfitting)
+        n_class_overfitting_diff[i] = n_class_accuracy[i] - np.average(accuracies_overfitting)
     return n_class_accuracy, n_class_overfitting_diff
 
 

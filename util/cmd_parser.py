@@ -16,8 +16,8 @@ from datetime import datetime
 
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices
 from data.data_loading import ALL_SUBJECTS
-from data.physionet_dataset import MNE_CHANNELS, excluded_subjects
-from data.bcic_dataset import BCIC_CHANNELS, BCIC_excluded_subjects
+from data.physionet_dataset import MNE_CHANNELS, excluded_subjects, PHYSIONET
+from data.bcic_dataset import BCIC_CHANNELS, BCIC_excluded_subjects, BCIC_CONFIG
 from util.misc import datetime_to_folder_str, list_to_str
 
 
@@ -85,6 +85,32 @@ def check_common_arguments(parser, args):
     if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
 
+    # Adjust global parameters which depend on the selected dataset
+    if (args.dataset == "PHYS") & (args.ch_names == None) & (args.ch_motorimg == None):
+        args.ch_names = MNE_CHANNELS
+
+    if (args.dataset == "PHYS") & (args.excluded == None):
+        args.excluded = excluded_subjects
+
+    if (args.dataset == "BCIC") & (args.ch_names == None) & (args.ch_motorimg == None):
+        args.ch_names = BCIC_CHANNELS
+    if (args.dataset == "BCIC") & (args.excluded == None):
+        args.excluded = BCIC_excluded_subjects
+
+    # Dataset dependent EEG config structure re-initialization
+    if args.dataset == "PHYS":
+        eeg_config.TMIN = PHYSIONET.TMIN
+        eeg_config.TMAX = PHYSIONET.TMAX
+        eeg_config.TRIAL_SLICES = 1
+        eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
+        eeg_config.SAMPLES=(int) ((PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
+    elif args.dataset == "BCIC":
+        eeg_config.TMIN = BCIC_CONFIG.TMIN
+        eeg_config.TMAX = BCIC_CONFIG.TMAX
+        eeg_config.TRIAL_SLICES = 1
+        eeg_config.SAMPLERATE = BCIC_CONFIG.SAMPLERATE
+        eeg_config.SAMPLES = (int) ((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
+
     if (args.tmin > args.tmax) | (args.tmin == args.tmax):
         parser.error(f"tmax has to be greater than tmin!")
     set_eeg_times(args.tmin, args.tmax)
@@ -115,6 +141,9 @@ def add_train_arguments(parser):
                         help=f'If present, will determine the model with the lowest loss on the validation set')
     parser.add_argument('--excluded', nargs='+', type=int, default=None,
                         help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
+
+    parser.add_argument('--only_fold', type=int, default=None,
+                        help=f'Optional: Specify single Fold to be only trained on')
 
 
 def check_train_arguments(parser, args):

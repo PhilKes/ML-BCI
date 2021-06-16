@@ -27,6 +27,7 @@ from config import eeg_config, global_config
 from data.physionet_dataset import PHYSIONET
 from data.bcic_dataset import BCIC_CONFIG
 
+
 def single_run(argv=sys.argv[1:]):
     parser = create_parser()
     args = parse_and_check(parser, argv)
@@ -43,37 +44,11 @@ def single_run(argv=sys.argv[1:]):
     device = torch.device(dev)
     print("device", device.type)
 
-    # Adjust global parameters which depend on the selected dataset
-    if (args.dataset == "PHYS") & (args.ch_names == None) & (args.ch_motorimg == None):
-        args.ch_names = MNE_CHANNELS
-
-    if (args.dataset == "PHYS") & (args.excluded == None):
-        args.excluded = excluded_subjects
-
-    if (args.dataset == "BCIC") & (args.ch_names == None) & (args.ch_motorimg == None):
-        args.ch_names = BCIC_CHANNELS
-    if (args.dataset == "BCIC") & (args.excluded == None):
-        args.excluded = BCIC_excluded_subjects
-
-    # Dataset dependent EEG config structure re-initialization
-    if args.dataset == "PHYS":
-        eeg_config.TMIN = PHYSIONET.TMIN
-        eeg_config.TMAX = PHYSIONET.TMAX
-        eeg_config.TRIAL_SLICES = 1
-        eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
-        eeg_config.SAMPLES=(int) ((PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
-    elif args.dataset == "BCIC":
-        eeg_config.TMIN = BCIC_CONFIG.TMIN
-        eeg_config.TMAX = BCIC_CONFIG.TMAX
-        eeg_config.TRIAL_SLICES = 1
-        eeg_config.SAMPLERATE = BCIC_CONFIG.SAMPLERATE
-        eeg_config.SAMPLES = (int) ((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
-
     if args.train:
         return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
                            equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                           excluded=args.excluded, mi_ds = args.dataset)
+                           excluded=args.excluded, mi_ds=args.dataset, only_fold=args.only_fold)
     elif args.train_ss:
         args.ch_names = load_chs_of_model(args.model)
         training_ss(args.model, args.subject, num_epochs=args.epochs, device=device, n_classes=args.n_classes,

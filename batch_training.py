@@ -91,18 +91,26 @@ confs = {
     #     ],
     #     'after': lambda: set_poolsize(4)
     # },
-    'chs': {
-        'params': [
-            ['--ch_motorimg', '16_csp'],
-            ['--ch_motorimg', '16'],
-            ['--ch_motorimg', '16_2'],
-            ['--ch_motorimg', '16_openbci'],
-            ['--ch_motorimg', '16_bs']],
-        'names': ['chs_16_csp', 'chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_bs']
+    # 'chs': {
+    #     'params': [
+    #         ['--ch_motorimg', '16_csp'],
+    #         ['--ch_motorimg', '16'],
+    #         ['--ch_motorimg', '16_2'],
+    #         ['--ch_motorimg', '16_openbci'],
+    #         ['--ch_motorimg', '16_bs']],
+    #     'names': ['chs_16_csp', 'chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_bs']
+    # },
+    # 'excluded': {
+    #     'params': [['--excluded', '42']],
+    #     'names': ['excl_42']
+    # },
+    'PHYS': {
+        'params': [['--dataset', 'PHYS']],
+        'names': ['phys_all']
     },
-    'excluded': {
-        'params': [['--excluded', '42']],
-        'names': ['excl_42']
+    'BCIC': {
+        'params': [['--dataset', 'BCIC']],
+        'names': ['bcic_all']
     },
 }
 
@@ -130,7 +138,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
                 conf['init'][run]()
             params = conf['params'][run]
             training_folder = f"{conf_folder}/conf_{conf['names'][run]}"
-            n_classes_accs, n_classes_ofs = single_run(
+            n_classes_accs, n_classes_ofs, n_classes_accs_best = single_run(
                 default_options +
                 ['--n_classes'] + n_classes +
                 ['--name', training_folder] + params)

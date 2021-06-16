@@ -6,26 +6,38 @@ Script to execute Training to analyze the Frequency bands of neural responses on
 For every Frequency Band the impact on different Time Slices (2.0s) are analyzed
 Saves results in ./results/neural_resp_YYYY-mm-dd_HH_MM_SS"
 """
-import os
+import argparse
 from datetime import datetime
-from config import set_bandpassfilter
+
+import numpy as np
+
 from batch_training import run_batch_training
+from config import set_bandpassfilter
 from data.data_utils import calc_difference_to_first_config, save_accs_panda
 from util.misc import datetime_to_folder_str
-import numpy as np
-import pandas as pd
+
+parser = argparse.ArgumentParser(
+    description='Script to analyze influence of Neural Response Frequency Bands (f1/f2/f3)')
+parser.add_argument('--best', dest='use_cv', action='store_false',
+                    help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
+
+args = parser.parse_args()
 
 # Neural Response Frequency bands
 fbs = [(None, None), (0, 8), (8, 16), (16, 28)]
 names = ['all', 'f1', 'f2', 'f3']
 
-# 2 Second time slices in steps of 0.5
+# 2 Second time slices in steps of 0.5 (max t=4.0)
 time_max = 4.0
 time_delta = 2.0
-time_step = 1.0
+time_step = 0.5
 bcic_time_cue_offset = 2.0
 
 n_classes = ['2']
+
+# Folds to use if --best is used
+phys_best_fold = 1
+bcic_best_fold = 1
 
 confs = {
     'PHYS': {
@@ -46,6 +58,7 @@ run_names = []
 for tmin in tmins:
     for i, name in enumerate(names):
         tmax = tmin + time_delta
+        print(f'Training with tmin={tmin}, tmax={tmax} for {name}')
         confs['PHYS']['params'].append(
             ['--dataset', 'PHYS',
              '--tmin', f'{tmin}',
@@ -64,16 +77,19 @@ for tmin in tmins:
         confs['BCIC']['names'].append(f'bcic_bp_{name}/t_{tmin}_{tmax}')
         confs['BCIC']['init'].append(lambda: set_bandpassfilter(*fbs[i]))
 
+        if args.use_cv is False:
+            confs['PHYS']['params'][-1].extend(['--only_fold', str(phys_best_fold)])
+            confs['BCIC']['params'][-1].extend(['--only_fold', str(bcic_best_fold)])
         if i != 0:
             run_names.append(f'{name}_{tmin}_{tmax}')
 
-print("Executing Training for Neural Response Frequency bands")
-# results shape: [conf,run, n_class, (acc,OF)]
+print(f"Executing Training for Neural Response Frequency bands")
 folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}'
+# results shape: [conf,run, n_class, (acc,OF)]
 results = run_batch_training(confs, n_classes, name=folderName)
 
 phys_acc_diffs = calc_difference_to_first_config(results[0][:, :, 0], len(fbs))
 bcic_acc_diffs = calc_difference_to_first_config(results[1][:, :, 0], len(fbs))
 
-save_accs_panda(folderName, phys_acc_diffs, names, n_classes, 'PHYS')
-save_accs_panda(folderName, bcic_acc_diffs, names, n_classes, 'BCIC')
+save_accs_panda(folderName, phys_acc_diffs, run_names, n_classes, 'PHYS')
+save_accs_panda(folderName, bcic_acc_diffs, run_names, n_classes, 'BCIC')
