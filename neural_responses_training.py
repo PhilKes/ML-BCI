@@ -36,7 +36,7 @@ bcic_time_cue_offset = 2.0
 n_classes = ['2']
 
 # Folds to use if --best is used
-phys_best_fold = 1
+phys_best_fold = 2
 bcic_best_fold = 1
 
 confs = {
@@ -70,7 +70,7 @@ for tmin in tmins:
         bcic_tmin = tmin + bcic_time_cue_offset
         bcic_tmax = tmax + bcic_time_cue_offset
         confs['BCIC']['params'].append(
-            ['--dataset', 'PHYS',
+            ['--dataset', 'BCIC',
              '--tmin', f'{bcic_tmin}',
              '--tmax', f'{bcic_tmax}',
              ])

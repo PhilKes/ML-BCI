@@ -15,8 +15,8 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "plots_training4"
-default_n_classes = ['2', '3', '4']
+folder = "defaults_tmin_0_tmax_2"
+default_n_classes = ['2']
 
 train_ss = False
 live_sim = False
@@ -104,11 +104,11 @@ confs = {
     #     'names': ['excl_42']
     # },
     'PHYS': {
-        'params': [['--dataset', 'PHYS']],
+        'params': [['--dataset', 'PHYS','--tmin','0','--tmax','2']],
         'names': ['phys_all']
     },
     'BCIC': {
-        'params': [['--dataset', 'BCIC']],
+        'params': [['--dataset', 'BCIC','--tmin','0','--tmax','2']],
         'names': ['bcic_all']
     },
 }
@@ -137,7 +137,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
                 conf['init'][run]()
             params = conf['params'][run]
             training_folder = f"{conf_folder}/conf_{conf['names'][run]}"
-            n_classes_accs, n_classes_ofs, n_classes_accs_best = single_run(
+            n_classes_accs, n_classes_ofs = single_run(
                 default_options +
                 ['--n_classes'] + n_classes +
                 ['--name', training_folder] + params)

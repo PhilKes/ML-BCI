@@ -134,7 +134,7 @@ def add_train_arguments(parser):
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
     parser.add_argument('--early_stop', action='store_true',
                         help=f'If present, will determine the model with the lowest loss on the validation set')
-    parser.add_argument('--excluded', nargs='+', type=int, default=None,
+    parser.add_argument('--excluded', nargs='+', type=int, default=[],
                         help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
 
     parser.add_argument('--only_fold', type=int, default=None,

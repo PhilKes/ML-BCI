@@ -136,7 +136,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
 
         # Skip folds until specified fold is reached
         if only_fold is not None:
-            for i in range(only_fold):
+            for f in range(only_fold):
                 next(cv_split)
 
         # Training of the Folds with the different splits
