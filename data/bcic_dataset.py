@@ -10,8 +10,8 @@ from mne.datasets import eegbci
 
 from util.dot_dict import DotDict
 
-BCIC_excluded_subjects = []                         # No excluded subjects
-BCIC_ALL_SUBJECTS = [i for i in range(1, 10)]       # 9 subjects
+BCIC_excluded_subjects = []  # No excluded subjects
+BCIC_ALL_SUBJECTS = [i for i in range(1, 10) if i not in BCIC_excluded_subjects]  # 9 subjects
 
 # Available 22 EEG Channels from Physionet Dataset
 BCIC_CHANNELS = [

@@ -89,13 +89,8 @@ def check_common_arguments(parser, args):
     if (args.dataset == "PHYS") & (args.ch_names == None) & (args.ch_motorimg == None):
         args.ch_names = MNE_CHANNELS
 
-    if (args.dataset == "PHYS") & (args.excluded == None):
-        args.excluded = excluded_subjects
-
     if (args.dataset == "BCIC") & (args.ch_names == None) & (args.ch_motorimg == None):
         args.ch_names = BCIC_CHANNELS
-    if (args.dataset == "BCIC") & (args.excluded == None):
-        args.excluded = BCIC_excluded_subjects
 
     # Dataset dependent EEG config structure re-initialization
     if args.dataset == "PHYS":
@@ -103,13 +98,13 @@ def check_common_arguments(parser, args):
         eeg_config.TMAX = PHYSIONET.TMAX
         eeg_config.TRIAL_SLICES = 1
         eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
-        eeg_config.SAMPLES=(int) ((PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
+        eeg_config.SAMPLES = (int)((PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
     elif args.dataset == "BCIC":
         eeg_config.TMIN = BCIC_CONFIG.TMIN
         eeg_config.TMAX = BCIC_CONFIG.TMAX
         eeg_config.TRIAL_SLICES = 1
         eeg_config.SAMPLERATE = BCIC_CONFIG.SAMPLERATE
-        eeg_config.SAMPLES = (int) ((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
+        eeg_config.SAMPLES = (int)((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
 
     if (args.tmin > args.tmax) | (args.tmin == args.tmax):
         parser.error(f"tmax has to be greater than tmin!")
@@ -134,7 +129,7 @@ def add_train_arguments(parser):
     parser.add_argument('--ch_names', nargs='+', type=str, default=None,
                         help="List of EEG Channels to use")
     parser.add_argument('--ch_motorimg', type=str, default=None,
-                        help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_str(MOTORIMG_CHANNELS.keys())} channels)")
+                        help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_str(MOTORIMG_CHANNELS.keys())} channels")
     parser.add_argument('--all_trials', action='store_true',
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
     parser.add_argument('--early_stop', action='store_true',
@@ -158,6 +153,8 @@ def check_train_arguments(parser, args):
         #     args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
         # else:
         #     args.name = args.name + f"_motor_img{args.ch_motorimg}"
+
+
 #    if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):
 #        print(args.ch_names)
 #        parser.error("Channel names (--ch_names) must be a list of EEG Channels (see config.py MNE_CHANNELS)")
@@ -190,6 +187,7 @@ def add_benchmark_arguments(parser):
                         help=f'Number of benchmark iterations over the Dataset in a loop (default:1)')
     parser.add_argument('--all', dest='continuous', action='store_false',
                         help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
+
 
 def check_benchmark_arguments(parser, args):
     if args.subjects_cs > len(ALL_SUBJECTS):

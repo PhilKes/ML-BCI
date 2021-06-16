@@ -17,8 +17,7 @@ start = datetime.now()
 
 folder = "plots_training4"
 default_n_classes = ['2', '3', '4']
-excluded_subject = 1
-excluded_params = ['--excluded', f'{excluded_subject}']
+
 train_ss = False
 live_sim = False
 
