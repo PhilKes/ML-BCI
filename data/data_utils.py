@@ -228,11 +228,7 @@ def calc_difference_to_first_config(runs_classes_accs, amt_configs):
     return acc_diffs
 
 
-def save_accs_panda(folderName, accs, names, n_classes, tag=None):
-    columns = []
-    for n_class in n_classes:
-        columns.append(f"{n_class}class Acc Diff")
-
+def save_accs_panda(folderName, accs, columns, names, n_classes, tag=None):
     df = pd.DataFrame(data=accs, index=names, columns=columns)
     if tag is not None:
         folderName += f'/{tag}'

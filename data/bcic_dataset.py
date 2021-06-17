@@ -19,7 +19,7 @@ BCIC_CHANNELS = [
     'c08', 'c09', 'c10', 'c11', 'c12', 'c13', 'c14',
     'c15', 'c16', 'c17', 'c18', 'c19', 'c20', 'c21',
     'c22']
-
+BCIC_time_cue_offset = 2.0
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 BCIC_CONFIG = DotDict(
     TMIN=4.0,

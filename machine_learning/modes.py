@@ -54,7 +54,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
                 equal_trials=True, early_stop=False, excluded=[], mi_ds='PHYS', only_fold=None):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
-                     n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
+                     n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded,mi_ds=mi_ds)
 
     if mi_ds == 'PHYS':
         print("Cross validation training with 'Physionet MI dataset' started!")
@@ -198,7 +198,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(fold_accuracies, class_accuracies, epoch_losses_train, epoch_losses_test, dir_results,
-                                 n_class, excluded, labels=(best_fold_act_labels, best_fold_pred_labels))
+                                 n_class, excluded,mi_ds,labels=(best_fold_act_labels, best_fold_pred_labels))
         # Plot Statistics and save as .png s
         plot_training_statistics(dir_results, tag, n_class, fold_accuracies, avg_class_accuracies, epoch_losses_train,
                                  epoch_losses_test, best_fold, batch_size, folds, early_stop)
@@ -228,6 +228,8 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
+        mi_ds=n_class_results['mi_ds']
+        #TODO use mi_ds
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
@@ -253,7 +255,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(test_accuracy, class_accuracies,
                                  epoch_losses_train, epoch_losses_test,
-                                 dir_results, n_class, [used_subject])
+                                 dir_results, n_class, [used_subject],None)
 
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 

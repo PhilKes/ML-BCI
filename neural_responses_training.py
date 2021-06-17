@@ -13,7 +13,9 @@ import numpy as np
 
 from batch_training import run_batch_training
 from config import set_bandpassfilter
+from data.bcic_dataset import BCIC_time_cue_offset
 from data.data_utils import calc_difference_to_first_config, save_accs_panda
+from data.physionet_dataset import PHYS_time_cue_offset
 from util.misc import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(
@@ -23,73 +25,60 @@ parser.add_argument('--best', dest='use_cv', action='store_false',
 
 args = parser.parse_args()
 
+ds_used = ['PHYS', 'BCIC']
+ds_time_cue_offsets = [PHYS_time_cue_offset, BCIC_time_cue_offset]
+# Folds to use if --best is used
+ds_best_folds = [2, 1]
+
 # Neural Response Frequency bands
 fbs = [(None, None), (0, 8), (8, 16), (16, 28)]
-names = ['all', 'f1', 'f2', 'f3']
+fbs_names = ['all', 'f1', 'f2', 'f3']
 
 # 2 Second time slices in steps of 0.5 (max t=4.0)
 time_max = 4.0
 time_delta = 2.0
 time_step = 0.5
-bcic_time_cue_offset = 2.0
 
 n_classes = ['2']
 
-# Folds to use if --best is used
-phys_best_fold = 2
-bcic_best_fold = 1
+confs = {}
+for ds_idx, ds in enumerate(ds_used):
+    confs[ds] = {
+                'params': [],
+                'names': [],
+                'init': [],
+                'after': lambda: set_bandpassfilter(None, None, False),
+            }
 
-confs = {
-    'PHYS': {
-        'params': [],
-        'names': [],
-        'init': [],
-        'after': lambda: set_bandpassfilter(None, None, False),
-    },
-    'BCIC': {
-        'params': [],
-        'names': [],
-        'init': [],
-        'after': lambda: set_bandpassfilter(None, None, False),
-    },
-}
 tmins = np.arange(0.0, time_max - time_delta + 0.01, time_step)
-run_names = []
+time_slices = []
 for tmin in tmins:
-    for i, name in enumerate(names):
-        tmax = tmin + time_delta
-        print(f'Training with tmin={tmin}, tmax={tmax} for {name}')
-        confs['PHYS']['params'].append(
-            ['--dataset', 'PHYS',
-             '--tmin', f'{tmin}',
-             '--tmax', f'{tmax}',
-             ])
-        confs['PHYS']['names'].append(f'phys_bp_{name}/t_{tmin}_{tmax}')
-        confs['PHYS']['init'].append(lambda: set_bandpassfilter(*fbs[i]))
+    tmax = tmin + time_delta
+    for ds_idx, ds in enumerate(ds_used):
+        for fb_idx, fb_name in enumerate(fbs_names):
+            print(f'Training with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
+            confs[ds]['params'].append(
+                ['--dataset', str(ds),
+                 '--tmin', f'{tmin + ds_time_cue_offsets[ds_idx]}',
+                 '--tmax', f'{tmax + ds_time_cue_offsets[ds_idx]}',
+                 ])
+            confs[ds]['names'].append(f'{ds.lower()}_bp_{fb_name}/t_{tmin}_{tmax}')
+            confs[ds]['init'].append(lambda: set_bandpassfilter(*fbs[fb_idx]))
 
-        bcic_tmin = tmin + bcic_time_cue_offset
-        bcic_tmax = tmax + bcic_time_cue_offset
-        confs['BCIC']['params'].append(
-            ['--dataset', 'BCIC',
-             '--tmin', f'{bcic_tmin}',
-             '--tmax', f'{bcic_tmax}',
-             ])
-        confs['BCIC']['names'].append(f'bcic_bp_{name}/t_{tmin}_{tmax}')
-        confs['BCIC']['init'].append(lambda: set_bandpassfilter(*fbs[i]))
-
-        if args.use_cv is False:
-            confs['PHYS']['params'][-1].extend(['--only_fold', str(phys_best_fold)])
-            confs['BCIC']['params'][-1].extend(['--only_fold', str(bcic_best_fold)])
-        if i != 0:
-            run_names.append(f'{name}_{tmin}_{tmax}')
+            if args.use_cv is False:
+                confs[ds]['params'][-1].extend(['--only_fold', str(ds_best_folds[ds_idx])])
+    time_slices.append(f'{tmin}-{tmax}s')
 
 print(f"Executing Training for Neural Response Frequency bands")
 folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}'
+
 # results shape: [conf,run, n_class, (acc,OF)]
 results = run_batch_training(confs, n_classes, name=folderName)
+for ds_idx, ds in enumerate(ds_used):
+    ds_acc_diffs = calc_difference_to_first_config(results[ds_idx][:, :, 0], len(fbs))
 
-phys_acc_diffs = calc_difference_to_first_config(results[0][:, :, 0], len(fbs))
-bcic_acc_diffs = calc_difference_to_first_config(results[1][:, :, 0], len(fbs))
+    # Reshape into rows for every frequency band
+    ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]))
 
-save_accs_panda(folderName, phys_acc_diffs, run_names, n_classes, 'PHYS')
-save_accs_panda(folderName, bcic_acc_diffs, run_names, n_classes, 'BCIC')
+    # Save accuracy differences as .csv and .txt
+    save_accs_panda(folderName, ds_acc_diffs, time_slices, fbs_names[1:], n_classes, ds)

@@ -74,11 +74,11 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
 
 
 def save_training_numpy_data(fold_accs, class_accuracies, epoch_losses_train, epoch_losses_test, save_path, n_class,
-                             excluded_subjects, labels=None):
+                             excluded_subjects,mi_ds, labels=None):
     np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=fold_accs, train_losses=epoch_losses_train,
              class_accs=class_accuracies, test_losses=epoch_losses_test,
              tmin=eeg_config.TMIN, tmax=eeg_config.TMAX, slices=eeg_config.TRIALS_SLICES,
-             excluded_subjects=np.asarray(excluded_subjects, dtype=np.int))
+             excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
     if labels is not None:
         np.savez(f"{save_path}/{n_class}class_training_actual_predicted.npz",
                  actual_labels=labels[0], pred_labels=labels[1])
@@ -222,7 +222,8 @@ def get_default_config_str(config):
 Nr. of classes: {config.n_classes}
 {get_str_n_classes(config.n_classes)}
 Channels: {len(config.ch_names)} {config.ch_names}
-Batch Size: {config.batch_size}"""
+Batch Size: {config.batch_size}
+Dataset: {config.mi_ds}"""
 
 
 def get_results_file(model, n_class):

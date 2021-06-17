@@ -25,10 +25,11 @@ MNE_CHANNELS = [
     'O1', 'Oz', 'O2',
     'Iz']
 
+PHYS_time_cue_offset = 0.0
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 PHYSIONET = DotDict(
     TMIN=0.0,
-    TMAX=3.0,
+    TMAX=2.0,
     SAMPLERATE=160,
     # if True: load Run 0 for Rest Trials, ignore in other Runs
     # not relevant for 2 class Classification
