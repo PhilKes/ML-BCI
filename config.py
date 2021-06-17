@@ -3,7 +3,7 @@ Configuration File containing global default values
 """
 import math
 
-from data.physionet_dataset import PHYSIONET
+from data.physionet_dataset import PHYS_CONFIG, PHYS_cv_folds
 from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
@@ -21,7 +21,7 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
 
 # Training Settings
 EPOCHS = 100
-SPLITS = 5
+SPLITS = PHYS_cv_folds
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]
 
@@ -44,11 +44,19 @@ eegnet_config = DotDict(pool_size=4)
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 # Trials Slicing (divide every Trial in equally long Slices)
-eeg_config = DotDict(TMIN=PHYSIONET.TMIN,
-                     TMAX=PHYSIONET.TMAX,
+eeg_config = DotDict(TMIN=PHYS_CONFIG.TMIN,
+                     TMAX=PHYS_CONFIG.TMAX,
                      TRIAL_SLICES=1,
-                     SAMPLERATE=PHYSIONET.SAMPLERATE,
-                     SAMPLES=(PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
+                     SAMPLERATE=PHYS_CONFIG.SAMPLERATE,
+                     SAMPLES=(PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE)
+
+
+def set_eeg_config(cfg):
+    eeg_config.TMIN = cfg.TMIN
+    eeg_config.TMAX = cfg.TMAX
+    eeg_config.TRIAL_SLICES = 1
+    eeg_config.SAMPLERATE = cfg.SAMPLERATE
+    eeg_config.SAMPLES = (int)((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
 
 
 def set_eeg_trials_slices(slices):
@@ -65,10 +73,10 @@ def set_eeg_times(tmin, tmax):
 
 
 def reset_eeg_times():
-    eeg_config.TMIN = PHYSIONET.TMIN
-    eeg_config.TMAX = PHYSIONET.TMAX
-    eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
-    eeg_config.SAMPLES = (PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE
+    eeg_config.TMIN = PHYS_CONFIG.TMIN
+    eeg_config.TMAX = PHYS_CONFIG.TMAX
+    eeg_config.SAMPLERATE = PHYS_CONFIG.SAMPLERATE
+    eeg_config.SAMPLES = (PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE
 
 
 def set_poolsize(size):

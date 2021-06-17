@@ -21,10 +21,10 @@ from machine_learning.modes import training_cv, benchmarking, live_sim, \
     training_ss
 from util.cmd_parser import create_parser, parse_and_check
 from util.misc import load_chs_of_model
-from data.physionet_dataset import MNE_CHANNELS, excluded_subjects
+from data.physionet_dataset import PHYS_CHANNELS, excluded_subjects
 from data.bcic_dataset import BCIC_CHANNELS, BCIC_excluded_subjects
 from config import eeg_config, global_config
-from data.physionet_dataset import PHYSIONET
+from data.physionet_dataset import PHYS_CONFIG
 from data.bcic_dataset import BCIC_CONFIG
 
 

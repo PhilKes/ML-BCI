@@ -12,13 +12,14 @@ History:
 """
 
 import argparse
-from datetime import datetime
 
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices
-from data.data_loading import ALL_SUBJECTS
-from data.physionet_dataset import MNE_CHANNELS, excluded_subjects, PHYSIONET
-from data.bcic_dataset import BCIC_CHANNELS, BCIC_excluded_subjects, BCIC_CONFIG
-from util.misc import datetime_to_folder_str, list_to_str
+from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices, \
+    set_eeg_config
+from data.bcic_dataset import BCIC_CHANNELS, BCIC_CONFIG, BCIC_short_name
+from data.data_loading import PHYS_ALL_SUBJECTS
+from data.data_utils import DS_DICTS, EEG_CONF, CHANNELS
+from data.physionet_dataset import PHYS_CHANNELS, excluded_subjects, PHYS_CONFIG, PHYS_short_name
+from util.misc import list_to_str
 
 
 def create_parser():
@@ -67,7 +68,7 @@ def add_common_arguments(parser):
                         help=f'Start Time of every Trial Epoch (default: {eeg_config.TMIN})')
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
                         help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
-    parser.add_argument('--dataset', type=str, default='PHYS',
+    parser.add_argument('--dataset', type=str, default=PHYS_short_name,
                         help='Name of the MI dataset')
 
 
@@ -82,29 +83,17 @@ def check_common_arguments(parser, args):
         parser.error("You have to use --model to specify which model to use for -benchmark or -train_ss")
     if (args.device == "cpu") & (args.bs > 15):
         parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
-    if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in ALL_SUBJECTS):
+    if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in PHYS_ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
 
-    # Adjust global parameters which depend on the selected dataset
-    if (args.dataset == "PHYS") & (args.ch_names == None) & (args.ch_motorimg == None):
-        args.ch_names = MNE_CHANNELS
+    ds_dict = DS_DICTS[args.dataset]
 
-    if (args.dataset == "BCIC") & (args.ch_names == None) & (args.ch_motorimg == None):
-        args.ch_names = BCIC_CHANNELS
+    # Adjust global parameters which depend on the selected dataset
+    if (args.ch_names == None) & (args.ch_motorimg == None):
+        args.ch_names = ds_dict[CHANNELS]
 
     # Dataset dependent EEG config structure re-initialization
-    if args.dataset == "PHYS":
-        eeg_config.TMIN = PHYSIONET.TMIN
-        eeg_config.TMAX = PHYSIONET.TMAX
-        eeg_config.TRIAL_SLICES = 1
-        eeg_config.SAMPLERATE = PHYSIONET.SAMPLERATE
-        eeg_config.SAMPLES = (int)((PHYSIONET.TMAX - PHYSIONET.TMIN) * PHYSIONET.SAMPLERATE)
-    elif args.dataset == "BCIC":
-        eeg_config.TMIN = BCIC_CONFIG.TMIN
-        eeg_config.TMAX = BCIC_CONFIG.TMAX
-        eeg_config.TRIAL_SLICES = 1
-        eeg_config.SAMPLERATE = BCIC_CONFIG.SAMPLERATE
-        eeg_config.SAMPLES = (int)((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
+    set_eeg_config(ds_dict[EEG_CONF])
 
     if (args.tmin > args.tmax) | (args.tmin == args.tmax):
         parser.error(f"tmax has to be greater than tmin!")
@@ -115,8 +104,8 @@ def check_common_arguments(parser, args):
         parser.error(f"Can't divide {eeg_config.SAMPLES} Samples in {args.trials_slices} slices!")
     set_eeg_trials_slices(args.trials_slices)
 
-    if (args.dataset != "PHYS") & (args.dataset != "BCIC"):
-        parser.error(f"MI dataset can either be 'PHYS' or 'BCIC'")
+    if args.dataset not in DS_DICTS:
+        parser.error(f"MI dataset can either be: {','.join(DS_DICTS.iterkeys())}")
 
 
 # Train Arguments #########################
@@ -129,7 +118,8 @@ def add_train_arguments(parser):
     parser.add_argument('--ch_names', nargs='+', type=str, default=None,
                         help="List of EEG Channels to use")
     parser.add_argument('--ch_motorimg', type=str, default=None,
-                        help=f"Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_str(MOTORIMG_CHANNELS.keys())} channels")
+                        help=f"""Use and set amount of predefined Motor Imagery Channels for Training (either {list_to_str(
+                            MOTORIMG_CHANNELS.keys())} channels""")
     parser.add_argument('--all_trials', action='store_true',
                         help=f"Use all available Trials per class for Training (if True, Rest class ('0') has more Trials than other classes)")
     parser.add_argument('--early_stop', action='store_true',
@@ -190,8 +180,8 @@ def add_benchmark_arguments(parser):
 
 
 def check_benchmark_arguments(parser, args):
-    if args.subjects_cs > len(ALL_SUBJECTS):
-        parser.error(f"Maximum subjects_bs: {len(ALL_SUBJECTS)}")
+    if args.subjects_cs > len(PHYS_ALL_SUBJECTS):
+        parser.error(f"Maximum subjects_bs: {len(PHYS_ALL_SUBJECTS)}")
     if (args.iters > 1) & (not args.benchmark):
         parser.error(f"Iteration parameter is only used if benchmarking")
     if args.fp16 & (not args.trt):

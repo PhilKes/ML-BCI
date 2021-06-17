@@ -5,6 +5,7 @@ Script to execute Training to analyze the Frequency bands of neural responses on
 - F1: 16-28Hz
 For every Frequency Band the impact on different Time Slices (2.0s) are analyzed
 Saves results in ./results/neural_resp_YYYY-mm-dd_HH_MM_SS"
+Uses Cross Validation (--best argument to use only Best-Fold)
 """
 import argparse
 from datetime import datetime
@@ -13,9 +14,9 @@ import numpy as np
 
 from batch_training import run_batch_training
 from config import set_bandpassfilter
-from data.bcic_dataset import BCIC_time_cue_offset
+from data.bcic_dataset import BCIC_time_cue_offset, BCIC_short_name
 from data.data_utils import calc_difference_to_first_config, save_accs_panda
-from data.physionet_dataset import PHYS_time_cue_offset
+from data.physionet_dataset import PHYS_time_cue_offset, PHYS_short_name
 from util.misc import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(
@@ -25,7 +26,7 @@ parser.add_argument('--best', dest='use_cv', action='store_false',
 
 args = parser.parse_args()
 
-ds_used = ['PHYS', 'BCIC']
+ds_used = [PHYS_short_name, BCIC_short_name]
 ds_time_cue_offsets = [PHYS_time_cue_offset, BCIC_time_cue_offset]
 # Folds to use if --best is used
 ds_best_folds = [2, 1]
@@ -44,11 +45,11 @@ n_classes = ['2']
 confs = {}
 for ds_idx, ds in enumerate(ds_used):
     confs[ds] = {
-                'params': [],
-                'names': [],
-                'init': [],
-                'after': lambda: set_bandpassfilter(None, None, False),
-            }
+        'params': [],
+        'names': [],
+        'init': [],
+        'after': lambda: set_bandpassfilter(None, None, False),
+    }
 
 tmins = np.arange(0.0, time_max - time_delta + 0.01, time_step)
 time_slices = []

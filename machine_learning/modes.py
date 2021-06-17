@@ -25,12 +25,13 @@ from torch import nn, Tensor  # noqa
 
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, VALIDATION_SUBJECTS, eeg_config, global_config
-from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
+from data.data_loading import PHYS_ALL_SUBJECTS, load_subjects_data, phys_create_loaders_from_splits, \
+    mne_load_subject_raw, \
     create_preloaded_loader, create_n_class_loaders_from_subject
 from data.bcic_data_loading import bcic_load_subjects_data, bcic_create_loaders_from_splits
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
-from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
-from data.bcic_dataset import BCIC_ALL_SUBJECTS
+from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, DS_DICTS
+from data.physionet_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_cv_folds, PHYS_short_name
+from data.bcic_dataset import BCIC_ALL_SUBJECTS, BCIC_cv_folds
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -44,25 +45,25 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 
 
 # Runs Training + Testing
-# Cross Validation with 5 Splits (á 21 Subjects' Data)
+# Cross Validation
 # Can run 2/3/4-Class Classifications
 # Saves + Plots Accuracies + Epoch Losses in ./results/{DateTime/name}/training
 # save_model: Saves trained model with highest accuracy in results folder
+# mi_ds: Used Dataset as String
 # only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
 # return n_class Accuracies + Overfittings
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
-                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[], mi_ds='PHYS', only_fold=None):
+                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
+                equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS_short_name, only_fold=None):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
-                     n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded,mi_ds=mi_ds)
+                     n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded, mi_ds=mi_ds)
 
-    if mi_ds == 'PHYS':
-        print("Cross validation training with 'Physionet MI dataset' started!")
-    elif mi_ds == 'BCIC':
-        print("Cross validation training with 'BCI competition IV 2A MI dataset' started!")
+    ds_dict = DS_DICTS[mi_ds]
+
+    if only_fold is None:
+        print(f"Cross validation training with '{ds_dict['name']}' started!")
     else:
-        print("Error: Illegal dataset specified")
-        sys.exit()
+        print(f"Training of Fold {only_fold} with '{ds_dict['name']}' started!")
 
     start = datetime.now()
     print(training_config_str(config))
@@ -78,12 +79,8 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
             tag += '_excluded'
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
-    if mi_ds == 'PHYS':
-        available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
-        folds = 5
-    elif mi_ds == 'BCIC':
-        available_subjects = [i for i in BCIC_ALL_SUBJECTS if i not in excluded]
-        folds = 9
+    available_subjects = [i for i in ds_dict['available_subjects'] if i not in excluded]
+    folds = ds_dict['folds']
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -116,12 +113,8 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
 
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            if mi_ds == 'PHYS':
-                preloaded_data, preloaded_labels = load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                      ch_names, equal_trials, normalize=False)
-            elif mi_ds == 'BCIC':
-                preloaded_data, preloaded_labels = bcic_load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                           ch_names, equal_trials, normalize=False)
+            preloaded_data, preloaded_labels = ds_dict['load_subjects'](used_subjects + validation_subjects, n_class,
+                                                                        ch_names, equal_trials, normalize=False)
 
         cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
@@ -143,16 +136,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         for fold in range(folds):
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-            if mi_ds == 'PHYS':
-                loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+            loaders = ds_dict['loaders_from_splits'](next(cv_split), validation_subjects, n_class, device,
                                                      preloaded_data,
                                                      preloaded_labels, batch_size, ch_names, equal_trials,
                                                      used_subjects=used_subjects)
-            elif mi_ds == 'BCIC':
-                loaders = bcic_create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
-                                                          preloaded_data,
-                                                          preloaded_labels, batch_size, ch_names, equal_trials,
-                                                          used_subjects=used_subjects)
 
             loader_train, loader_test, loader_valid = loaders
 
@@ -198,7 +185,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(fold_accuracies, class_accuracies, epoch_losses_train, epoch_losses_test, dir_results,
-                                 n_class, excluded,mi_ds,labels=(best_fold_act_labels, best_fold_pred_labels))
+                                 n_class, excluded, mi_ds, labels=(best_fold_act_labels, best_fold_pred_labels))
         # Plot Statistics and save as .png s
         plot_training_statistics(dir_results, tag, n_class, fold_accuracies, avg_class_accuracies, epoch_losses_train,
                                  epoch_losses_test, best_fold, batch_size, folds, early_stop)
@@ -217,7 +204,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
 # Supposed to be used before live_sim mode is executed
 # Saves further trained model
 def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=[3],
-                device=torch.device("cpu"), tag=None, ch_names=MNE_CHANNELS):
+                device=torch.device("cpu"), tag=None, ch_names=PHYS_CHANNELS):
     n_test_runs = 1
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, n_test_runs=n_test_runs)
@@ -228,8 +215,8 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        mi_ds=n_class_results['mi_ds']
-        #TODO use mi_ds
+        mi_ds = n_class_results['mi_ds']
+        # TODO use mi_ds
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
@@ -255,7 +242,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(test_accuracy, class_accuracies,
                                  epoch_losses_train, epoch_losses_test,
-                                 dir_results, n_class, [used_subject],None)
+                                 dir_results, n_class, [used_subject], None)
 
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
@@ -266,8 +253,8 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 # saves results in model_path/benchmark
 def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
                  warm_ups=GPU_WARMUPS,
-                 subjects_cs=len(ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
-                 ch_names=MNE_CHANNELS, equal_trials=True, continuous=False):
+                 subjects_cs=len(PHYS_ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
+                 ch_names=PHYS_CHANNELS, equal_trials=True, continuous=False):
     config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                      trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
@@ -290,7 +277,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
             class_models[n_class] = get_tensorrt_model(class_models[n_class], batch_size, chs, device, fp16)
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
-        preload_chunks = split_list_into_chunks(ALL_SUBJECTS, subjects_cs)
+        preload_chunks = split_list_into_chunks(PHYS_ALL_SUBJECTS, subjects_cs)
         chunks = len(preload_chunks)
         accuracies = np.zeros((chunks * iters) if not continuous else (iters))
         batch_lats = np.zeros((chunks * iters) if not continuous else (iters))
@@ -345,7 +332,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 # Predicts classes on every available sample
 # Plots Prediction values (in percent)
 # Stores Prediction array as .npy
-def live_sim(model_path, subject=None, name=None, ch_names=MNE_CHANNELS,
+def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
              n_classes=N_CLASSES,
              device=torch.device("cpu"), tag=None):
     dir_results = create_results_folders(path=f"{model_path}", name=name, mode='live_sim')

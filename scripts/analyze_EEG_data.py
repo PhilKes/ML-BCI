@@ -14,11 +14,11 @@ from torch import nn, Tensor  # noqa
 
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
-from data.data_loading import ALL_SUBJECTS, load_subjects_data, create_loaders_from_splits, mne_load_subject_raw, \
+from data.data_loading import PHYS_ALL_SUBJECTS, load_subjects_data, phys_create_loaders_from_splits, mne_load_subject_raw, \
     create_preloaded_loader, create_n_class_loaders_from_subject
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, \
     get_correctly_predicted_areas
-from data.physionet_dataset import MNE_CHANNELS, n_classes_live_run
+from data.physionet_dataset import PHYS_CHANNELS, n_classes_live_run
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.models.eegnet import EEGNet
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
@@ -50,8 +50,8 @@ def psd_calc(in_data):
 # Calculate mean psd over all subjects, all trials/subject and channel/trial
 # based on the data given by the 'Dataloader's'
 def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
-                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[]):
+                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
+                 equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
 
@@ -62,7 +62,7 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
     start = datetime.now()
     print("- Data analysis started")
 
-    available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
+    available_subjects = [i for i in PHYS_ALL_SUBJECTS if i not in excluded]
     print("  - Available subjects:", len(available_subjects))
 
     n_class = 2
@@ -85,9 +85,9 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     batch_size = 1
     # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-    loaders = create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
-                                         preloaded_labels, batch_size, ch_names, equal_trials,
-                                         used_subjects=used_subjects)
+    loaders = phys_create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
+                                              preloaded_labels, batch_size, ch_names, equal_trials,
+                                              used_subjects=used_subjects)
     loader_train, loader_test, loader_valid = loaders
 
     num_samples = eeg_config.SAMPLES
@@ -183,8 +183,8 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 # Calculate mean psd over all subjects, all trials/subject and channel/trial
 # based on the 'preloaded' data
 def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
-                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=MNE_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[]):
+                  save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
+                  equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
 
@@ -195,7 +195,7 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
     start = datetime.now()
     print("- Data analysis started")
 
-    available_subjects = [i for i in ALL_SUBJECTS if i not in excluded]
+    available_subjects = [i for i in PHYS_ALL_SUBJECTS if i not in excluded]
     print("  - Available subjects:", len(available_subjects))
 
     n_class = 2

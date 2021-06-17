@@ -19,8 +19,12 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
 import pandas as pd
 from config import eeg_config
+from data.bcic_data_loading import bcic_load_subjects_data, bcic_create_loaders_from_splits
+from data.bcic_dataset import BCIC_ALL_SUBJECTS, BCIC_cv_folds, BCIC_name, BCIC_short_name, BCIC_CONFIG, BCIC_CHANNELS
+from data.data_loading import load_subjects_data, phys_create_loaders_from_splits
 from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
-    MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, PHYSIONET
+    PHYS_CHANNELS, TRIALS_PER_SUBJECT_RUN, runs_rest, PHYS_CONFIG, PHYS_ALL_SUBJECTS, PHYS_cv_folds, PHYS_name, \
+    PHYS_short_name
 
 from scipy.signal import butter, sosfilt
 from config import results_folder
@@ -61,7 +65,7 @@ def butter_bandpass_filt(indata, lowcut, highcut, fs, order):
     return outdata
 
 
-def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
+def crop_time_and_label(raw, time, ch_names=PHYS_CHANNELS):
     tdelta = eeg_config.TMAX - eeg_config.TMIN
     if (time - tdelta) < 0:
         raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
@@ -72,7 +76,7 @@ def crop_time_and_label(raw, time, ch_names=MNE_CHANNELS):
     return data, times, raw1.annotations
 
 
-def get_data_from_raw(raw, ch_names=MNE_CHANNELS):
+def get_data_from_raw(raw, ch_names=PHYS_CHANNELS):
     # raw1 = raw.copy()
     raw.pick_channels(ch_names)
     data, times = raw[:, :]
@@ -158,8 +162,8 @@ def get_equal_trials_per_class(data, labels, classes, trials):
             np.random.seed(39)
             np.random.shuffle(cl_idxs)
         cl_idxs = cl_idxs[:trials]
-        if (cl == 0) & (not PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN) & (PHYSIONET.REST_TRIALS_LESS > 0):
-            cl_idxs = cl_idxs[:-PHYSIONET.REST_TRIALS_LESS]
+        if (cl == 0) & (not PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (PHYS_CONFIG.REST_TRIALS_LESS > 0):
+            cl_idxs = cl_idxs[:-PHYS_CONFIG.REST_TRIALS_LESS]
         trials_idxs = np.concatenate((trials_idxs, cl_idxs))
     trials_idxs = np.sort(trials_idxs)
     return data[trials_idxs], labels[trials_idxs]
@@ -239,3 +243,38 @@ def save_accs_panda(folderName, accs, columns, names, n_classes, tag=None):
               'w') as outfile:
         df.to_string(outfile)
     print(df)
+
+
+NAME = 'name'
+AVAILABLE_SUBJECTS = 'available_subjects'
+LOAD_SUBJECTS = 'load_subjects'
+LOADERS_FROM_SPLITS = 'loaders_from_splits'
+FOLDS = 'folds'
+EEG_CONF = 'eeg_config'
+CHANNELS='channels'
+
+PHYS_DICT = {
+    NAME: PHYS_name,
+    AVAILABLE_SUBJECTS: PHYS_ALL_SUBJECTS,
+    LOAD_SUBJECTS: load_subjects_data,
+    LOADERS_FROM_SPLITS: phys_create_loaders_from_splits,
+    FOLDS: PHYS_cv_folds,
+    EEG_CONF: PHYS_CONFIG,
+    CHANNELS: PHYS_CHANNELS
+}
+
+BCIC_DICT = {
+    NAME: BCIC_name,
+    AVAILABLE_SUBJECTS: BCIC_ALL_SUBJECTS,
+    LOAD_SUBJECTS: bcic_load_subjects_data(),
+    LOADERS_FROM_SPLITS: bcic_create_loaders_from_splits(),
+    FOLDS: BCIC_cv_folds,
+    EEG_CONF: BCIC_CONFIG,
+    CHANNELS: BCIC_CHANNELS
+}
+
+# Dictionaries contain config data + methods to load the dataset
+DS_DICTS = {
+    PHYS_short_name: PHYS_DICT,
+    BCIC_short_name: BCIC_DICT
+}

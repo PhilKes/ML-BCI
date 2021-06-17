@@ -6,9 +6,10 @@ History:
   2021-05-10: Getting started - ms
 """
 
-from mne.datasets import eegbci
-
 from util.dot_dict import DotDict
+
+BCIC_name = 'BCI competition IV 2A MI dataset'
+BCIC_short_name = 'BCIC'
 
 BCIC_excluded_subjects = []  # No excluded subjects
 BCIC_ALL_SUBJECTS = [i for i in range(1, 10) if i not in BCIC_excluded_subjects]  # 9 subjects
@@ -20,6 +21,7 @@ BCIC_CHANNELS = [
     'c15', 'c16', 'c17', 'c18', 'c19', 'c20', 'c21',
     'c22']
 BCIC_time_cue_offset = 2.0
+BCIC_cv_folds = 9
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 BCIC_CONFIG = DotDict(
     TMIN=4.0,

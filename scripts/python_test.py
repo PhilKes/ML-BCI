@@ -14,7 +14,7 @@ from config import set_eeg_times, results_folder, training_results_folder, train
     MOTORIMG_CHANNELS_16
 from data.data_loading import load_n_classes_tasks, mne_load_subject_raw, plot_live_sim_subject_run
 from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels_to_classes, map_times_to_samples
-from data.physionet_dataset import n_classes_live_run, MNE_CHANNELS
+from data.physionet_dataset import n_classes_live_run, PHYS_CHANNELS
 from machine_learning.inference_training import do_predict_on_samples
 from machine_learning.modes import live_sim
 from util.plot import matplot, matplot_legend, plot_accuracies, plot_confusion_matrix, plot_confusion_matrices, \

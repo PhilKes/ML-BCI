@@ -1,7 +1,7 @@
 """
 Handles all EEG-Data loading of Physionet Motor Imagery Dataset via MNE Library
 (https://neuro.inf.unibe.ch/AlgorithmsNeuroscience/Tutorial_files/DataLoading.html)
-On initial Run MNE downloads the Physionet Dataset into ./data/datasets
+On initial Run MNE downloads the Physionet Dataset into datasets_folder
 (https://physionet.org/content/eegmmidb/1.0.0/)
 
 Edition History:
@@ -11,31 +11,29 @@ Edition History:
 import mne
 import numpy as np
 import torch  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
 from mne import Epochs
 from mne.io import concatenate_raws, read_raw_edf
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler  # noqa
+from torch.utils.data.dataset import TensorDataset  # noqa
 from tqdm import tqdm
 
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples
-from data.physionet_dataset import runs, mne_dataset, ALL_SUBJECTS, MNE_CHANNELS, TRIALS_PER_SUBJECT_RUN, PHYSIONET, \
+from data.physionet_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS, PHYS_CHANNELS, TRIALS_PER_SUBJECT_RUN, \
+    PHYS_CONFIG, \
     n_classes_live_run
 from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
-from data.data_utils import butter_bandpass_filt
+
 
 # Returns Loaders of Training + Test Datasets from index splits
 # for n_class classification
 # also returns Validtion Loader containing validation_subjects subject for loss calculation
-def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
-                               preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
-                               equal_trials=True, used_subjects=ALL_SUBJECTS):
+def phys_create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
+                                    preloaded_labels=None, bs=BATCH_SIZE, ch_names=PHYS_CHANNELS,
+                                    equal_trials=True, used_subjects=PHYS_ALL_SUBJECTS):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [used_subjects[idx] for idx in subjects_train_idxs]
     subjects_test = [used_subjects[idx] for idx in subjects_test_idxs]
@@ -64,7 +62,7 @@ def create_loaders_from_splits(splits, validation_subjects, n_class, device, pre
 
 # Creates DataLoader with Random Sampling from subject list
 def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None,
-                                bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=True):
+                                bs=BATCH_SIZE, ch_names=PHYS_CHANNELS, equal_trials=True):
     trials_ds = TrialsDataset(subjects, n_class, device,
                               preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
                               ch_names=ch_names, equal_trials=equal_trials)
@@ -112,14 +110,14 @@ def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device, equ
 # Loads all Subjects Data + Labels for n_class Classification
 # Very high memory usage for ALL_SUBJECTS (~2GB)
 # used_runs can be passed to force to load only these runs
-def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=True,
+def load_subjects_data(subjects, n_class, ch_names=PHYS_CHANNELS, equal_trials=True,
                        normalize=False, ignored_runs=[]):
     subjects.sort()
     trials = get_trials_size(n_class, equal_trials, ignored_runs)
     trials_per_run_class = np.math.floor(trials / n_class)
     trials = trials * eeg_config.TRIALS_SLICES
     if n_class > 2:
-        trials -= PHYSIONET.REST_TRIALS_LESS
+        trials -= PHYS_CONFIG.REST_TRIALS_LESS
 
     preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
     preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
@@ -142,11 +140,11 @@ def load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=Tr
 
 
 # Loads corresponding tasks for n_classes Classification
-def load_n_classes_tasks(subject, n_classes, ch_names=MNE_CHANNELS, equal_trials=True,
+def load_n_classes_tasks(subject, n_classes, ch_names=PHYS_CHANNELS, equal_trials=True,
                          trials_per_run_class=TRIALS_PER_SUBJECT_RUN,
                          ignored_runs=[]):
     tasks = n_classes_tasks[n_classes].copy()
-    if (not PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
+    if (not PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
         tasks.remove(0)
     data, labels = load_task_runs(subject, tasks,
                                   exclude_bothfists=(n_classes == 4), exclude_rests=(n_classes == 2),
@@ -168,7 +166,7 @@ event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 # if baseline run is not long enough for all needed trials
 # random Trials are generated from baseline run
 def mne_load_rests(subject, trials, ch_names, samples):
-    used_trials = trials - PHYSIONET.REST_TRIALS_LESS
+    used_trials = trials - PHYS_CONFIG.REST_TRIALS_LESS
     X, y = mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
     X = np.swapaxes(X, 2, 1)
     chs = len(ch_names)
@@ -196,7 +194,7 @@ def mne_load_rests(subject, trials, ch_names, samples):
 
 
 # Merges runs from different tasks + correcting labels for n_class classification
-def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNELS, n_class=3,
+def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=PHYS_CHANNELS, n_class=3,
                    equal_trials=True, trials_per_run_class=TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
                    ignored_runs=[]):
     load_samples = eeg_config.SAMPLES * eeg_config.TRIALS_SLICES
@@ -205,12 +203,12 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
     # Load Subject Data of all Tasks
     for task_idx, task in enumerate(tasks):
         # Task = 0 -> Rest Trials "T0"
-        if PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
+        if PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
             data, labels = mne_load_rests(subject, trials_per_run_class, ch_names, load_samples)
         else:
             # if Rest Trials are loaded from Baseline Run, ignore "TO"s in all other Runs
             # exclude_rests is True for 2class Classification
-            if PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN | exclude_rests:
+            if PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN | exclude_rests:
                 tasks_event_dict = {'T1': 2, 'T2': 3}
             else:
                 tasks_event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
@@ -243,7 +241,7 @@ def load_task_runs(subject, tasks, exclude_bothfists=False, ch_names=MNE_CHANNEL
 # event_id= 'auto' loads all event types
 # ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
 # tmin,tmax define what time interval of the events is returned
-def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin=None,
+def mne_load_subject(subject, runs, event_id='auto', ch_names=PHYS_CHANNELS, tmin=None,
                      tmax=None):
     if tmax is None:
         tmax = eeg_config.TMAX
@@ -265,7 +263,7 @@ def mne_load_subject(subject, runs, event_id='auto', ch_names=MNE_CHANNELS, tmin
 
 # Loads raw Subject run with specified channels
 # Can apply Bandpassfilter + Notch Filter
-def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
+def mne_load_subject_raw(subject, runs, ch_names=PHYS_CHANNELS, notch=False,
                          fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
 
     fmin = global_config.FREQ_FILTER_HIGHPASS
@@ -294,7 +292,7 @@ def mne_load_subject_raw(subject, runs, ch_names=MNE_CHANNELS, notch=False,
 class TrialsDataset(Dataset):
 
     def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
-                 ch_names=MNE_CHANNELS, equal_trials=True):
+                 ch_names=PHYS_CHANNELS, equal_trials=True):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
         self.loaded_subject = -1
@@ -304,7 +302,7 @@ class TrialsDataset(Dataset):
         self.runs = []
         self.device = device
         self.trials_per_subject = get_trials_size(n_classes,
-                                                  equal_trials) * eeg_config.TRIALS_SLICES - PHYSIONET.REST_TRIALS_LESS
+                                                  equal_trials) * eeg_config.TRIALS_SLICES - PHYS_CONFIG.REST_TRIALS_LESS
         self.equal_trials = equal_trials
         self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
         self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
@@ -358,7 +356,7 @@ class TrialsDataset(Dataset):
 
 
 # Plots Subject Run with raw EEG Channel data
-def plot_live_sim_subject_run(subject=1, n_class=3, save_path="./results/plots_training", ch_names=MNE_CHANNELS):
+def plot_live_sim_subject_run(subject=1, n_class=3, save_path="./results/plots_training", ch_names=PHYS_CHANNELS):
     # ch_names = ['F4', 'Oz', 'F7', 'F6']
 
     # Load Raw Subject Run for n_class

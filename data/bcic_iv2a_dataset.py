@@ -448,7 +448,7 @@ subroutine: plot_psds
 Description:
   Reads psds from files and displays them.
 '''
-def plot_psds(path='../../datasets/BCICompetition_IV-2a/pl_data/', sampling_rate=250):
+def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_rate=250):
     print("Plot psd diagram:")
 
     # construct psd file names

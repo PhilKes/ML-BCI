@@ -14,15 +14,11 @@ History:
 """
 
 import torch  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset, TensorDataset, random_split  # noqa
+from torch.utils.data import Dataset, DataLoader, RandomSampler  # noqa
 
 from config import DATA_PRELOAD, BATCH_SIZE
 from data.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from data.physionet_dataset import ALL_SUBJECTS, MNE_CHANNELS
+from data.physionet_dataset import PHYS_ALL_SUBJECTS, PHYS_CHANNELS
 from util.misc import print_subjects_ranges
 
 """
@@ -38,8 +34,8 @@ Description:
   validation_subjects subject for loss calculation
 """
 def bcic_create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
-                                    preloaded_labels=None, bs=BATCH_SIZE, ch_names=MNE_CHANNELS,
-                                    equal_trials=True, used_subjects=ALL_SUBJECTS):
+                                    preloaded_labels=None, bs=BATCH_SIZE, ch_names=PHYS_CHANNELS,
+                                    equal_trials=True, used_subjects=PHYS_ALL_SUBJECTS):
     subjects_train_idxs, subjects_test_idxs = splits
     subjects_train = [used_subjects[idx] for idx in subjects_train_idxs]
     subjects_test = [used_subjects[idx] for idx in subjects_test_idxs]
@@ -68,7 +64,7 @@ def bcic_create_loaders_from_splits(splits, validation_subjects, n_class, device
 
 # Creates DataLoader with Random Sampling from subject list
 def bcic_create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None,
-                                bs=BATCH_SIZE, ch_names=MNE_CHANNELS, equal_trials=True):
+                                     bs=BATCH_SIZE, ch_names=PHYS_CHANNELS, equal_trials=True):
     trials_ds = bcic_trialsDataset(subjects, n_class, device,
                                    preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
                                    ch_names=ch_names, equal_trials=equal_trials)
@@ -81,8 +77,8 @@ Subroutine:  bcic_load_subjects_data()
 """
 # Loads all Subjects Data + Labels for n_class Classification
 # used_runs can be passed to force to load only these runs
-def bcic_load_subjects_data(subjects, n_class, ch_names=MNE_CHANNELS, equal_trials=True,
-                       normalize=False, ignored_runs=[]):
+def bcic_load_subjects_data(subjects, n_class, ch_names=PHYS_CHANNELS, equal_trials=True,
+                            normalize=False, ignored_runs=[]):
     subjects.sort()
 
     training = 1    # load BCIC training data set
@@ -108,7 +104,7 @@ class bcic_trialsDataset(Dataset):
         subjects: list of subjects
     """
     def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
-                 ch_names=MNE_CHANNELS, equal_trials=True):
+                 ch_names=PHYS_CHANNELS, equal_trials=True):
         self.subjects = subjects
         self.n_classes = n_classes
         self.device = device

@@ -8,9 +8,11 @@ from mne.datasets import eegbci
 
 from util.dot_dict import DotDict
 
+PHYS_name = 'Physionet MI dataset',
+PHYS_short_name = 'PHYS',
 # Available 64 EEG Channels from Physionet Dataset
 # raw.info['ch_names']
-MNE_CHANNELS = [
+PHYS_CHANNELS = [
     'Fc5', 'Fc3', 'Fc1', 'Fcz', 'Fc2', 'Fc4', 'Fc6',
     'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6',
     'Cp5', 'Cp3', 'Cp1', 'Cpz', 'Cp2', 'Cp4', 'Cp6',
@@ -26,8 +28,9 @@ MNE_CHANNELS = [
     'Iz']
 
 PHYS_time_cue_offset = 0.0
+PHYS_cv_folds = 5
 # Time Interval per EEG Trial (T=0: start of MI Cue)
-PHYSIONET = DotDict(
+PHYS_CONFIG = DotDict(
     TMIN=0.0,
     TMAX=2.0,
     SAMPLERATE=160,
@@ -47,11 +50,11 @@ def set_rests_config(from_bl_run=None, less_rests=None):
 
 
 def set_rest_from_bl_run(val):
-    PHYSIONET.REST_TRIALS_FROM_BASELINE_RUN = val
+    PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN = val
 
 
 def set_rest_trials_less(val):
-    PHYSIONET.REST_TRIALS_LESS = val
+    PHYS_CONFIG.REST_TRIALS_LESS = val
 
 
 # Amount of picked Trials in 1 Run of 1 Subject
@@ -59,7 +62,7 @@ TRIALS_PER_SUBJECT_RUN = 21
 
 # Some Subjects are excluded due to differing numbers of Trials in the recordings
 excluded_subjects = [88, 92, 100, 104]
-ALL_SUBJECTS = [i for i in range(1, 110) if i not in excluded_subjects]
+PHYS_ALL_SUBJECTS = [i for i in range(1, 110) if i not in excluded_subjects]
 
 runs_rest = [1]  # Baseline, eyes open
 runs_t1 = [3, 7, 11]  # Task 1 (open and close left or right fist)
