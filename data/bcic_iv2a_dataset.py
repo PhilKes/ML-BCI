@@ -16,7 +16,7 @@ History:
   2020-05-11: Ongoing version 0.1 implementation - ms
 '''
 
-#from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
@@ -106,15 +106,19 @@ Description:
   - print_stats: Print statistics, which means the number of trials per class
                  stored in pl_data
 '''
+
+
 class BCIC_IV2a_dataset:
     '''
     Constructor:
       Initializes the used data structures
     '''
-    def __init__(self, subjects=[1], n_classes=4, path=f'{datasets_folder}/BCICompetition_IV-2a/', ch_names=BCIC_CHANNELS):
+
+    def __init__(self, subjects=[1], n_classes=4, path=f'{datasets_folder}/BCICompetition_IV-2a/',
+                 ch_names=BCIC_CHANNELS):
         self.path = path
         self.orgfiles_path = path + "Numpy_files/"  # Location of original subject-specific data files
-        self.pl_path       = path + "pl_data/"       # Location where preloaded data is stored
+        self.pl_path = path + "pl_data/"  # Location where preloaded data is stored
 
         # We must have at least one and at maximum 9 subjects
         if len(subjects) > 0 and len(subjects) <= 9:
@@ -130,9 +134,9 @@ class BCIC_IV2a_dataset:
             print("Error in BCIC_IV2a_dataset constructor: Illegal parameter n_classes: ", n_classes)
             sys.exit(0)
 
-        self.fs = eeg_config.SAMPLERATE         # sampling rate: 250Hz from original paper
-        self.n_trials_max = None                # Maximum possible number of trials
-        self.n_channels = len(ch_names)         # 22 EEG electrodes
+        self.fs = eeg_config.SAMPLERATE  # sampling rate: 250Hz from original paper
+        self.n_trials_max = None  # Maximum possible number of trials
+        self.n_channels = len(ch_names)  # 22 EEG electrodes
 
         self.tmin = eeg_config.TMIN
         self.tmax = eeg_config.TMAX
@@ -150,6 +154,7 @@ class BCIC_IV2a_dataset:
       Analysis of pl_labels() and extraction of how many trials of each class we have
       on a per subject basis. Result is printed on the screen.
     '''
+
     def print_stats(self):
         print("- Some statistics of BCIC_IV2a dataset:")
 
@@ -161,28 +166,28 @@ class BCIC_IV2a_dataset:
         for subject in range(len(self.subjects)):
             class_counts = [0, 0, 0, 0, 0, 0]
             for trial in range(self.n_trials_max):
-                if   self.pl_labels[subject, trial] == 0:
-                    class_counts[0] = class_counts[0] +1
+                if self.pl_labels[subject, trial] == 0:
+                    class_counts[0] = class_counts[0] + 1
                 elif self.pl_labels[subject, trial] == 1:
-                    class_counts[1] = class_counts[1] +1
+                    class_counts[1] = class_counts[1] + 1
                 elif self.pl_labels[subject, trial] == 2:
-                    class_counts[2] = class_counts[2] +1
+                    class_counts[2] = class_counts[2] + 1
                 elif self.pl_labels[subject, trial] == 3:
-                    class_counts[3] = class_counts[3] +1
+                    class_counts[3] = class_counts[3] + 1
                 elif self.pl_labels[subject, trial] == -1:
-                    class_counts[4] = class_counts[4] +1
+                    class_counts[4] = class_counts[4] + 1
                 else:
                     print("print_stats(): Illegal class!!!", self.pl_labels[subject, trial])
 
             class_counts[5] = class_counts[0] + class_counts[1] + class_counts[2] \
-                            + class_counts[3]
+                              + class_counts[3]
 
             for i in range(len(all_subjects_counts)):
                 all_subjects_counts[i] = all_subjects_counts[i] + class_counts[i]
 
             print("    %3d   |   %3d  |   %3d  |   %3d  |   %3d  |    %3d   |    %3d" % \
-                    (subject, class_counts[0], class_counts[1], class_counts[2],  \
-                    class_counts[3], class_counts[4], class_counts[5]))
+                  (subject, class_counts[0], class_counts[1], class_counts[2], \
+                   class_counts[3], class_counts[4], class_counts[5]))
 
         print("  --------|--------|--------|--------|--------|----------|----------")
         print("    All   |   %3d  |   %3d  |   %3d  |   %3d  |    %3d   |   %4d" % \
@@ -195,6 +200,7 @@ class BCIC_IV2a_dataset:
     Descpription:
       Get all trials data and corresponding labels for the specified subject.
     '''
+
     def get_trials(self, subject, fname):
         data = np.load(fname)
 
@@ -220,7 +226,7 @@ class BCIC_IV2a_dataset:
         # pl_trial_ind is the index where a valid data set is stored
         # in pl_data array
         trial_ind = 0
-        pl_trial_ind  = 0
+        pl_trial_ind = 0
         # For any trial specified by its idxs valus
         for index in idxs:
             try:
@@ -229,8 +235,8 @@ class BCIC_IV2a_dataset:
                     class_e = self.mi_types[type_e]
 
                     if (self.n_classes == 2 and (type_e >= 769 and type_e <= 770)) or \
-                       (self.n_classes == 3 and (type_e >= 769 and type_e <= 771)) or \
-                       (self.n_classes == 4 and (type_e >= 769 and type_e <= 772)):
+                            (self.n_classes == 3 and (type_e >= 769 and type_e <= 771)) or \
+                            (self.n_classes == 4 and (type_e >= 769 and type_e <= 772)):
 
                         # Store the trial specific label with following class encoding:
                         # MI action   | BCIC_IV2a code | class label
@@ -247,7 +253,7 @@ class BCIC_IV2a_dataset:
                         # trials belongs.
                         # Have care!!! We have to subtract 1 because indexing starts
                         # with index 0.
-                        self.pl_labels[subject-1, pl_trial_ind] = type_e - 768 -1
+                        self.pl_labels[subject - 1, pl_trial_ind] = type_e - 768 - 1
 
                         start = events_position[0, index]
                         stop = start + events_duration[0, index]
@@ -261,13 +267,13 @@ class BCIC_IV2a_dataset:
                             # Copy part of channel data into pl_data
                             start_idx = int(self.tmin * self.fs)
                             for idx in range(self.n_samples):
-                                self.pl_data[subject-1, pl_trial_ind, channel, idx] = float(trial[start_idx + idx])
+                                self.pl_data[subject - 1, pl_trial_ind, channel, idx] = float(trial[start_idx + idx])
 
                         pl_trial_ind = pl_trial_ind + 1
 
                 else:
-                    x_temp = 0      # noop
-#                    print("  - Trial %d is marked as an artifact and ignored" % (trial_ind))
+                    x_temp = 0  # noop
+                #                    print("  - Trial %d is marked as an artifact and ignored" % (trial_ind))
 
                 trial_ind = trial_ind + 1
             except:
@@ -284,6 +290,7 @@ class BCIC_IV2a_dataset:
       (The subjects and n_classes for which data should be loaded have already been
       specified when dataset object has been created.)
     '''
+
     def load_subjects_data(self, training):
         self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class
 
@@ -303,7 +310,7 @@ class BCIC_IV2a_dataset:
             else:
                 print('Error: Illegal parameter')
 
-            print ('  - Load data of subject %d from file: %s' % (subject, fname))
+            print('  - Load data of subject %d from file: %s' % (subject, fname))
 
             self.get_trials(subject, fname)
 
@@ -315,6 +322,7 @@ class BCIC_IV2a_dataset:
       Save the data and labels stored in numpy arrays self.pl_data and self.pl_labels
       in a file with filename 'fname' in the folder specified by self.pl_path
     '''
+
     def save_pl_dataLabels(self, fname):
         print("- save_pl_dataLabels: Store preprocessed data in file: ", (self.pl_path + fname))
 
@@ -331,19 +339,20 @@ class BCIC_IV2a_dataset:
       from a file with filename 'fname'. Both arrays must have been stored in that
       file using save_pl_dataLabels().
     '''
+
     def load_pl_dataLabels(self, fname):
         print("- load_pl_dataLabels: Load 'pl_data' and 'pl_labels' from file: ", (self.pl_path + fname))
 
         # Read data from files:
         with np.load(self.pl_path + fname) as data:
-            self.subjects  = data['subjects']
+            self.subjects = data['subjects']
             self.n_classes = data['n_classes']
-            self.pl_data   = data['pl_data']
+            self.pl_data = data['pl_data']
             self.pl_labels = data['pl_labels']
 
         self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class
 
-        return  self.pl_data, self.pl_labels
+        return self.pl_data, self.pl_labels
 
     '''
     Method: calc_psds(self)
@@ -356,10 +365,11 @@ class BCIC_IV2a_dataset:
       
       Have Care: Only works for n_classes = 4
     '''
+
     def calc_psds(self):
         print("- calc_psds: Calculate power spectral densities")
 
-        if(self.n_classes != 4):
+        if (self.n_classes != 4):
             print("Sorry, but this method only works if n_classes = 4")
             return
 
@@ -368,9 +378,9 @@ class BCIC_IV2a_dataset:
         print("  - preloaded labels shape =", self.pl_labels.shape)
 
         # Assign basic parameters
-        num_samples  = self.pl_data.shape[3]
+        num_samples = self.pl_data.shape[3]
         num_channels = self.pl_data.shape[2]
-        num_trials   = self.pl_data.shape[1]
+        num_trials = self.pl_data.shape[1]
         num_subjects = self.pl_data.shape[0]
         print("  - subjects: %d, trials/subject: %d, EEG-channels/trial: %d" % (num_subjects, num_trials, num_channels))
 
@@ -384,11 +394,11 @@ class BCIC_IV2a_dataset:
         print("  - num_psd_samples = %d" % num_psd_samples)
 
         # Create numpy arrays to store the psds
-        psd_all    = np.zeros(num_psd_samples)     # Mean psd of all trials
-        psd_class1 = np.zeros(num_psd_samples)     # Mean psd of all 'left hand' trials
-        psd_class2 = np.zeros(num_psd_samples)     # Mean psd of all 'right hand' trials
-        psd_class3 = np.zeros(num_psd_samples)     # Mean psd of all 'both feet' trials
-        psd_class4 = np.zeros(num_psd_samples)     # Mean psd of all 'tongue' trials
+        psd_all = np.zeros(num_psd_samples)  # Mean psd of all trials
+        psd_class1 = np.zeros(num_psd_samples)  # Mean psd of all 'left hand' trials
+        psd_class2 = np.zeros(num_psd_samples)  # Mean psd of all 'right hand' trials
+        psd_class3 = np.zeros(num_psd_samples)  # Mean psd of all 'both feet' trials
+        psd_class4 = np.zeros(num_psd_samples)  # Mean psd of all 'tongue' trials
 
         # Start psd calculation
         num_class1_trials = 0
@@ -404,8 +414,8 @@ class BCIC_IV2a_dataset:
                     if self.pl_labels[subject, trial] != -1:
                         data = self.pl_data[subject, trial, ch, :]
                         f, psd = signal.periodogram(data, float(self.fs))  # this method uses
-                                        # welch functions and should provide a lower noise but a
-                                        # a little bit poorer frequency resolution
+                        # welch functions and should provide a lower noise but a
+                        # a little bit poorer frequency resolution
                         psd_all = psd_all + psd
                         if self.pl_labels[subject, trial] == 0:
                             num_class1_trials = num_class1_trials + 1
@@ -422,9 +432,10 @@ class BCIC_IV2a_dataset:
                         else:
                             print("ERROR: Illegal label")
 
-        print("  - Number of classX trials: ", num_class1_trials, num_class2_trials, num_class3_trials, num_class4_trials)
+        print("  - Number of classX trials: ", num_class1_trials, num_class2_trials, num_class3_trials,
+              num_class4_trials)
 
-        psd_all =    psd_all    / (num_class1_trials + num_class2_trials + num_class3_trials + num_class4_trials )
+        psd_all = psd_all / (num_class1_trials + num_class2_trials + num_class3_trials + num_class4_trials)
         psd_class1 = psd_class1 / (num_class1_trials)
         psd_class2 = psd_class2 / (num_class2_trials)
         psd_class2 = psd_class3 / (num_class3_trials)
@@ -441,6 +452,7 @@ class BCIC_IV2a_dataset:
 
         print("  - Data (f, psd) saved in files: ", (fname + "xxx.npz"))
 
+
 ########################################################################################
 '''
 subroutine: plot_psds
@@ -448,6 +460,8 @@ subroutine: plot_psds
 Description:
   Reads psds from files and displays them.
 '''
+
+
 def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_rate=250):
     print("Plot psd diagram:")
 
@@ -473,25 +487,25 @@ def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_
         psd_class4 = data['psd']
 
     # Plot parameters:
-    plot_fstart = 0.5   # min frequency component shown in plot
-    plot_fstop  = 12.0  # max frequency component shown in plot
-    LOG_PLOT = True         # enable/disable log display
-    PLOT_ALL = True        # plot mean psd of all trials
-    PLOT_CLASS1 = True      # plot mean psd of class1 trials
-    PLOT_CLASS2 = True      # plot mean psd of class2 trials
-    PLOT_CLASS3 = False      # plot mean psd of class3 trials
-    PLOT_CLASS4 = False      # plot mean psd of class4 trials
+    plot_fstart = 0.5  # min frequency component shown in plot
+    plot_fstop = 12.0  # max frequency component shown in plot
+    LOG_PLOT = True  # enable/disable log display
+    PLOT_ALL = True  # plot mean psd of all trials
+    PLOT_CLASS1 = True  # plot mean psd of class1 trials
+    PLOT_CLASS2 = True  # plot mean psd of class2 trials
+    PLOT_CLASS3 = False  # plot mean psd of class3 trials
+    PLOT_CLASS4 = False  # plot mean psd of class4 trials
 
     num_samples = 2 * len(psd_all)
-    delta_f = float(sampling_rate/num_samples)
-    plot_start_ind = int(plot_fstart/delta_f)
-    plot_stop_ind = int(plot_fstop/delta_f)
+    delta_f = float(sampling_rate / num_samples)
+    plot_start_ind = int(plot_fstart / delta_f)
+    plot_stop_ind = int(plot_fstop / delta_f)
     print("  - delta_f = %f Hz, plot_start_ind = %d, plot_stop_ind = %d" % (delta_f, plot_start_ind, plot_stop_ind))
 
     # Assign plot arrays
     f_plot = f[plot_start_ind:plot_stop_ind]
 
-    psd_all_plot    = psd_all[plot_start_ind:plot_stop_ind]
+    psd_all_plot = psd_all[plot_start_ind:plot_stop_ind]
     psd_class1_plot = psd_class1[plot_start_ind:plot_stop_ind]
     psd_class2_plot = psd_class2[plot_start_ind:plot_stop_ind]
     psd_class3_plot = psd_class3[plot_start_ind:plot_stop_ind]
@@ -531,7 +545,7 @@ def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_
     plt.legend(legend)
 
     bottom, top = plt.ylim()
-#    plt.ylim([1e-11, 1e-8])
+    #    plt.ylim([1e-11, 1e-8])
     plt.xlabel('Frequency [Hz]')
     if LOG_PLOT == True:
         plt.ylabel('Log. Power spectral density [V**2/Hz]')
@@ -544,10 +558,11 @@ def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_
 
     return
 
+
 ########################################################################################
 if __name__ == '__main__':
     subjects = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-#    subjects = [1]
+    #    subjects = [1]
     n_classes = 4
     training = 1
 
@@ -558,10 +573,10 @@ if __name__ == '__main__':
     ds_w.save_pl_dataLabels(fname="test1.npz")
 
     print('Load pl_data and pl_labels from file and calculate the psds')
-#    ds_r = BCIC_IV2a_dataset(subjects=subjects, n_classes=n_classes)
-#    ds_r.load_pl_dataLabels(fname="test1.npz")
-#    ds_r.print_stats()
-#    ds_r.calc_psds()
+    #    ds_r = BCIC_IV2a_dataset(subjects=subjects, n_classes=n_classes)
+    #    ds_r.load_pl_dataLabels(fname="test1.npz")
+    #    ds_r.print_stats()
+    #    ds_r.calc_psds()
 
     print(' Plot psds ')
     plot_psds()

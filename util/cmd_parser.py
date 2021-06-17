@@ -15,10 +15,9 @@ import argparse
 
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices, \
     set_eeg_config
-from data.bcic_dataset import BCIC_CHANNELS, BCIC_CONFIG, BCIC_short_name
 from data.data_loading import PHYS_ALL_SUBJECTS
-from data.data_utils import DS_DICTS, EEG_CONF, CHANNELS
-from data.physionet_dataset import PHYS_CHANNELS, excluded_subjects, PHYS_CONFIG, PHYS_short_name
+from data.datasets_confs import EEG_CONF, CHANNELS, DS_DICTS
+from data.physionet_dataset import excluded_subjects, PHYS_short_name
 from util.misc import list_to_str
 
 
@@ -69,7 +68,7 @@ def add_common_arguments(parser):
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
                         help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
     parser.add_argument('--dataset', type=str, default=PHYS_short_name,
-                        help='Name of the MI dataset')
+                        help=f'Name of the MI dataset (available: {",".join([ds for ds in DS_DICTS])})')
 
 
 def check_common_arguments(parser, args):
@@ -85,6 +84,9 @@ def check_common_arguments(parser, args):
         parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
     if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in PHYS_ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
+
+    if args.dataset not in DS_DICTS:
+        parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DS_DICTS])}))")
 
     ds_dict = DS_DICTS[args.dataset]
 
@@ -103,9 +105,6 @@ def check_common_arguments(parser, args):
     if (eeg_config.SAMPLES % args.trials_slices != 0):
         parser.error(f"Can't divide {eeg_config.SAMPLES} Samples in {args.trials_slices} slices!")
     set_eeg_trials_slices(args.trials_slices)
-
-    if args.dataset not in DS_DICTS:
-        parser.error(f"MI dataset can either be: {','.join(DS_DICTS.iterkeys())}")
 
 
 # Train Arguments #########################

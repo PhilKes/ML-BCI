@@ -173,6 +173,7 @@ def training_config_str(config):
 {get_default_config_str(config)}
 Dataset split in {config.folds} Subject Groups, {config.folds - 1} for Training, {1} for Testing (Cross Validation)
 {f'Excluded Subjects:{config["excluded"]}' if len(config["excluded"]) > 0 else ""}
+Folds: {f'1 (Fold {config["only_fold"]})' if config['only_fold'] is not None else config["folds"]}
 {get_global_config_str()}
 Early Stopping: {config.early_stop}
 Epochs: {config.num_epochs}

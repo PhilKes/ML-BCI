@@ -14,7 +14,7 @@ BCIC_short_name = 'BCIC'
 BCIC_excluded_subjects = []  # No excluded subjects
 BCIC_ALL_SUBJECTS = [i for i in range(1, 10) if i not in BCIC_excluded_subjects]  # 9 subjects
 
-# Available 22 EEG Channels from Physionet Dataset
+# Available 22 EEG Channels from BCIC Dataset
 BCIC_CHANNELS = [
     'c01', 'c02', 'c03', 'c04', 'c05', 'c06', 'c07',
     'c08', 'c09', 'c10', 'c11', 'c12', 'c13', 'c14',
@@ -22,7 +22,7 @@ BCIC_CHANNELS = [
     'c22']
 BCIC_time_cue_offset = 2.0
 BCIC_cv_folds = 9
-# Time Interval per EEG Trial (T=0: start of MI Cue)
+# Time Interval per EEG Trial (T=2: start of MI Cue)
 BCIC_CONFIG = DotDict(
     TMIN=4.0,
     TMAX=6.0,

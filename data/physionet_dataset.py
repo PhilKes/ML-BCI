@@ -8,8 +8,8 @@ from mne.datasets import eegbci
 
 from util.dot_dict import DotDict
 
-PHYS_name = 'Physionet MI dataset',
-PHYS_short_name = 'PHYS',
+PHYS_name = 'Physionet MI dataset'
+PHYS_short_name = 'PHYS'
 # Available 64 EEG Channels from Physionet Dataset
 # raw.info['ch_names']
 PHYS_CHANNELS = [
