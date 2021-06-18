@@ -46,15 +46,16 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 # mi_ds: Used Dataset as String
 # only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
 # return n_class Accuracies + Overfittings
-def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
+def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
                 equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS_short_name, only_fold=None):
     ds_dict = DS_DICTS[mi_ds]
-    folds = ds_dict[FOLDS]
+    if folds is None:
+        folds = ds_dict[FOLDS]
 
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded,
-                     mi_ds=mi_ds,only_fold=only_fold)
+                     mi_ds=mi_ds, only_fold=only_fold)
 
     if only_fold is None:
         print(f"Cross validation training with '{ds_dict[NAME]}' started!")
@@ -173,7 +174,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
         res_str = training_result_str(fold_accuracies, accuracies_overfitting, class_trials, avg_class_accuracies,
                                       elapsed, best_epochs_valid, best_losses_test, best_fold,
-                                      (best_fold_act_labels, best_fold_pred_labels,only_fold),
+                                      (best_fold_act_labels, best_fold_pred_labels, only_fold),
                                       early_stop=early_stop)
         print(res_str)
 

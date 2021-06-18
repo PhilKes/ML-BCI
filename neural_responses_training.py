@@ -21,7 +21,7 @@ from util.misc import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(
     description='Script to analyze influence of Neural Response Frequency Bands (f1/f2/f3)')
-parser.add_argument('--best', dest='use_cv', action='store_false',
+parser.add_argument('--best_fold', dest='use_cv', action='store_false',
                     help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
 
 args = parser.parse_args()
@@ -53,6 +53,11 @@ for ds_idx, ds in enumerate(ds_used):
 
 tmins = np.arange(0.0, time_max - time_delta + 0.01, time_step)
 time_slices = []
+
+
+def func(x): return lambda: set_bandpassfilter(*x)
+
+
 for tmin in tmins:
     tmax = tmin + time_delta
     for ds_idx, ds in enumerate(ds_used):
@@ -64,7 +69,7 @@ for tmin in tmins:
                  '--tmax', f'{tmax + ds_time_cue_offsets[ds_idx]}',
                  ])
             confs[ds]['names'].append(f'{ds.lower()}_bp_{fb_name}/t_{tmin}_{tmax}')
-            confs[ds]['init'].append(lambda: set_bandpassfilter(*fbs[fb_idx]))
+            confs[ds]['init'].append(func(fbs[fb_idx]))
 
             if args.use_cv is False:
                 confs[ds]['params'][-1].extend(['--only_fold', str(ds_best_folds[ds_idx])])
@@ -79,7 +84,7 @@ for ds_idx, ds in enumerate(ds_used):
     ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(fbs))
 
     # Reshape into rows for every frequency band
-    ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]))
+    ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]), order='F')
 
     # Save accuracy differences as .csv and .txt
     save_accs_panda(folderName, ds_acc_diffs, time_slices, fbs_names[1:], n_classes, ds)

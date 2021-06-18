@@ -212,13 +212,13 @@ decrease_label = np.vectorize(dec_label)
 def subtract_first_config_accs(runs_classes_accs, amt_configs):
     # Get idxs of 'all' (default) accuracies
     first_conf_accs_idxs = np.arange(0, runs_classes_accs.size, amt_configs)
-    first_conf_accs = runs_classes_accs[first_conf_accs_idxs, 0, 0]
+    first_conf_accs = runs_classes_accs[first_conf_accs_idxs, 0]
     # remove 'all' accuracies
     acc_diffs = np.delete(runs_classes_accs, first_conf_accs_idxs, axis=0)
 
     # Calculate differences between 'all' and f1/f2/f3 acc
     for run in range(acc_diffs.shape[0]):
-        first_conf_acc_idx = run // (amt_configs + 1)
+        first_conf_acc_idx = run // (amt_configs-1)
         all_acc = first_conf_accs[first_conf_acc_idx]
         acc_diffs[run] = acc_diffs[run] - all_acc
     return acc_diffs

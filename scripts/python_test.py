@@ -13,7 +13,8 @@ import torch
 from config import set_eeg_times, results_folder, training_results_folder, training_ss_results_folder, eeg_config, \
     MOTORIMG_CHANNELS_16
 from data.data_loading import load_n_classes_tasks, mne_load_subject_raw, plot_live_sim_subject_run
-from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels_to_classes, map_times_to_samples
+from data.data_utils import get_trials_size, get_data_from_raw, map_trial_labels_to_classes, map_times_to_samples, \
+    subtract_first_config_accs
 from data.physionet_dataset import n_classes_live_run, PHYS_CHANNELS
 from machine_learning.inference_training import do_predict_on_samples
 from machine_learning.modes import live_sim
@@ -340,50 +341,83 @@ def check_bad_data(subjects, n_classes):
 
 # plot_live_sim_subject_run()
 
-# matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, hor=True,
-#               save_path='./results/plots_training3', title='bs_legend')
+# # matplot_legend(labels=['Batch Size 8', 'Batch Size 16', 'Batch Size 32'], font_size=28.0, hor=True,
+# #               save_path='./results/plots_training3', title='bs_legend')
+#
+# # plots_training4:
+# defaults = np.asarray([82.131519, 72.637944, 65.272109])
+#
+# # Trials Slicing
+# cl2_accs = np.asarray([71.76, 58.78, 60.651927])
+# cl3_accs = np.asarray([56.15, 47.49, 40.733182])
+# cl4_accs = np.asarray([41.802721, 35.10, 32.285998])
+# # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+# #                 'Trials Slicing Accuracies',
+# #                 ['2', '4', '8'],
+# #                 './results/plots_training4/slicing',
+# #                 xlabel='k Slices',
+# #                 defaults=defaults
+# #                 )
+#
+# # Channel Selection
+# cl2_accs = np.asarray([78.752834, 79.433107, 79.297052, 80.589569])
+# cl3_accs = np.asarray([67.951625, 67.089947, 68.465608, 71.156463])
+# cl4_accs = np.asarray([56.893424, 56.734694, 58.015873, 61.678005])
+# # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+# #                 'EEG 16-Channel Selections Accuracies',
+# #                 ['chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_bs'],
+# #                 './results/plots_training4/chs',
+# #                 defaults=defaults,
+# #                 )
+#
+# # Time Window
+# cl2_accs = np.asarray([80.793651, 82.244898, 81.655329, 82.539683, 88.548753])
+# cl3_accs = np.asarray([73.091459, 74.270597, 75.177627, 70.506425, 80.982615])
+# cl4_accs = np.asarray([62.335601, 65.079365, 65.272109, 65.034014, 71.031746])
+# # plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
+# #                 'Trial Time Window Accuracies',
+# #                 ['[0;1]', '[0;3]', '[-0.5;3]', '[0;4]', '[-1;5]'],
+# #                 './results/plots_training4/tmin_tmax',
+# #                 xlabel='Time Window in sec.',
+# #                 defaults=defaults
+# #                 )
+#
+# # plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
+# # plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
+#
+# plot_confusion_matrices("../results/plots_training4/defaults/conf_defaults/training/")
+#
+# #load_and_plot_training("./results/plots_training4/defaults/conf_defaults/training/")
 
-# plots_training4:
-defaults = np.asarray([82.131519, 72.637944, 65.272109])
-
-# Trials Slicing
-cl2_accs = np.asarray([71.76, 58.78, 60.651927])
-cl3_accs = np.asarray([56.15, 47.49, 40.733182])
-cl4_accs = np.asarray([41.802721, 35.10, 32.285998])
-# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-#                 'Trials Slicing Accuracies',
-#                 ['2', '4', '8'],
-#                 './results/plots_training4/slicing',
-#                 xlabel='k Slices',
-#                 defaults=defaults
-#                 )
-
-# Channel Selection
-cl2_accs = np.asarray([78.752834, 79.433107, 79.297052, 80.589569])
-cl3_accs = np.asarray([67.951625, 67.089947, 68.465608, 71.156463])
-cl4_accs = np.asarray([56.893424, 56.734694, 58.015873, 61.678005])
-# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-#                 'EEG 16-Channel Selections Accuracies',
-#                 ['chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_bs'],
-#                 './results/plots_training4/chs',
-#                 defaults=defaults,
-#                 )
-
-# Time Window
-cl2_accs = np.asarray([80.793651, 82.244898, 81.655329, 82.539683, 88.548753])
-cl3_accs = np.asarray([73.091459, 74.270597, 75.177627, 70.506425, 80.982615])
-cl4_accs = np.asarray([62.335601, 65.079365, 65.272109, 65.034014, 71.031746])
-# plot_accuracies(cl2_accs, cl3_accs, cl4_accs,
-#                 'Trial Time Window Accuracies',
-#                 ['[0;1]', '[0;3]', '[-0.5;3]', '[0;4]', '[-1;5]'],
-#                 './results/plots_training4/tmin_tmax',
-#                 xlabel='Time Window in sec.',
-#                 defaults=defaults
-#                 )
-
-# plot_live_sim_subject_run(subject=1, n_class=3, ch_names=[i for i in MNE_CHANNELS if i not in MOTORIMG_CHANNELS_16])
-# plot_live_sim_subject_run(subject=1, n_class=3, ch_names=MOTORIMG_CHANNELS_16)
-
-plot_confusion_matrices("../results/plots_training4/defaults/conf_defaults/training/")
-
-#load_and_plot_training("./results/plots_training4/defaults/conf_defaults/training/")
+x=np.asarray(
+    [59.333043,
+60.312492,
+60.085578,
+60.750915,
+60.071384,
+64.281474,
+60.796708,
+61.757666,
+56.666946,
+54.434232,
+54.468478,
+53.507223,
+53.016233,
+51.186240,
+53.104565,
+51.784979,
+52.177341,
+51.263150,
+53.391648,
+52.123931,])
+fbs=4
+tmins=5
+x=x.reshape((x.shape[0],1))
+x=subtract_first_config_accs(x,fbs)
+x = x.reshape(fbs - 1, tmins, order='F')
+print(x)
+import pandas as pd
+names=['t1','t2','t3','t4','t5']
+columns=['f1','f2','f3']
+df = pd.DataFrame(data=x, index=columns, columns=names)
+print(df)
