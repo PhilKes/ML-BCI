@@ -212,7 +212,6 @@ class BCIC_IV2a_dataset:
 
         # optional butterworth bandpass filtering
         if global_config.FREQ_FILTER_HIGHPASS != None or global_config.FREQ_FILTER_LOWPASS != None:
-            fs = eeg_config.SAMPLERATE
             raw = butter_bandpass_filt(raw, lowcut=global_config.FREQ_FILTER_HIGHPASS, \
                                        highcut=global_config.FREQ_FILTER_LOWPASS, \
                                        fs=eeg_config.SAMPLERATE, order=7)

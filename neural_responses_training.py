@@ -32,7 +32,7 @@ ds_time_cue_offsets = [PHYS_time_cue_offset, BCIC_time_cue_offset]
 ds_best_folds = [2, 1]
 
 # Neural Response Frequency bands
-fbs = [(None, None), (0, 8), (8, 16), (16, 28)]
+fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
 fbs_names = ['all', 'f1', 'f2', 'f3']
 
 # 2 Second time slices in steps of 0.5 (max t=4.0)

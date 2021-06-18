@@ -27,18 +27,16 @@ Subroutine: butter_bandpass_definition(lowcut=0.0, highcut=80.0, fs=160, order=3
 
 def butter_bandpass_definition(lowcut, highcut, fs, order):
     nyq = 0.5 * fs
-    if lowcut != None:
+    if (lowcut != None):
         low = lowcut / nyq
+        if (highcut != None):
+            high = highcut / nyq
+            return butter(order, [low, high], btype='bandpass', output='sos')
+        else:
+            return butter(order, low, btype='highpass', output='sos')
     else:
-        low = 0.0
-
-    if highcut != None:
         high = highcut / nyq
-    else:
-        high = 0.99  # cut at: 0.5*fs
-
-    sos = butter(order, [low, high], btype='band', output='sos')
-    return sos
+        return butter(order, high, btype='lowpass', output='sos')
 
 
 '''
@@ -218,7 +216,7 @@ def subtract_first_config_accs(runs_classes_accs, amt_configs):
 
     # Calculate differences between 'all' and f1/f2/f3 acc
     for run in range(acc_diffs.shape[0]):
-        first_conf_acc_idx = run // (amt_configs-1)
+        first_conf_acc_idx = run // (amt_configs - 1)
         all_acc = first_conf_accs[first_conf_acc_idx]
         acc_diffs[run] = acc_diffs[run] - all_acc
     return acc_diffs
@@ -235,5 +233,3 @@ def save_accs_panda(folderName, accs, columns, names, n_classes, tag=None):
               'w') as outfile:
         df.to_string(outfile)
     print(df)
-
-
