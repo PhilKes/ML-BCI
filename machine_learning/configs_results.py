@@ -85,10 +85,10 @@ def save_training_numpy_data(fold_accs, class_accuracies, epoch_losses_train, ep
 
 
 def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
-                        best_valid_losses, best_fold, labels, early_stop=True):
+                        best_valid_losses, best_fold, labels,only_fold=None, early_stop=True):
     folds_str = ""
     for fold in range(len(accuracies)):
-        folds_str += f'\tFold {fold + 1} {"[Best]" if fold == best_fold else ""}:\t{accuracies[fold]:.2f}\n'
+        folds_str += f'''\tFold {fold + 1+ (only_fold if only_fold is not None else 0)} {"[Best]" if fold == best_fold else ""}:\t{accuracies[fold]:.2f}\n'''
         if TEST_OVERFITTING:
             folds_str += f"\t\tOverfitting (Test-Training): {accuracies[fold] - accuracies_overfitting[fold]:.2f}\n"
 

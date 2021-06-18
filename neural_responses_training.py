@@ -15,7 +15,7 @@ import numpy as np
 from batch_training import run_batch_training
 from config import set_bandpassfilter
 from data.bcic_dataset import BCIC_time_cue_offset, BCIC_short_name
-from data.data_utils import calc_difference_to_first_config, save_accs_panda
+from data.data_utils import save_accs_panda, subtract_first_config_accs
 from data.physionet_dataset import PHYS_time_cue_offset, PHYS_short_name
 from util.misc import datetime_to_folder_str
 
@@ -76,7 +76,7 @@ folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}'
 # results shape: [conf,run, n_class, (acc,OF)]
 results = run_batch_training(confs, n_classes, name=folderName)
 for ds_idx, ds in enumerate(ds_used):
-    ds_acc_diffs = calc_difference_to_first_config(results[ds_idx][:, :, 0], len(fbs))
+    ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(fbs))
 
     # Reshape into rows for every frequency band
     ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]))

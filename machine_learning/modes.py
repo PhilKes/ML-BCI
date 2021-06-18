@@ -173,7 +173,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n
         avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
         res_str = training_result_str(fold_accuracies, accuracies_overfitting, class_trials, avg_class_accuracies,
                                       elapsed, best_epochs_valid, best_losses_test, best_fold,
-                                      (best_fold_act_labels, best_fold_pred_labels),
+                                      (best_fold_act_labels, best_fold_pred_labels,only_fold),
                                       early_stop=early_stop)
         print(res_str)
 
