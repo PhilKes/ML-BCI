@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from config import eeg_config
 from config import results_folder
-from data.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
+from data.datasets.phys.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
     PHYS_CHANNELS, PHYS_CONFIG
 
 '''
@@ -218,7 +218,7 @@ def subtract_first_config_accs(runs_classes_accs, amt_configs):
     for run in range(acc_diffs.shape[0]):
         first_conf_acc_idx = run // (amt_configs - 1)
         all_acc = first_conf_accs[first_conf_acc_idx]
-        acc_diffs[run] = acc_diffs[run] - all_acc
+        acc_diffs[run] = all_acc - acc_diffs[run]
     return acc_diffs
 
 

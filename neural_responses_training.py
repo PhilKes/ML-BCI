@@ -14,9 +14,9 @@ import numpy as np
 
 from batch_training import run_batch_training
 from config import set_bandpassfilter
-from data.bcic_dataset import BCIC_time_cue_offset, BCIC_short_name
+from data.datasets.bcic.bcic_dataset import BCIC_time_cue_offset, BCIC_short_name
 from data.data_utils import save_accs_panda, subtract_first_config_accs
-from data.physionet_dataset import PHYS_time_cue_offset, PHYS_short_name
+from data.datasets.phys.physionet_dataset import PHYS_time_cue_offset, PHYS_short_name
 from util.misc import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(
@@ -26,10 +26,10 @@ parser.add_argument('--best_fold', dest='use_cv', action='store_false',
 
 args = parser.parse_args()
 
-ds_used = [PHYS_short_name, BCIC_short_name]
-ds_time_cue_offsets = [PHYS_time_cue_offset, BCIC_time_cue_offset]
+ds_used = [BCIC_short_name, PHYS_short_name]
+ds_time_cue_offsets = [BCIC_time_cue_offset, PHYS_time_cue_offset]
 # Folds to use if --best is used
-ds_best_folds = [2, 1]
+ds_best_folds = [1, 2]
 
 # Neural Response Frequency bands
 fbs = [(None, None), (None, 8), (8, 16), (16, 28)]

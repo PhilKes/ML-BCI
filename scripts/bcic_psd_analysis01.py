@@ -15,16 +15,10 @@ Author: Manfred Strahnen
 History:
   2021-05-25: Getting started - ms (Manfred Strahnen
 """
-import numpy as np
-import sys
-import matplotlib.pyplot as plt
-from scipy import signal
+from data.datasets.bcic.bcic_dataset import BCIC_CHANNELS
 from config import eeg_config
-from data.bcic_dataset import BCIC_CHANNELS
-from data.data_utils import butter_bandpass_filt
-from config import global_config, eeg_config
-from data.bcic_iv2a_dataset   import BCIC_IV2a_dataset, plot_psds
-from data.bcic_dataset import BCIC_CONFIG
+from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
+from data.datasets.bcic.bcic_dataset import BCIC_CONFIG
 
 """
 Subroutine: calc_psds()

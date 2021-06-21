@@ -19,13 +19,12 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
+from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
-from data.data_loading import PHYS_ALL_SUBJECTS, mne_load_subject_raw, \
-    create_preloaded_loader, create_n_class_loaders_from_subject
+from data.datasets.datasets import DS_DICT
+from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
-from data.datasets_confs import NAME, AVAILABLE_SUBJECTS, LOAD_SUBJECTS, LOADERS_FROM_SPLITS, FOLDS, DS_DICTS
-from data.physionet_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_short_name
+from data.datasets.phys.physionet_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_short_name
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -49,18 +48,18 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
                 equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS_short_name, only_fold=None):
-    ds_dict = DS_DICTS[mi_ds]
+    dataset = DS_DICT[mi_ds]
     if folds is None:
-        folds = ds_dict[FOLDS]
+        folds = dataset.folds
 
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded,
                      mi_ds=mi_ds, only_fold=only_fold)
 
     if only_fold is None:
-        print(f"Cross validation training with '{ds_dict[NAME]}' started!")
+        print(f"Cross validation training with '{dataset.name}' started!")
     else:
-        print(f"Training of Fold {only_fold} with '{ds_dict[NAME]}' started!")
+        print(f"Training of Fold {only_fold} with '{dataset.name}' started!")
 
     start = datetime.now()
     print(training_config_str(config))
@@ -76,7 +75,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
             tag += '_excluded'
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
-    available_subjects = [i for i in ds_dict[AVAILABLE_SUBJECTS] if i not in excluded]
+    available_subjects = [i for i in dataset.available_subjects if i not in excluded]
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -109,8 +108,8 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
 
         if DATA_PRELOAD:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = ds_dict[LOAD_SUBJECTS](used_subjects + validation_subjects, n_class,
-                                                                      ch_names, equal_trials, normalize=False)
+            preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
+                                                                          ch_names, equal_trials, normalize=False)
 
         cv_split = cv.split(X=used_subjects, groups=groups)
         start = datetime.now()
@@ -132,10 +131,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         for fold in range(folds):
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-            loaders = ds_dict[LOADERS_FROM_SPLITS](next(cv_split), validation_subjects, n_class, device,
-                                                   preloaded_data,
-                                                   preloaded_labels, batch_size, ch_names, equal_trials,
-                                                   used_subjects=used_subjects)
+            loaders = dataset.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+                                                         preloaded_data,
+                                                         preloaded_labels, batch_size, ch_names, equal_trials,
+                                                         used_subjects=used_subjects)
 
             loader_train, loader_test, loader_valid = loaders
 
@@ -211,8 +210,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        mi_ds = n_class_results['mi_ds']
-        # TODO use mi_ds
+        dataset = DS_DICT[n_class_results['mi_ds']]
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
@@ -222,8 +220,9 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
 
         model = get_model(n_class, len(ch_names), device, model_path)
         # Split subjects' data into Training Set (2 of 3 Runs) + Test Set (1 remaining Run)
-        loader_train, loader_test = create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs, batch_size,
-                                                                        ch_names, device)
+        loader_train, loader_test = dataset.create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs,
+                                                                                batch_size,
+                                                                                ch_names, device)
 
         epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
                                                                 num_epochs, device)
@@ -263,6 +262,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
+        dataset = DS_DICT[n_class_results['mi_ds']]
         load_global_conf_from_results(n_class_results)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
@@ -279,13 +279,12 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
         batch_lats = np.zeros((chunks * iters) if not continuous else (iters))
         trial_inf_times = np.zeros((chunks * iters) if not continuous else (iters))
 
-        preloaded_data, preloaded_labels = None, None
         start = datetime.now()
 
         # Preloads 1 chunk of Subjects and executes 1 gpu_warmup
         if continuous:
-            loader_data = create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size, device,
-                                                  equal_trials)
+            loader_data = dataset.create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size, device,
+                                                          equal_trials)
             # Warm up GPU with random data
             if device.type != 'cpu':
                 gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
@@ -295,8 +294,8 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
                 # Benchmarking is executed per subject chunk over all Subjects
                 # Infers over 1 subject chunks, loads next subject chunk + gpu_warmup, ...
                 for ch_idx, subjects_chunk in enumerate(preload_chunks):
-                    loader_data = create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device,
-                                                          equal_trials)
+                    loader_data = dataset.create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device,
+                                                                  equal_trials)
                     # Warm up GPU with random data
                     if device.type != 'cpu':
                         gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
@@ -335,6 +334,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
+        dataset = DS_DICT[n_class_results['mi_ds']]
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
@@ -349,7 +349,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
         model.eval()
 
         # Load Raw Subject Run for n_class
-        raw = mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
+        raw = dataset.mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
 

@@ -3,7 +3,7 @@ Configuration File containing global default values
 """
 import math
 
-from data.physionet_dataset import PHYS_CONFIG, PHYS_cv_folds
+from data.datasets.phys.physionet_dataset import PHYS_CONFIG, PHYS_cv_folds
 from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
@@ -20,7 +20,7 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
                         USE_NOTCH_FILTER=False)
 
 # Training Settings
-EPOCHS = 100
+EPOCHS = 1
 SPLITS = PHYS_cv_folds
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]

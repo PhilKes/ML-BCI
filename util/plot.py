@@ -7,18 +7,12 @@ import pylab
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
-import torch  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
 from matplotlib import lines
 from sklearn.metrics import confusion_matrix, accuracy_score
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 from sklearn.metrics import precision_recall_fscore_support as score
 
 from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE, SHOW_PLOTS
-from data.physionet_dataset import class_labels
+from data.datasets.phys.physionet_dataset import class_labels
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']

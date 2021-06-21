@@ -15,10 +15,10 @@ import argparse
 
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices, \
     set_eeg_config
-from data.data_loading import PHYS_ALL_SUBJECTS
-from data.datasets_confs import EEG_CONF, CHANNELS, DS_DICTS
-from data.physionet_dataset import excluded_subjects, PHYS_short_name
+from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
+from data.datasets.phys.physionet_dataset import excluded_subjects, PHYS_short_name
 from util.misc import list_to_str
+from data.datasets.datasets import DS_DICT
 
 
 def create_parser():
@@ -68,7 +68,7 @@ def add_common_arguments(parser):
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
                         help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
     parser.add_argument('--dataset', type=str, default=PHYS_short_name,
-                        help=f'Name of the MI dataset (available: {",".join([ds for ds in DS_DICTS])})')
+                        help=f'Name of the MI dataset (available: {",".join([ds for ds in DS_DICT])})')
 
 
 def check_common_arguments(parser, args):
@@ -85,17 +85,17 @@ def check_common_arguments(parser, args):
     if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in PHYS_ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
 
-    if args.dataset not in DS_DICTS:
-        parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DS_DICTS])}))")
+    if args.dataset not in DS_DICT:
+        parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DS_DICT])}))")
 
-    ds_dict = DS_DICTS[args.dataset]
+    dataset = DS_DICT[args.dataset]
 
     # Adjust global parameters which depend on the selected dataset
     if (args.ch_names == None) & (args.ch_motorimg == None):
-        args.ch_names = ds_dict[CHANNELS]
+        args.ch_names = dataset.channels
 
     # Dataset dependent EEG config structure re-initialization
-    set_eeg_config(ds_dict[EEG_CONF])
+    set_eeg_config(dataset.eeg_config)
 
     if (args.tmin > args.tmax) | (args.tmin == args.tmax):
         parser.error(f"tmax has to be greater than tmin!")

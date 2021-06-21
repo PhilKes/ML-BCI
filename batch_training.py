@@ -5,9 +5,7 @@ from datetime import datetime
 import numpy
 import pandas as pd
 
-from config import results_folder, set_eeg_times, reset_eeg_times, training_results_folder, training_ss_results_folder, \
-    set_poolsize
-from data.physionet_dataset import set_rest_from_bl_run, set_rest_trials_less, set_rests_config
+from config import results_folder, training_results_folder, training_ss_results_folder
 from main import single_run
 
 default_options = ['-train']

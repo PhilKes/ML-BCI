@@ -1,38 +1,20 @@
 """
 2021-03-31: Getting started - ms
 """
-import os
 from datetime import datetime
 
 import mne
 import numpy as np
 import torch  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
 from sklearn.model_selection import GroupKFold
-from torch import nn, Tensor  # noqa
 
-from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
-    trained_model_name, VALIDATION_SUBJECTS, eeg_config
-from data.data_loading import PHYS_ALL_SUBJECTS, load_subjects_data, phys_create_loaders_from_splits, mne_load_subject_raw, \
-    create_preloaded_loader, create_n_class_loaders_from_subject
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples, \
-    get_correctly_predicted_areas
-from data.physionet_dataset import PHYS_CHANNELS, n_classes_live_run
-from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
-from machine_learning.models.eegnet import EEGNet
-from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
-    benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
-    get_trained_model_file, \
-    save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
-    training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
-    live_sim_result_str
+from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, eeg_config
+from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS, load_subjects_data, phys_create_loaders_from_splits
+from data.datasets.phys.physionet_dataset import PHYS_CHANNELS
 from util.dot_dict import DotDict
-from util.misc import split_list_into_chunks, groups_labels, get_class_prediction_stats, get_class_avgs
-from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
+from util.misc import groups_labels
 
 import matplotlib.pyplot as plt
-from scipy import signal
 from tqdm import tqdm
 import sys
 
