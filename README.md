@@ -1,6 +1,6 @@
 # ML-BCI
 * EEGNet Implementation in PyTorch
-* Training, Testing, Benchmarking on [PhysioNet Dataset](https://physionet.org/content/eegmmidb/1.0.0/)
+* Training, Testing, Benchmarking on [PhysioNet Dataset](https://physionet.org/content/eegmmidb/1.0.0/) and [BCIC IV 2a](http://www.bbci.de/competition/iv/#dataset2a)
 * Proposed Implementation for use on NVIDIA Jetson Nano
 
 ___
@@ -9,8 +9,8 @@ ___
 Main Script to run Training/Benchmarking of EEGNet
 
 `main.py -train`
-* n-Class-Classification Training (Physionet Task 2)
-* 5-Fold Crossvalidation
+* n-Class-Classification Training
+* K-Fold Crossvalidation
 * Saving results and trained model in _./results/{DateTime/Name}/training_
 
 `main.py -benchmark` 
@@ -64,12 +64,17 @@ on Batches of Data
 
 ___
 
-### /data/data_loading.py
-* Helper functions to load Dataset via MNE Library
+### /data/datasets/{...}_data_loading.py's
+* Data Loaders for the used Datasets
 * Wrap Datasets in PyTorch Dataloader
 
-### /data/physionet_dataset.py
+### /data/datasets/physionet_dataset.py
 * All important Properties of the Physionet Motorimagery Dataset
+* List of available Subjects, Tasks, Runs
+* Default Values for Epoching (tmin, tmax, ...)
+
+### /data/datasets/bcic_dataset.py
+* All important Properties of the BCIC Motorimagery Dataset
 * List of available Subjects, Tasks, Runs
 * Default Values for Epoching (tmin, tmax, ...)
 
@@ -82,6 +87,10 @@ ___
 ### batch_training.py
 * Can be used for Batchruns of Training Runs
 * Creates .csv and .txt files containing Results of Training Batchruns
+
+### neural_responses_training.py
+* Can be used to analyze influence of different Frequency bands
+* Test neural responses in different time slices
 
 #### bench_all_confs.py
 * Runs _main.py_ with all possible Configurations in benchmark mode (/w TRT (fp16/32))

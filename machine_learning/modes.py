@@ -111,6 +111,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         cv_split = cv.split(X=used_subjects, groups=groups)
         run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
         run_data.start_run()
+
         # Skip folds until specified fold is reached
         if only_fold is not None:
             for f in range(only_fold):
@@ -131,7 +132,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
 
             train_results = do_train(model, loader_train, loader_test, num_epochs, device, early_stop)
             run_data.set_train_results(fold, train_results)
-            # Load best model state of this fold to Test global accuracy
+            # Load best model state of this fold to Test global accuracy if using Early Stopping
             if early_stop:
                 model.load_state_dict(run_data.best_model[fold])
                 best_epoch_loss_test = run_data.best_epoch_loss_test(fold)
