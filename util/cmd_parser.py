@@ -18,7 +18,7 @@ from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_confi
 from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
 from data.datasets.phys.physionet_dataset import excluded_subjects, PHYS_short_name
 from util.misc import list_to_str
-from data.datasets.datasets import DS_DICT
+from data.datasets.datasets import DATASETS
 
 
 def create_parser():
@@ -68,7 +68,7 @@ def add_common_arguments(parser):
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
                         help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
     parser.add_argument('--dataset', type=str, default=PHYS_short_name,
-                        help=f'Name of the MI dataset (available: {",".join([ds for ds in DS_DICT])})')
+                        help=f'Name of the MI dataset (available: {",".join([ds for ds in DATASETS])})')
 
 
 def check_common_arguments(parser, args):
@@ -85,10 +85,10 @@ def check_common_arguments(parser, args):
     if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in PHYS_ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
 
-    if args.dataset not in DS_DICT:
-        parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DS_DICT])}))")
+    if args.dataset not in DATASETS:
+        parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DATASETS])}))")
 
-    dataset = DS_DICT[args.dataset]
+    dataset = DATASETS[args.dataset]
 
     # Adjust global parameters which depend on the selected dataset
     if (args.ch_names == None) & (args.ch_motorimg == None):

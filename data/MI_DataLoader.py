@@ -3,9 +3,10 @@ from config import BATCH_SIZE, global_config
 
 class MI_DataLoader:
     """
-    Super Class for any Motor Imagery Dataset Loader
-    If a new Dataset is added, a class implementing all here declared methods has to be created
-    see e.g. BCIC_DataLoader
+    Abstract Superclass for any Motor Imagery Dataset Loader
+    If a new Dataset is added, a class implementing all here
+    declared static methods + attributes has to be created
+    see e.g. BCIC_DataLoader or PHYS_DataLoader
     """
     name = None
     name_short = None
@@ -17,6 +18,13 @@ class MI_DataLoader:
     @staticmethod
     def load_subjects_data(subjects, n_class, ch_names=[], equal_trials=True,
                            normalize=False, ignored_runs=[]):
+        """
+        Loads and returns n_class data of subjects
+        :param subjects: Subjects to be loaded
+        :param equal_trials: Load equal amount of Trials for each class?
+        :param ignored_runs: Runs to ignore (MNE with PHYS)
+        :return: preloaded_data, preloaded_labels of specified subjects
+        """
         raise NotImplementedError('This method is not implemented!')
 
     @staticmethod
@@ -40,11 +48,20 @@ class MI_DataLoader:
     @staticmethod
     def create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs, batch_size,
                                             ch_names, device):
+        """
+        Create Train/Test Loaders for a single subject
+        :param n_test_runs: Which runs are used for the Test Loader
+        :return: Train Loader, Test Loader
+        """
         raise NotImplementedError('This method is not implemented!')
 
     @staticmethod
-    def create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device,
+    def create_preloaded_loader(subjects, n_class, ch_names, batch_size, device,
                                 equal_trials):
+        """
+        Create Loader with preloaded data for given subjects
+        :return: Loader of subjects' data
+        """
         raise NotImplementedError('This method is not implemented!')
 
     @staticmethod

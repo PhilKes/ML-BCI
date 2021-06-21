@@ -1,9 +1,12 @@
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch  # noqa
-from config import eeg_config
+from config import eeg_config, TEST_OVERFITTING
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
+from datetime import datetime
+from util.misc import get_class_avgs
+
 
 # Torch to TensorRT for model optimizations
 # https://github.com/NVIDIA-AI-IOT/torch2trt
@@ -64,3 +67,75 @@ def get_model(n_class, chs, device, model_path=None):
         model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
     model.to(device)
     return model
+
+
+class ML_Run_Data:
+    """
+    Data Class for a single n_class Training Run
+    storing Accuracies, Losses, Best Fold, Elapsed Time,...
+    """
+
+    def __init__(self, folds, n_class, num_epochs, cv_split):
+        self.n_class = n_class
+        self.folds = folds
+        # Avg. Accuracy of each fold
+        self.fold_accuracies = np.zeros(folds)
+        self.accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
+        # Best Test Loss of every fold
+        self.best_losses_test = np.full((folds), fill_value=np.inf)
+        # Epoch with best Loss on Test Set for every fold
+        self.best_epochs_test = np.zeros((folds), dtype=np.int)
+        # Actual and Predicted labels for every fold
+        self.best_fold_act_labels = None
+        self.best_fold_pred_labels = None
+        self.best_fold = -1
+        self.class_accuracies, self.class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
+        self.avg_class_accs = np.zeros(self.n_class)
+        # All Epoch Losses on Train/test for every Fold an epoch
+        self.epoch_losses_train = np.zeros((folds, num_epochs))
+        self.epoch_losses_test = np.zeros((folds, num_epochs))
+        # Subject Splits
+        self.cv_split = cv_split
+        self.start = None
+        self.end = None
+        self.elapsed = None
+        # Best Model state dict for every fold
+        self.best_model = [{} for i in range(folds)]
+
+        self.best_fold_act_labels = None
+        self.best_fold_pred_labels = None
+
+    def start_run(self):
+        self.start = datetime.now()
+
+    def end_run(self):
+        self.end = datetime.now()
+        self.elapsed = self.end - self.start
+        self.avg_class_accs = get_class_avgs(self.n_class, self.class_accuracies)
+
+    def set_train_results(self, fold, fold_results):
+        """
+        Set Fold's Train results
+        :param fold_results: (loss_values_train, loss_values_valid, best_model, best_epoch) see do_train()
+        """
+        self.epoch_losses_train[fold], self.epoch_losses_test[fold], self.best_model[fold], \
+        self.best_epochs_test[fold] = fold_results
+
+    def set_test_results(self, fold, test_accuracy, act_labels, pred_labels):
+        """
+        Set Fold's Test Results with Accuracy and Labels
+        """
+        self.fold_accuracies[fold] = test_accuracy
+        self.class_trials = get_trials_per_class(self.n_class, act_labels)
+        self.class_accuracies[fold] = get_class_accuracies(act_labels, pred_labels)
+
+    def best_epoch_loss_test(self, fold):
+        """
+        Returns Epoch with lowest Loss on Test Set of fold
+        """
+        return self.epoch_losses_test[fold][self.best_epochs_test[fold]]
+
+    def set_best_fold(self, fold, act_labels=None, pred_labels=None):
+        self.best_fold = fold
+        self.best_fold_act_labels = act_labels
+        self.best_fold_pred_labels = pred_labels

@@ -21,7 +21,7 @@ from sklearn.model_selection import GroupKFold
 
 from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
-from data.datasets.datasets import DS_DICT
+from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
 from data.datasets.phys.physionet_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_short_name
@@ -31,7 +31,8 @@ from machine_learning.configs_results import training_config_str, create_results
     training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
     live_sim_result_str
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
-from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model
+from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
+    ML_Run_Data
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
@@ -48,7 +49,7 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_classes=N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
                 equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS_short_name, only_fold=None):
-    dataset = DS_DICT[mi_ds]
+    dataset = DATASETS[mi_ds]
     if folds is None:
         folds = dataset.folds
 
@@ -63,16 +64,11 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
 
     start = datetime.now()
     print(training_config_str(config))
-    if name is None:
-        dir_results = create_results_folders(datetime=start)
-    else:
-        dir_results = create_results_folders(path=name)
+    dir_results = create_results_folders(datetime=start) if name is None else create_results_folders(path=name)
 
     if len(excluded) > 0:
-        if tag is None:
-            tag = 'excluded'
-        else:
-            tag += '_excluded'
+        tag = 'excluded' if tag is None else (tag + '_excluded')
+
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
     available_subjects = [i for i in dataset.available_subjects if i not in excluded]
@@ -111,17 +107,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
             preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                           ch_names, equal_trials, normalize=False)
 
-        cv_split = cv.split(X=used_subjects, groups=groups)
-        start = datetime.now()
         print(f"######### {n_class}Class-Classification")
-        fold_accuracies = np.zeros((folds))
-        best_losses_test, best_epochs_valid = np.full((folds), fill_value=np.inf), np.zeros((folds), dtype=np.int)
-        best_fold_act_labels, best_fold_pred_labels = None, None
-        best_fold = -1
-        class_accuracies, class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
-        accuracies_overfitting = np.zeros((folds)) if TEST_OVERFITTING else None
-        epoch_losses_train, epoch_losses_test = np.zeros((folds, num_epochs)), np.zeros((folds, num_epochs))
-
+        cv_split = cv.split(X=used_subjects, groups=groups)
+        run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
+        run_data.start_run()
         # Skip folds until specified fold is reached
         if only_fold is not None:
             for f in range(only_fold):
@@ -141,57 +130,48 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
             model = get_model(n_class, len(ch_names), device)
 
             train_results = do_train(model, loader_train, loader_test, num_epochs, device, early_stop)
-            epoch_losses_train[fold], epoch_losses_test[fold], best_model, best_epochs_valid[fold] = train_results
+            run_data.set_train_results(fold, train_results)
             # Load best model state of this fold to Test global accuracy
             if early_stop:
-                model.load_state_dict(best_model)
-                best_epoch_loss_test = epoch_losses_test[fold][best_epochs_valid[fold]]
-                print(
-                    f"Best Epoch: {best_epochs_valid[fold]} with loss on Validation Data: {best_epoch_loss_test}")
+                model.load_state_dict(run_data.best_model[fold])
+                best_epoch_loss_test = run_data.best_epoch_loss_test(fold)
+                print(f"""Best Epoch: {run_data.best_epochs_test[fold]} with 
+                loss on Validation Data: {best_epoch_loss_test}""")
                 # Determine Fold with lowest test_loss on best epoch of fold
-                if best_epoch_loss_test < np.min(best_losses_test):
-                    best_n_class_models[n_class] = best_model
-                    best_fold = fold
-                best_losses_test[fold] = best_epoch_loss_test
+                if best_epoch_loss_test < np.min(run_data.best_losses_test):
+                    best_n_class_models[n_class] = run_data.best_model[fold]
+                    run_data.set_best_fold(fold)
+                run_data.best_losses_test[fold] = best_epoch_loss_test
 
             print("## Testing ##")
             test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
             # Test overfitting by testing on Training Dataset
             if TEST_OVERFITTING:
                 print("## Testing on Training Dataset ##")
-                accuracies_overfitting[fold], _, __ = do_test(model, loader_train)
+                run_data.accuracies_overfitting[fold], _, __ = do_test(model, loader_train)
             # If not using early stopping, determine which fold has the highest accuracy
-            if (not early_stop) & (test_accuracy > np.max(fold_accuracies)):
+            if (not early_stop) & (test_accuracy > np.max(run_data.fold_accuracies)):
                 best_n_class_models[n_class] = model.state_dict().copy()
-                best_fold = fold
-                best_fold_act_labels = act_labels
-                best_fold_pred_labels = pred_labels
-            fold_accuracies[fold] = test_accuracy
-            class_trials, class_accuracies[fold] = get_trials_per_class(n_class, act_labels), \
-                                                   get_class_accuracies(act_labels, pred_labels)
-        elapsed = datetime.now() - start
-        avg_class_accuracies = get_class_avgs(n_class, class_accuracies)
-        res_str = training_result_str(fold_accuracies, accuracies_overfitting, class_trials, avg_class_accuracies,
-                                      elapsed, best_epochs_valid, best_losses_test, best_fold,
-                                      (best_fold_act_labels, best_fold_pred_labels, only_fold),
+                run_data.set_best_fold(fold, act_labels, pred_labels)
+            run_data.set_test_results(fold, test_accuracy, act_labels, pred_labels)
+        run_data.end_run()
+        res_str = training_result_str(run_data, only_fold,
                                       early_stop=early_stop)
         print(res_str)
 
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(fold_accuracies, class_accuracies, epoch_losses_train, epoch_losses_test, dir_results,
-                                 n_class, excluded, mi_ds, labels=(best_fold_act_labels, best_fold_pred_labels))
+        save_training_numpy_data(run_data, dir_results, n_class, excluded, mi_ds)
         # Plot Statistics and save as .png s
-        plot_training_statistics(dir_results, tag, n_class, fold_accuracies, avg_class_accuracies, epoch_losses_train,
-                                 epoch_losses_test, best_fold, batch_size, folds, early_stop)
+        plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop)
         # Save best trained Model state
         # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
         # else: Model state after epochs of Fold with the highest accuracy on Training Set
         if save_model:
             torch.save(best_n_class_models[n_class], os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
 
-        n_class_accuracy[i] = np.average(fold_accuracies)
-        n_class_overfitting_diff[i] = n_class_accuracy[i] - np.average(accuracies_overfitting)
+        n_class_accuracy[i] = np.average(run_data.fold_accuracies)
+        n_class_overfitting_diff[i] = n_class_accuracy[i] - np.average(run_data.accuracies_overfitting)
     return n_class_accuracy, n_class_overfitting_diff
 
 
@@ -210,7 +190,7 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DS_DICT[n_class_results['mi_ds']]
+        dataset = DATASETS[n_class_results['mi_ds']]
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
@@ -262,7 +242,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DS_DICT[n_class_results['mi_ds']]
+        dataset = DATASETS[n_class_results['mi_ds']]
         load_global_conf_from_results(n_class_results)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
@@ -334,7 +314,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DS_DICT[n_class_results['mi_ds']]
+        dataset = DATASETS[n_class_results['mi_ds']]
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 

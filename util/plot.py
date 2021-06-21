@@ -265,35 +265,36 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
 
 
 # Plots Losses, Accuracies of Training, Validation, Testing
-def plot_training_statistics(dir_results, tag, n_class, accuracies, class_accuracies, epoch_losses_train,
-                             epoch_losses_valid,
-                             best_fold, batch_size, folds, early_stop):
+def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop):
+    n_class = run_data.n_class
+    accuracies = run_data.fold_accuracies
     matplot(np.append(np.roll(accuracies, 1), accuracies[-1]), f"{n_class}class Cross Validation", "Fold",
             "Accuracy in %", min_x=0.5, max_x=accuracies.shape[-1] + 0.5,
             hlines=[np.average(accuracies)],
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
+    class_accuracies = run_data.class_accuracies[run_data.best_fold]
     matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag} of best Fold", "Class",
             "Accuracy in %", show_legend=False,
             x_values=['0'] + class_labels[n_class],
             save_path=dir_results, hlines=[np.average(class_accuracies)],
             bar_plot=True, max_y=100.0)
-    matplot(epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
-            f'loss per batch (size = {batch_size})', min_x=-5, max_x=epoch_losses_train.shape[-1] + 5,
+    matplot(run_data.epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
+            f'loss per batch (size = {batch_size})', min_x=-5, max_x=run_data.epoch_losses_train.shape[-1] + 5,
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     # Plot Test loss during Training if early stopping is used
-    matplot(epoch_losses_valid,
+    matplot(run_data.epoch_losses_test,
             f"{n_class}class Test Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})', min_x=-5,
-            max_x=epoch_losses_valid.shape[-1] + 5,
+            max_x=run_data.epoch_losses_test.shape[-1] + 5,
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
-    train_valid_data = np.zeros((2, epoch_losses_train.shape[1]))
-    train_valid_data[0] = epoch_losses_train[best_fold]
-    train_valid_data[1] = epoch_losses_valid[best_fold]
-    matplot(train_valid_data,
+    train_test_data = np.zeros((2, run_data.epoch_losses_train.shape[1]))
+    train_test_data[0] = run_data.epoch_losses_train[run_data.best_fold]
+    train_test_data[1] = run_data.epoch_losses_test[run_data.best_fold]
+    matplot(train_test_data,
             f"{n_class}class Train-Test Losses of best Fold", 'Epoch',
             f'loss per batch (size = {batch_size})', min_x=-5,
-            max_x=train_valid_data.shape[-1] + 5,
+            max_x=train_test_data.shape[-1] + 5,
             labels=['Training Loss', 'Testing Loss'], save_path=dir_results)
 
 

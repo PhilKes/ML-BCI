@@ -73,52 +73,51 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
     np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
 
 
-def save_training_numpy_data(fold_accs, class_accuracies, epoch_losses_train, epoch_losses_test, save_path, n_class,
-                             excluded_subjects,mi_ds, labels=None):
-    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=fold_accs, train_losses=epoch_losses_train,
-             class_accs=class_accuracies, test_losses=epoch_losses_test,
+def save_training_numpy_data(run_data, save_path, n_class,
+                             excluded_subjects,mi_ds):
+    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=run_data.fold_accuracies, train_losses=run_data.epoch_losses_train,
+             class_accs=run_data.class_accuracies, test_losses=run_data.epoch_losses_test,
              tmin=eeg_config.TMIN, tmax=eeg_config.TMAX, slices=eeg_config.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
-    if labels is not None:
+    if run_data.best_fold_act_labels is not None:
         np.savez(f"{save_path}/{n_class}class_training_actual_predicted.npz",
-                 actual_labels=labels[0], pred_labels=labels[1])
+                 actual_labels=run_data.best_fold_act_labels, pred_labels=run_data.best_fold_pred_labels)
 
 
-def training_result_str(accuracies, accuracies_overfitting, class_trials, class_accuracies, elapsed, best_valid_epochs,
-                        best_valid_losses, best_fold, labels,only_fold=None, early_stop=True):
+def training_result_str(run_data,only_fold=None, early_stop=True):
     folds_str = ""
-    for fold in range(len(accuracies)):
-        folds_str += f'''\tFold {fold + 1+ (only_fold if only_fold is not None else 0)} {"[Best]" if fold == best_fold else ""}:\t{accuracies[fold]:.2f}\n'''
+    for fold in range(len(run_data.fold_accuracies)):
+        folds_str += f'''\tFold {fold + 1+ (only_fold if only_fold is not None else 0)} {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'''
         if TEST_OVERFITTING:
-            folds_str += f"\t\tOverfitting (Test-Training): {accuracies[fold] - accuracies_overfitting[fold]:.2f}\n"
+            folds_str += f"\t\tOverfitting (Test-Training): {run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
 
     trials_str = ""
-    for cl, trs in enumerate(class_trials):
+    for cl, trs in enumerate(run_data.class_trials):
         trials_str += f"\t[{cl}]: {int(trs)}"
     classes_str = ""
-    for l in range(len(class_accuracies)):
-        classes_str += f'\t[{l}]: {class_accuracies[l]:.2f}'
+    for l,avg in enumerate(run_data.avg_class_accs):
+        classes_str += f'\t[{l}]: {avg:.2f}'
     best_epochs_str = ""
     if early_stop:
         best_epochs_str += "Best Validation Loss Epochs of Folds:\n"
-        for fold in range(best_valid_epochs.shape[0]):
-            best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == best_fold else ""}: {best_valid_epochs[fold]} (loss: {best_valid_losses[fold]:.5f})\n'
+        for fold in range(run_data.best_valid_epochs.shape[0]):
+            best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == run_data.best_fold else ""}: {run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
 
     return f"""#### Results ####
-Elapsed Time: {elapsed}
+Elapsed Time: {run_data.elapsed}
 Accuracies of Folds:
 {folds_str}
-Avg. acc: {np.average(accuracies):.2f}
-{f'Avg. Overfitting difference: {np.average(accuracies) - np.average(accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
+Avg. acc: {np.average(run_data.fold_accuracies):.2f}
+{f'Avg. Overfitting difference: {np.average(run_data.fold_accuracies) - np.average(run_data.accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
 Trials per class:
 {trials_str}
 Avg. Class Accuracies:
 {classes_str}
 {best_epochs_str}
-Recall:
-{recall_score(labels[0], labels[1],average='macro'):.4f}
-Precision:
-{precision_score(labels[0], labels[1],average='macro'):.4f}
+Recall of best Fold:
+{recall_score(run_data.best_fold_act_labels, run_data.best_fold_pred_labels,average='macro'):.4f}
+Precision of best Fold:
+{precision_score(run_data.best_fold_act_labels, run_data.best_fold_pred_labels,average='macro'):.4f}
 
 ###############\n\n"""
 
