@@ -3,7 +3,7 @@ Configuration File containing global default values
 """
 import math
 
-from data.datasets.phys.physionet_dataset import PHYS_CONFIG, PHYS_cv_folds
+from data.datasets.phys.phys_dataset import PHYS_CONFIG, PHYS_cv_folds
 from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
@@ -20,7 +20,7 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
                         USE_NOTCH_FILTER=False)
 
 # Training Settings
-EPOCHS = 1
+EPOCHS = 100
 SPLITS = PHYS_cv_folds
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]
@@ -48,7 +48,7 @@ eeg_config = DotDict(TMIN=PHYS_CONFIG.TMIN,
                      TMAX=PHYS_CONFIG.TMAX,
                      TRIAL_SLICES=1,
                      SAMPLERATE=PHYS_CONFIG.SAMPLERATE,
-                     SAMPLES=(PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE)
+                     SAMPLES=int((PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE))
 
 
 def set_eeg_config(cfg):

@@ -16,7 +16,7 @@ from batch_training import run_batch_training
 from config import set_bandpassfilter
 from data.datasets.bcic.bcic_dataset import BCIC_time_cue_offset, BCIC_short_name
 from data.data_utils import save_accs_panda, subtract_first_config_accs
-from data.datasets.phys.physionet_dataset import PHYS_time_cue_offset, PHYS_short_name
+from data.datasets.phys.phys_dataset import PHYS_time_cue_offset, PHYS_short_name
 from util.misc import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(

@@ -552,8 +552,7 @@ def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_
         plt.ylabel('Power spectral density [V**2/Hz]')
     plt.title("Power spectral density")
     plt.grid(True)
-    if SHOW_PLOTS:
-        plt.show()
+    plt.show()
 
     return
 

@@ -2,12 +2,8 @@ from functools import reduce
 from operator import __add__
 
 import numpy as np
-import torch  # noqa
 import torch as t
 import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
 
 from config import eegnet_config
 

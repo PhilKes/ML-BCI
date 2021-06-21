@@ -21,7 +21,7 @@ from data.datasets.bcic.bcic_dataset import BCIC_name, BCIC_ALL_SUBJECTS, BCIC_c
     BCIC_short_name
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
 from data.MI_DataLoader import MI_DataLoader
-from data.datasets.phys.physionet_dataset import PHYS_ALL_SUBJECTS, PHYS_CHANNELS
+from data.datasets.phys.phys_dataset import PHYS_ALL_SUBJECTS, PHYS_CHANNELS
 from util.misc import print_subjects_ranges
 
 
@@ -70,8 +70,8 @@ class BCIC_Dataloader(MI_DataLoader):
                                        preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
                                        ch_names=ch_names, equal_trials=equal_trials)
         # Sample the trials in random order
-        sampler_train = RandomSampler(trials_ds)
-        return DataLoader(trials_ds, bs, sampler=sampler_train, pin_memory=False)
+        sampler = RandomSampler(trials_ds)
+        return DataLoader(trials_ds, bs, sampler=sampler, pin_memory=False)
 
     @staticmethod
     def create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs, batch_size, ch_names, device):

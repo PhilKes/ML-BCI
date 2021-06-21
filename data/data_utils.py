@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from config import eeg_config
 from config import results_folder
-from data.datasets.phys.physionet_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
+from data.datasets.phys.phys_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
     PHYS_CHANNELS, PHYS_CONFIG
 
 '''

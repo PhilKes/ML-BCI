@@ -22,7 +22,7 @@ from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZ
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples
 from data.MI_DataLoader import MI_DataLoader
-from data.datasets.phys.physionet_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS, PHYS_CHANNELS, \
+from data.datasets.phys.phys_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS, PHYS_CHANNELS, \
     TRIALS_PER_SUBJECT_RUN, \
     PHYS_CONFIG, \
     n_classes_live_run, PHYS_name, PHYS_cv_folds, PHYS_short_name
@@ -78,8 +78,8 @@ class PHYS_DataLoader(MI_DataLoader):
                                        preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
                                        ch_names=ch_names, equal_trials=equal_trials)
         # Sample the trials in random order
-        sampler_train = RandomSampler(trials_ds)
-        return DataLoader(trials_ds, bs, sampler=sampler_train, pin_memory=False)
+        sampler = RandomSampler(trials_ds)
+        return DataLoader(trials_ds, bs, sampler=sampler, pin_memory=False)
 
     # Returns Train/Test Loaders containing all n_class Runs of subject
     # n_test_runs specifies how many Runs are reserved for Testing
@@ -131,6 +131,7 @@ class PHYS_DataLoader(MI_DataLoader):
         if n_class > 2:
             trials -= PHYS_CONFIG.REST_TRIALS_LESS
 
+        print(eeg_config)
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
         print("Preload Shape", preloaded_data.shape)

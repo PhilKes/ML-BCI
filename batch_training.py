@@ -7,7 +7,7 @@ import pandas as pd
 
 from config import results_folder, training_results_folder, training_ss_results_folder
 from data.datasets.bcic.bcic_dataset import BCIC_short_name
-from data.datasets.phys.physionet_dataset import PHYS_short_name
+from data.datasets.phys.phys_dataset import PHYS_short_name
 from main import single_run
 
 default_options = ['-train']

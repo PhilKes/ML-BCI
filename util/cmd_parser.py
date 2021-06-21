@@ -16,7 +16,7 @@ import argparse
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices, \
     set_eeg_config
 from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
-from data.datasets.phys.physionet_dataset import excluded_subjects, PHYS_short_name
+from data.datasets.phys.phys_dataset import excluded_subjects, PHYS_short_name
 from util.misc import list_to_str
 from data.datasets.datasets import DATASETS
 

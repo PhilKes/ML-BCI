@@ -24,7 +24,7 @@ from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFIT
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
-from data.datasets.phys.physionet_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_short_name
+from data.datasets.phys.phys_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_short_name
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \

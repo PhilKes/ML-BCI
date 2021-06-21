@@ -1,5 +1,5 @@
 """
-File: bcic_psd_analysis01.py
+File: bcic_psd_analysis.py
 
 Description:
   Calculate and plot mean power spectral density of class specific EEG signals

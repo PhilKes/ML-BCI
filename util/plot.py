@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import precision_recall_fscore_support as score
 
 from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE, SHOW_PLOTS
-from data.datasets.phys.physionet_dataset import class_labels
+from data.datasets.phys.phys_dataset import class_labels
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']
