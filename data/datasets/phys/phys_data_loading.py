@@ -20,7 +20,8 @@ from tqdm import tqdm
 from config import VERBOSE, eeg_config, datasets_folder, DATA_PRELOAD, BATCH_SIZE, \
     global_config
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
-    get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples
+    get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
+    butter_bandpass_filt
 from data.MI_DataLoader import MI_DataLoader
 from data.datasets.phys.phys_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS, PHYS_CHANNELS, \
     TRIALS_PER_SUBJECT_RUN, \
@@ -299,8 +300,13 @@ class PHYS_DataLoader(MI_DataLoader):
         if ((fmin is not None) | (fmax is not None)):
             # If method=”iir”, 4th order Butterworth will be used
             iir_params = dict(order=7, ftype='butter', output='sos')
-            raw.filter(fmin, fmax, method='iir', iir_params=iir_params)
-        #        raw.filter(fmin, fmax, l_trans_bandwidth= 0.1, h_trans_bandwidth= 0.1, method='fir', fir_design='firwin')
+            # raw.filter(fmin, fmax, method='iir', iir_params=iir_params)
+            # Apply butter bandpass filter to all channels
+            raw.apply_function(butter_bandpass_filt, channel_wise=False,
+                               lowcut=global_config.FREQ_FILTER_HIGHPASS,
+                               highcut=global_config.FREQ_FILTER_LOWPASS,
+                               fs=eeg_config.SAMPLERATE, order=7)
+            raw.load_data()
         return raw
 
 

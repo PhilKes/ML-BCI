@@ -17,6 +17,7 @@ import sys
 import mne
 import torch
 
+from config import set_bandpassfilter
 from machine_learning.modes import training_cv, benchmarking, live_sim, \
     training_ss
 from util.cmd_parser import create_parser, parse_and_check
@@ -38,7 +39,8 @@ def single_run(argv=sys.argv[1:]):
         dev = "cpu"
     device = torch.device(dev)
     print("device", device.type)
-
+    #TODO
+    set_bandpassfilter(None, 10, False)
     if args.train:
         return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
