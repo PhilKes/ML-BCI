@@ -8,8 +8,8 @@ import mne
 import numpy as np
 import torch
 
-from data.datasets.phys.phys_data_loading import load_n_classes_tasks
-from data.data_utils import subtract_first_config_accs
+from data.datasets.phys.phys_data_loading import PHYS_DataLoader
+from util.plot import matplot
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -190,7 +190,7 @@ def get_mean_std(loader):
 def check_bad_data(subjects, n_classes):
     min, max = math.inf, -math.inf
     for idx, i in enumerate(subjects):
-        data, labels = load_n_classes_tasks(i, n_classes)
+        data, labels = PHYS_DataLoader.load_n_classes_tasks(i, n_classes)
         if np.isneginf(data).any():
             print("negative infinite data")
         if np.isnan(data).any():
@@ -378,36 +378,67 @@ def check_bad_data(subjects, n_classes):
 # plot_confusion_matrices("../results/plots_training4/defaults/conf_defaults/training/")
 #
 # #load_and_plot_training("./results/plots_training4/defaults/conf_defaults/training/")
+#
+# x=np.asarray(
+#     [59.333043,
+# 60.312492,
+# 60.085578,
+# 60.750915,
+# 60.071384,
+# 64.281474,
+# 60.796708,
+# 61.757666,
+# 56.666946,
+# 54.434232,
+# 54.468478,
+# 53.507223,
+# 53.016233,
+# 51.186240,
+# 53.104565,
+# 51.784979,
+# 52.177341,
+# 51.263150,
+# 53.391648,
+# 52.123931,])
+# fbs=4
+# tmins=5
+# x=x.reshape((x.shape[0],1))
+# x=subtract_first_config_accs(x,fbs)
+# x = x.reshape(fbs - 1, tmins, order='F')
+# print(x)
+# import pandas as pd
+# names=['t1','t2','t3','t4','t5']
+# columns=['f1','f2','f3']
+# df = pd.DataFrame(data=x, index=columns, columns=names)
+# print(df)
+data = np.asarray([
 
-x=np.asarray(
-    [59.333043,
-60.312492,
-60.085578,
-60.750915,
-60.071384,
-64.281474,
-60.796708,
-61.757666,
-56.666946,
-54.434232,
-54.468478,
-53.507223,
-53.016233,
-51.186240,
-53.104565,
-51.784979,
-52.177341,
-51.263150,
-53.391648,
-52.123931,])
-fbs=4
-tmins=5
-x=x.reshape((x.shape[0],1))
-x=subtract_first_config_accs(x,fbs)
-x = x.reshape(fbs - 1, tmins, order='F')
-print(x)
-import pandas as pd
-names=['t1','t2','t3','t4','t5']
-columns=['f1','f2','f3']
-df = pd.DataFrame(data=x, index=columns, columns=names)
-print(df)
+    [90.977444,
+    93.984962,
+    49.624060,
+    63.909774],
+
+    [79.699248,
+    73.684211,
+    54.135338,
+    57.894737],
+
+    [69.172932,
+    73.684211,
+    54.135338,
+    61.654135],
+
+    [51.879699,
+    48.120301,
+    48.872180,
+    55.639098],
+
+    [44.360902,
+    45.864662,
+    55.639098,
+    52.631579]
+])
+labels=['all','f1','f2','f3']
+x_values=['-','0.0-2.0s','0.5-2.5s','1.0-3.0s','1.5-3.5s','2.0-4.0s']
+matplot(data.T, title='Frequency Band Accuracies for 2s Time Slices', xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=labels, bar_plot=False,
+            x_values=x_values, ticks=None,min_x=0,marker='o',fig_size=(8.0,6.0))

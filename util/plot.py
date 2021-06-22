@@ -127,12 +127,12 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
         fig = plt.gcf()
         # np.save(f"{save_path}/{title}.npy", data)
         # save as PDF
-        fig.savefig(f"{save_path}/{title}.png")
+        fig.savefig(f"{save_path}/{title.replace(' ','_')}.png")
         if PLOT_TO_PDF:
-            fig.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
+            fig.savefig(f"{save_path}/{title.replace(' ','_')}.pdf", bbox_inches='tight')
     # fig.tight_layout()
     if SHOW_PLOTS:
-        plt.show(block=False)
+        plt.show(block=True)
 
 
 # Plot only Legend
@@ -464,3 +464,4 @@ def plot_confusion_matrices(model_path, n_classes=N_CLASSES):
         plot_confusion_matrix(conf_mat, class_labels[n_class], recalls, precisions, acc,
                               title=f'{n_class}class Confusion Matrix of best Fold',
                               save_path=model_path)
+

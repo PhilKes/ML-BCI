@@ -19,7 +19,7 @@ import torch
 
 from config import set_bandpassfilter
 from machine_learning.modes import training_cv, benchmarking, live_sim, \
-    training_ss
+    training_ss, testing
 from util.cmd_parser import create_parser, parse_and_check
 from util.misc import load_chs_of_model
 
@@ -39,8 +39,6 @@ def single_run(argv=sys.argv[1:]):
         dev = "cpu"
     device = torch.device(dev)
     print("device", device.type)
-    #TODO
-    set_bandpassfilter(None, 10, False)
     if args.train:
         return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,
@@ -60,6 +58,9 @@ def single_run(argv=sys.argv[1:]):
         args.ch_names = load_chs_of_model(args.model)
         return live_sim(args.model, subject=args.subject, name=args.name, ch_names=args.ch_names,
                         n_classes=args.n_classes, device=device, tag=args.tag)
+    elif args.testing:
+        args.ch_names = load_chs_of_model(args.model)
+        return testing(args.n_classes[0], args.model, device, args.ch_names)
 
 
 ########################################################################################

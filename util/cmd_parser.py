@@ -30,6 +30,7 @@ def create_parser():
     add_train_ss_arguments(parser)
     add_benchmark_arguments(parser)
     add_live_sim_arguments(parser)
+    add_testing_arguments(parser)
     return parser
 
 
@@ -41,6 +42,7 @@ def parse_and_check(parser, argv):
     check_train_ss_arguments(parser, args)
     check_benchmark_arguments(parser, args)
     check_live_sim_arguments(parser, args)
+    check_testing_arguments(parser, args)
     return args
 
 
@@ -72,8 +74,8 @@ def add_common_arguments(parser):
 
 
 def check_common_arguments(parser, args):
-    if (not args.train) & (not args.benchmark) & (not args.live_sim) & (not args.train_ss):
-        parser.error("Either flag '-train', '-train_ss', '-benchmark' or '-live_sim' must be present!")
+    if (not args.train) & (not args.benchmark) & (not args.live_sim) & (not args.train_ss) & (not args.testing):
+        parser.error("Either flag '-train', '-train_ss', '-benchmark', '-testing'  or '-live_sim'  must be present!")
     if not all(((n_class >= 2) & (n_class <= 4)) for n_class in args.n_classes):
         parser.error("Invalid n-class Classification specified (2/3/4-Class possible)")
     if (args.device != "gpu") & (args.device != "cpu"):
@@ -99,7 +101,7 @@ def check_common_arguments(parser, args):
 
     if (args.tmin > args.tmax) | (args.tmin == args.tmax):
         parser.error(f"tmax has to be greater than tmin!")
-    set_eeg_times(args.tmin, args.tmax,dataset.eeg_config.CUE_OFFSET)
+    set_eeg_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
     if args.trials_slices < 1:
         parser.error(f"Trials slices has to be greater than 0!")
     if (eeg_config.SAMPLES % args.trials_slices != 0):
@@ -197,4 +199,15 @@ def add_live_sim_arguments(parser):
 
 
 def check_live_sim_arguments(parser, args):
+    pass
+
+
+# Testing Arguments ################
+def add_testing_arguments(parser):
+    parser.add_argument('-testing',
+                        help="Test pretrained Model (Best Fold)",
+                        action='store_true', required=False)
+
+
+def check_testing_arguments(parser, args):
     pass

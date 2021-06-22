@@ -13,6 +13,8 @@ SHOW_PLOTS = False
 # Turn interactive plotting off
 if SHOW_PLOTS is False:
     plt.ioff()
+else:
+    plt.ion()
 # Calculate the difference in accuracy between Testing Dataset and Training Dataset
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
@@ -24,10 +26,10 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
                         USE_NOTCH_FILTER=False)
 
 # Training Settings
-EPOCHS = 1
+EPOCHS = 100
 SPLITS = PHYS_cv_folds
 VALIDATION_SUBJECTS = 0
-N_CLASSES = [2, 3, 4]
+N_CLASSES = [2]
 
 # Learning Rate Settings
 LR = DotDict(

@@ -1,11 +1,5 @@
 """
-Script to execute Training to analyze the Frequency bands of neural responses on BCIC and PHYS dataset
-- F1: 0-8Hz
-- F2: 8-16Hz
-- F1: 16-28Hz
-For every Frequency Band the impact on different Time Slices (2.0s) are analyzed
-Saves results in ./results/neural_resp_YYYY-mm-dd_HH_MM_SS"
-Uses Cross Validation (--best argument to use only Best-Fold)
+
 """
 import argparse
 from datetime import datetime
@@ -18,14 +12,18 @@ from data.data_utils import save_accs_panda, subtract_first_config_accs
 from data.datasets.bcic.bcic_dataset import BCIC_short_name
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_dataset import PHYS_short_name
+from machine_learning.configs_results import load_npz, get_results_file
 from util.misc import datetime_to_folder_str
-from util.plot import matplot
-from config import results_folder
 
 parser = argparse.ArgumentParser(
-    description='Script to analyze influence of Neural Response Frequency Bands (f1/f2/f3)')
-parser.add_argument('--best_fold', dest='use_cv', action='store_false',
-                    help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
+    description='Script to Test Accuracy of trained model on f1/f2/f3 Test Data')
+parser.add_argument('--model', type=str, default=None,
+                    help='Relative Folder path of trained model(in ./results/.../training/ folder), used for -benchmark or -train_ss or -live_sim')
+args = parser.parse_args()
+model_path = args.model
+n_class = 2
+n_class_results = load_npz(get_results_file(model_path, n_class))
+dataset = DATASETS[n_class_results['mi_ds']]
 
 args = parser.parse_args()
 phys = DATASETS[PHYS_short_name]
@@ -80,20 +78,11 @@ for tmin in tmins:
     time_slices.append(f'{tmin}-{tmax}s')
 
 print(f"Executing Training for Neural Response Frequency bands")
-folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}_{"CV" if args.use_cv is True else "Best_Fold"}'
+folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}'
 
 # results shape: [conf,run, n_class, (acc,OF)]
 results = run_batch_training(confs, n_classes, name=folderName)
 for ds_idx, ds in enumerate(ds_used):
-    plot_data=results[ds_idx][:, :, 0]
-    print(plot_data.shape)
-    plot_data = np.reshape(plot_data, (len(time_slices), len(fbs))).T
-    print(plot_data.shape)
-
-    matplot(plot_data, title=f'{ds} Frequency Band Accuracies',fig_size=(8.0,6.0),
-            xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=fbs_names,
-            x_values=time_slices, min_x=0, marker='o', save_path=f"{results_folder}/{folderName}/{ds}")
-
     ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(fbs))
 
     # Reshape into rows for every frequency band

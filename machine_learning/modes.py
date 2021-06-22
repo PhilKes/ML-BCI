@@ -36,6 +36,7 @@ from machine_learning.util import get_class_accuracies, get_trials_per_class, ge
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels, get_class_avgs
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
+from config import global_config
 
 
 # Runs Training + Testing
@@ -174,6 +175,46 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         n_class_accuracy[i] = np.average(run_data.fold_accuracies)
         n_class_overfitting_diff[i] = n_class_accuracy[i] - np.average(run_data.accuracies_overfitting)
     return n_class_accuracy, n_class_overfitting_diff
+
+
+# Test pretrained model (Best Fold)
+def testing(n_class, model_path, device, ch_names):
+    n_class_results = load_npz(get_results_file(model_path, n_class))
+    ds_short_name=n_class_results['mi_ds']
+    ds_short_name=ds_short_name.astype(np.str)
+    dataset = DATASETS[ds_short_name]
+    # TODO What if Training was exectued with --only_fold?
+    # Get Best Fold Nr. of trained model
+    best_fold = np.argmax(n_class_results['test_accs'])[0]
+
+    print(f"Testing '{model_path}' {n_class}-classification of Best Fold ({best_fold + 1})")
+    print(f"TMIN: {n_class_results['tmin']}, TMAX: {n_class_results['tmax']}"
+          f" FMIN: {global_config.FREQ_FILTER_HIGHPASS},  FMAX: {global_config.FREQ_FILTER_LOWPASS}")
+
+    # Group labels (subjects in same group need same group label)
+    groups = groups_labels(len(dataset.available_subjects), dataset.folds)
+
+    # Split Data into training + test
+    cv = GroupKFold(n_splits=dataset.folds)
+
+    cv_split = cv.split(X=dataset.available_subjects, groups=groups)
+    # Skip to best fold
+    for f in range(best_fold):
+        next(cv_split)
+
+    if DATA_PRELOAD:
+        print("PRELOADING ALL DATA IN MEMORY")
+        preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
+                                                                      ch_names, True, normalize=False)
+
+    loader_test = dataset.create_loader_from_subjects(next(cv_split), n_class, device,
+                                                      preloaded_data=preloaded_data,
+                                                      preloaded_labels=preloaded_labels,
+                                                      bs=BATCH_SIZE, ch_names=PHYS_CHANNELS, equal_trials=True)
+    model = get_model(n_class, len(ch_names), device, model_path)
+    test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
+    print(f"Test Accuracy: {test_accuracy}")
+    return test_accuracy
 
 
 # Runs Subject-specific Training on pretrained model (model_path)
