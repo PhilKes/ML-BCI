@@ -15,7 +15,7 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "defaults_tmin_0_tmax_2"
+folder = "defaults_2s_and_4s"
 default_n_classes = ['2']
 
 train_ss = False
@@ -104,12 +104,18 @@ confs = {
     #     'names': ['excl_42']
     # },
     'PHYS': {
-        'params': [['--dataset', PHYS_short_name,'--tmin','0','--tmax','2']],
-        'names': ['phys_all']
+        'params': [
+            ['--dataset', PHYS_short_name, '--tmin', '0', '--tmax', '2'],
+            ['--dataset', PHYS_short_name, '--tmin', '0', '--tmax', '4']
+        ],
+        'names': ['phys_all_2s', 'phys_all_4s']
     },
     'BCIC': {
-        'params': [['--dataset', BCIC_short_name,'--tmin','0','--tmax','2']],
-        'names': ['bcic_all']
+        'params': [
+            ['--dataset', BCIC_short_name, '--tmin', '2', '--tmax', '4'],
+            ['--dataset', BCIC_short_name, '--tmin', '2', '--tmax', '6']
+        ],
+        'names': ['bcic_all_2s', 'bcic_all_4s']
     },
 }
 

@@ -2,13 +2,17 @@
 Configuration File containing global default values
 """
 import math
-
+import matplotlib.pyplot as plt
 from data.datasets.phys.phys_dataset import PHYS_CONFIG, PHYS_cv_folds
 from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
 VERBOSE = False
 SHOW_PLOTS = False
+
+# Turn interactive plotting off
+if SHOW_PLOTS is False:
+    plt.ioff()
 # Calculate the difference in accuracy between Testing Dataset and Training Dataset
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
@@ -20,7 +24,7 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
                         USE_NOTCH_FILTER=False)
 
 # Training Settings
-EPOCHS = 100
+EPOCHS = 1
 SPLITS = PHYS_cv_folds
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2, 3, 4]
@@ -46,15 +50,17 @@ eegnet_config = DotDict(pool_size=4)
 # Trials Slicing (divide every Trial in equally long Slices)
 eeg_config = DotDict(TMIN=PHYS_CONFIG.TMIN,
                      TMAX=PHYS_CONFIG.TMAX,
+                     CUE_OFFSET=PHYS_CONFIG.CUE_OFFSET,
                      TRIAL_SLICES=1,
                      SAMPLERATE=PHYS_CONFIG.SAMPLERATE,
                      SAMPLES=int((PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE))
 
 
 def set_eeg_config(cfg):
-    eeg_config.TMIN = cfg.TMIN
-    eeg_config.TMAX = cfg.TMAX
+    eeg_config.TMIN = cfg.TMIN + cfg.CUE_OFFSET
+    eeg_config.TMAX = cfg.TMAX + cfg.CUE_OFFSET
     eeg_config.TRIAL_SLICES = 1
+    eeg_config.CUE_OFFSET = cfg.CUE_OFFSET
     eeg_config.SAMPLERATE = cfg.SAMPLERATE
     eeg_config.SAMPLES = (int)((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
 
@@ -66,9 +72,9 @@ def set_eeg_trials_slices(slices):
     eeg_config.SAMPLES = math.floor(((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE) / slices)
 
 
-def set_eeg_times(tmin, tmax):
-    eeg_config.TMIN = tmin
-    eeg_config.TMAX = tmax
+def set_eeg_times(tmin, tmax, cue_offset):
+    eeg_config.TMIN = tmin + cue_offset
+    eeg_config.TMAX = tmax + cue_offset
     eeg_config.SAMPLES = (tmax - tmin) * eeg_config.SAMPLERATE
 
 

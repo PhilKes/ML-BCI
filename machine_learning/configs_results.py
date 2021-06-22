@@ -211,7 +211,7 @@ Run: {config.run}
 
 
 def get_global_config_str():
-    return f"""EEG Epoch interval: [{eeg_config.TMIN};{eeg_config.TMAX}]s
+    return f"""EEG Epoch interval: [{eeg_config.TMIN-eeg_config.CUE_OFFSET};{eeg_config.TMAX-eeg_config.CUE_OFFSET}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
 Trials Slices:{eeg_config.TRIALS_SLICES}"""

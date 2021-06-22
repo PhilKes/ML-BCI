@@ -14,9 +14,10 @@ import numpy as np
 
 from batch_training import run_batch_training
 from config import set_bandpassfilter
-from data.datasets.bcic.bcic_dataset import BCIC_time_cue_offset, BCIC_short_name
 from data.data_utils import save_accs_panda, subtract_first_config_accs
-from data.datasets.phys.phys_dataset import PHYS_time_cue_offset, PHYS_short_name
+from data.datasets.bcic.bcic_dataset import BCIC_short_name
+from data.datasets.datasets import DATASETS
+from data.datasets.phys.phys_dataset import PHYS_short_name
 from util.misc import datetime_to_folder_str
 
 parser = argparse.ArgumentParser(
@@ -25,11 +26,12 @@ parser.add_argument('--best_fold', dest='use_cv', action='store_false',
                     help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
 
 args = parser.parse_args()
+phys = DATASETS[PHYS_short_name]
+bcic = DATASETS[BCIC_short_name]
+ds_used = [bcic.name_short, phys.name_short]
 
-ds_used = [BCIC_short_name, PHYS_short_name]
-ds_time_cue_offsets = [BCIC_time_cue_offset, PHYS_time_cue_offset]
-# Folds to use if --best is used
-ds_best_folds = [1, 2]
+# Folds to use if --best_fold is used (0-base index)
+ds_best_folds = [2, 2]
 
 # Neural Response Frequency bands
 fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
@@ -65,8 +67,8 @@ for tmin in tmins:
             print(f'Training with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
             confs[ds]['params'].append(
                 ['--dataset', str(ds),
-                 '--tmin', f'{tmin + ds_time_cue_offsets[ds_idx]}',
-                 '--tmax', f'{tmax + ds_time_cue_offsets[ds_idx]}',
+                 '--tmin', f'{tmin}',
+                 '--tmax', f'{tmax}',
                  ])
             confs[ds]['names'].append(f'{ds.lower()}_bp_{fb_name}/t_{tmin}_{tmax}')
             confs[ds]['init'].append(func(fbs[fb_idx]))

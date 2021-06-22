@@ -85,7 +85,7 @@ class ML_Run_Data:
         self.best_losses_test = np.full((folds), fill_value=np.inf)
         # Epoch with best Loss on Test Set for every fold
         self.best_epochs_test = np.zeros((folds), dtype=np.int)
-        # Actual and Predicted labels for every fold
+        # Actual and Predicted labels for the best Fold
         self.best_fold_act_labels = None
         self.best_fold_pred_labels = None
         self.best_fold = -1
@@ -101,9 +101,6 @@ class ML_Run_Data:
         self.elapsed = None
         # Best Model state dict for every fold
         self.best_model = [{} for i in range(folds)]
-
-        self.best_fold_act_labels = None
-        self.best_fold_pred_labels = None
 
     def start_run(self):
         self.start = datetime.now()

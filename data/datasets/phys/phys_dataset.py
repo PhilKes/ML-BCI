@@ -27,7 +27,6 @@ PHYS_CHANNELS = [
     'O1', 'Oz', 'O2',
     'Iz']
 
-PHYS_time_cue_offset = 0.0
 PHYS_cv_folds = 5
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 PHYS_CONFIG = DotDict(
@@ -37,7 +36,8 @@ PHYS_CONFIG = DotDict(
     # if True: load Run 0 for Rest Trials, ignore in other Runs
     # not relevant for 2 class Classification
     REST_TRIALS_FROM_BASELINE_RUN=True,
-    REST_TRIALS_LESS=0
+    REST_TRIALS_LESS=0,
+    CUE_OFFSET=0.0
 )
 
 
