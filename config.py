@@ -53,7 +53,7 @@ eegnet_config = DotDict(pool_size=4)
 eeg_config = DotDict(TMIN=PHYS_CONFIG.TMIN,
                      TMAX=PHYS_CONFIG.TMAX,
                      CUE_OFFSET=PHYS_CONFIG.CUE_OFFSET,
-                     TRIAL_SLICES=1,
+                     TRIALS_SLICES=1,
                      SAMPLERATE=PHYS_CONFIG.SAMPLERATE,
                      SAMPLES=int((PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE))
 
@@ -61,10 +61,10 @@ eeg_config = DotDict(TMIN=PHYS_CONFIG.TMIN,
 def set_eeg_config(cfg):
     eeg_config.TMIN = cfg.TMIN + cfg.CUE_OFFSET
     eeg_config.TMAX = cfg.TMAX + cfg.CUE_OFFSET
-    eeg_config.TRIAL_SLICES = 1
+    eeg_config.TRIALS_SLICES = 1
     eeg_config.CUE_OFFSET = cfg.CUE_OFFSET
     eeg_config.SAMPLERATE = cfg.SAMPLERATE
-    eeg_config.SAMPLES = (int)((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
+    eeg_config.SAMPLES = int((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
 
 
 def set_eeg_trials_slices(slices):
@@ -77,14 +77,14 @@ def set_eeg_trials_slices(slices):
 def set_eeg_times(tmin, tmax, cue_offset):
     eeg_config.TMIN = tmin + cue_offset
     eeg_config.TMAX = tmax + cue_offset
-    eeg_config.SAMPLES = (tmax - tmin) * eeg_config.SAMPLERATE
+    eeg_config.SAMPLES = int((tmax - tmin) * eeg_config.SAMPLERATE)
 
 
 def reset_eeg_times():
     eeg_config.TMIN = PHYS_CONFIG.TMIN
     eeg_config.TMAX = PHYS_CONFIG.TMAX
     eeg_config.SAMPLERATE = PHYS_CONFIG.SAMPLERATE
-    eeg_config.SAMPLES = (PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE
+    eeg_config.SAMPLES = int((PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE)
 
 
 def set_poolsize(size):

@@ -85,14 +85,12 @@ folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}_{"CV" if arg
 # results shape: [conf,run, n_class, (acc,OF)]
 results = run_batch_training(confs, n_classes, name=folderName)
 for ds_idx, ds in enumerate(ds_used):
-    plot_data=results[ds_idx][:, :, 0]
-    print(plot_data.shape)
+    plot_data = results[ds_idx][:, :, 0]
     plot_data = np.reshape(plot_data, (len(time_slices), len(fbs))).T
-    print(plot_data.shape)
 
-    matplot(plot_data, title=f'{ds} Frequency Band Accuracies',fig_size=(8.0,6.0),
+    matplot(plot_data, title=f'{ds} Frequency Band Accuracies', fig_size=(8.0, 6.0),
             xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=fbs_names,
-            x_values=time_slices, min_x=0, marker='o', save_path=f"{results_folder}/{folderName}/{ds}")
+            x_values=['-'] + time_slices, min_x=0, marker='o', save_path=f"{results_folder}/{folderName}/{ds}")
 
     ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(fbs))
 
@@ -100,4 +98,5 @@ for ds_idx, ds in enumerate(ds_used):
     ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]), order='F')
 
     # Save accuracy differences as .csv and .txt
-    save_accs_panda(folderName, ds_acc_diffs, time_slices, fbs_names[1:], n_classes, ds)
+    save_accs_panda("neural_responses_accs", f"{results_folder}/{folderName}/{ds}", ds_acc_diffs, time_slices, fbs_names[1:],
+                    ds)

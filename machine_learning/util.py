@@ -136,3 +136,12 @@ class ML_Run_Data:
         self.best_fold = fold
         self.best_fold_act_labels = act_labels
         self.best_fold_pred_labels = pred_labels
+
+
+def preferred_device(preferred):
+    dev = None
+    if (preferred== "gpu") & torch.cuda.is_available():
+        dev = "cuda:0"
+    else:
+        dev = "cpu"
+    return torch.device(dev)

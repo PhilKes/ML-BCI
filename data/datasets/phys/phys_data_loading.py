@@ -30,6 +30,8 @@ from data.datasets.phys.phys_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS
 from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
 
+# Dont print MNE loading logs
+mne.set_log_level('WARNING')
 
 class PHYS_DataLoader(MI_DataLoader):
     name = PHYS_name

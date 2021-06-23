@@ -112,8 +112,8 @@ confs = {
     },
     'BCIC': {
         'params': [
-            ['--dataset', BCIC_short_name, '--tmin', '2', '--tmax', '4'],
-            ['--dataset', BCIC_short_name, '--tmin', '2', '--tmax', '6']
+            ['--dataset', BCIC_short_name, '--tmin', '0', '--tmax', '2'],
+            ['--dataset', BCIC_short_name, '--tmin', '0', '--tmax', '4']
         ],
         'names': ['bcic_all_2s', 'bcic_all_4s']
     },

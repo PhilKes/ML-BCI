@@ -63,8 +63,8 @@ def add_common_arguments(parser):
     parser.add_argument('--subject', type=int, default=None,
                         help=f'Subject used for -live_sim or -train_ss')
 
-    parser.add_argument('--trials_slices', type=int, default=eeg_config.TRIAL_SLICES,
-                        help=f'Will slice every Trial into n x Trials (default: {eeg_config.TRIAL_SLICES})')
+    parser.add_argument('--trials_slices', type=int, default=eeg_config.TRIALS_SLICES,
+                        help=f'Will slice every Trial into n x Trials (default: {eeg_config.TRIALS_SLICES})')
     parser.add_argument('--tmin', type=float, default=eeg_config.TMIN,
                         help=f'Start Time of every Trial Epoch (default: {eeg_config.TMIN})')
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
@@ -205,7 +205,7 @@ def check_live_sim_arguments(parser, args):
 # Testing Arguments ################
 def add_testing_arguments(parser):
     parser.add_argument('-testing',
-                        help="Test pretrained Model (Best Fold)",
+                        help="Test pretrained Model (Best Fold) specified by --model parameter",
                         action='store_true', required=False)
 
 

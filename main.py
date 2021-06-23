@@ -20,6 +20,7 @@ import torch
 from config import set_bandpassfilter
 from machine_learning.modes import training_cv, benchmarking, live_sim, \
     training_ss, testing
+from machine_learning.util import preferred_device
 from util.cmd_parser import create_parser, parse_and_check
 from util.misc import load_chs_of_model
 
@@ -32,13 +33,9 @@ def single_run(argv=sys.argv[1:]):
     mne.set_log_level('WARNING')
 
     # Use GPU for model & tensors if available
-    dev = None
-    if (args.device == "gpu") & torch.cuda.is_available():
-        dev = "cuda:0"
-    else:
-        dev = "cpu"
-    device = torch.device(dev)
+    device= preferred_device(args.device)
     print("device", device.type)
+
     if args.train:
         return training_cv(num_epochs=args.epochs, device=device, n_classes=args.n_classes,
                            name=args.name, batch_size=args.bs, tag=args.tag, ch_names=args.ch_names,

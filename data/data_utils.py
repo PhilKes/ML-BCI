@@ -222,14 +222,14 @@ def subtract_first_config_accs(runs_classes_accs, amt_configs):
     return acc_diffs
 
 
-def save_accs_panda(folderName, accs, columns, names, n_classes, tag=None):
+def save_accs_panda(name, folderName, accs, columns, names, tag=None):
     df = pd.DataFrame(data=accs, index=names, columns=columns)
-    if tag is not None:
-        folderName += f'/{tag}'
+    # if tag is not None:
+    #     folderName += f'/{tag}'
     # Write results into .csv and .txt
-    df.to_csv(f"{results_folder}/{folderName}/{tag if tag is not None else 'training'}_neural_responses_accs.csv")
-    with open(os.path.join(f"{results_folder}/{folderName}",
-                           f"{tag if tag is not None else 'training'}_neural_responses_accs.txt"),
+    df.to_csv(f"{folderName}/{tag if tag is not None else 'training'}_{name}.csv")
+    with open(os.path.join(f"{folderName}",
+                           f"{tag if tag is not None else 'training'}_{name}.txt"),
               'w') as outfile:
         df.to_string(outfile)
     print(df)

@@ -34,7 +34,7 @@ def calc_psds():
     training = 1
     eeg_config.TMIN = BCIC_CONFIG.TMIN
     eeg_config.TMAX = BCIC_CONFIG.TMAX
-    eeg_config.TRIAL_SLICES = 1
+    eeg_config.TRIALS_SLICES = 1
     eeg_config.SAMPLERATE = BCIC_CONFIG.SAMPLERATE
     eeg_config.SAMPLES = (int)((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
     print("  - Subjects: ", subjects)

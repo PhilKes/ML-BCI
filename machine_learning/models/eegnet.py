@@ -100,9 +100,9 @@ class EEGNet(t.nn.Module):
         # else:
         #     self.flatten = t.nn.Flatten()
         if constrain_w:
-            self.fc = ConstrainedLinear(F2 * n_features, N, bias=True, max_weight=reg_rate)
+            self.fc = ConstrainedLinear(int(F2 * n_features), N, bias=True, max_weight=reg_rate)
         else:
-            self.fc = t.nn.Linear(F2 * n_features, N, bias=True)
+            self.fc = t.nn.Linear(int(F2 * n_features), N, bias=True)
 
     def forward(self, x):
 

@@ -178,14 +178,13 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
 
 
 # Test pretrained model (Best Fold)
-def testing(n_class, model_path, device, ch_names):
+def testing(n_class, model_path, device, ch_names, preloaded=(None, None)):
     n_class_results = load_npz(get_results_file(model_path, n_class))
-    ds_short_name=n_class_results['mi_ds']
-    ds_short_name=ds_short_name.astype(np.str)
+    ds_short_name = n_class_results['mi_ds'].item()
     dataset = DATASETS[ds_short_name]
     # TODO What if Training was exectued with --only_fold?
     # Get Best Fold Nr. of trained model
-    best_fold = np.argmax(n_class_results['test_accs'])[0]
+    best_fold = np.argmax(n_class_results['test_accs']).item()
 
     print(f"Testing '{model_path}' {n_class}-classification of Best Fold ({best_fold + 1})")
     print(f"TMIN: {n_class_results['tmin']}, TMAX: {n_class_results['tmax']}"
@@ -202,16 +201,19 @@ def testing(n_class, model_path, device, ch_names):
     for f in range(best_fold):
         next(cv_split)
 
+    model = get_model(n_class, len(ch_names), device, model_path)
     if DATA_PRELOAD:
-        print("PRELOADING ALL DATA IN MEMORY")
-        preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
-                                                                      ch_names, True, normalize=False)
+        if preloaded[0] is None:
+            print("PRELOADING ALL DATA IN MEMORY")
+            preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
+                                                                          ch_names, True, normalize=False)
+        else:
+            preloaded_data, preloaded_labels = preloaded
 
     loader_test = dataset.create_loader_from_subjects(next(cv_split), n_class, device,
                                                       preloaded_data=preloaded_data,
                                                       preloaded_labels=preloaded_labels,
                                                       bs=BATCH_SIZE, ch_names=PHYS_CHANNELS, equal_trials=True)
-    model = get_model(n_class, len(ch_names), device, model_path)
     test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
     print(f"Test Accuracy: {test_accuracy}")
     return test_accuracy

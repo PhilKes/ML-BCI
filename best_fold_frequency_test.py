@@ -1,19 +1,23 @@
 """
-
+Test Accuracies of pretrained model
+Determines Accuracies on Test Set of best Fold
+with the Test Data being bandpassfiltered (all/f1/f2/f3)
+specified model should have subdirectories with Training
+of different Time Slices
 """
 import argparse
+import os
 from datetime import datetime
 
 import numpy as np
 
-from batch_training import run_batch_training
-from config import set_bandpassfilter
-from data.data_utils import save_accs_panda, subtract_first_config_accs
-from data.datasets.bcic.bcic_dataset import BCIC_short_name
+from config import set_bandpassfilter, set_eeg_times, set_eeg_config
+from data.data_utils import save_accs_panda
 from data.datasets.datasets import DATASETS
-from data.datasets.phys.phys_dataset import PHYS_short_name
-from machine_learning.configs_results import load_npz, get_results_file
-from util.misc import datetime_to_folder_str
+from machine_learning.configs_results import load_npz
+from machine_learning.modes import testing
+from machine_learning.util import preferred_device
+from util.misc import datetime_to_folder_str, makedir
 
 parser = argparse.ArgumentParser(
     description='Script to Test Accuracy of trained model on f1/f2/f3 Test Data')
@@ -22,71 +26,41 @@ parser.add_argument('--model', type=str, default=None,
 args = parser.parse_args()
 model_path = args.model
 n_class = 2
-n_class_results = load_npz(get_results_file(model_path, n_class))
-dataset = DATASETS[n_class_results['mi_ds']]
 
 args = parser.parse_args()
-phys = DATASETS[PHYS_short_name]
-bcic = DATASETS[BCIC_short_name]
-ds_used = [bcic.name_short, phys.name_short]
-
-# Folds to use if --best_fold is used (0-base index)
-ds_best_folds = [2, 2]
 
 # Neural Response Frequency bands
 fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
 fbs_names = ['all', 'f1', 'f2', 'f3']
 
-# 2 Second time slices in steps of 0.5 (max t=4.0)
-time_max = 4.0
-time_delta = 2.0
-time_step = 0.5
+device = preferred_device("gpu")
 
-n_classes = ['2']
+for path, time_slices_directories, files in os.walk(args.model):
+    # Accuracy for every frequency band with every Time Slice (directory)
+    results = np.zeros((len(time_slices_directories), len(fbs)))
+    for slice_idx, dir in enumerate(time_slices_directories):
+        training_folder = f"{path}/{dir}/training"
+        n_class_results = load_npz(f"{training_folder}/{n_class}class-training.npz")
+        ds = n_class_results['mi_ds'].item()
+        dataset = DATASETS[ds]
+        tmin = n_class_results['tmin'].item()
+        tmax = n_class_results['tmax'].item()
+        ch_names = dataset.channels
+        set_eeg_config(dataset.eeg_config)
+        testing_folder = f"{training_folder}/testing"
+        makedir(testing_folder)
 
-confs = {}
-for ds_idx, ds in enumerate(ds_used):
-    confs[ds] = {
-        'params': [],
-        'names': [],
-        'init': [],
-        'after': lambda: set_bandpassfilter(None, None, False),
-    }
+        print("PRELOADING ALL DATA IN MEMORY")
+        # preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
+        #                                                               ch_names, True, normalize=False)
+        for fb_idx, (bp, fb_name) in enumerate(zip(fbs, fbs_names)):
+            print(f'Testing with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
+            set_eeg_times(tmin, tmax, dataset.eeg_config.CUE_OFFSET)
+            set_bandpassfilter(*bp)
+            results[slice_idx, fb_idx] = testing(n_class, training_folder, device, ch_names)
 
-tmins = np.arange(0.0, time_max - time_delta + 0.01, time_step)
-time_slices = []
-
-
-def func(x): return lambda: set_bandpassfilter(*x)
-
-
-for tmin in tmins:
-    tmax = tmin + time_delta
-    for ds_idx, ds in enumerate(ds_used):
-        for fb_idx, fb_name in enumerate(fbs_names):
-            print(f'Training with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
-            confs[ds]['params'].append(
-                ['--dataset', str(ds),
-                 '--tmin', f'{tmin}',
-                 '--tmax', f'{tmax}',
-                 ])
-            confs[ds]['names'].append(f'{ds.lower()}_bp_{fb_name}/t_{tmin}_{tmax}')
-            confs[ds]['init'].append(func(fbs[fb_idx]))
-
-            if args.use_cv is False:
-                confs[ds]['params'][-1].extend(['--only_fold', str(ds_best_folds[ds_idx])])
-    time_slices.append(f'{tmin}-{tmax}s')
+        save_accs_panda(f"Frequency_bands_test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
+                        fbs_names, tag=ds)
 
 print(f"Executing Training for Neural Response Frequency bands")
 folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}'
-
-# results shape: [conf,run, n_class, (acc,OF)]
-results = run_batch_training(confs, n_classes, name=folderName)
-for ds_idx, ds in enumerate(ds_used):
-    ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(fbs))
-
-    # Reshape into rows for every frequency band
-    ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]), order='F')
-
-    # Save accuracy differences as .csv and .txt
-    save_accs_panda(folderName, ds_acc_diffs, time_slices, fbs_names[1:], n_classes, ds)

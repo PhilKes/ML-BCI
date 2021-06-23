@@ -411,34 +411,39 @@ def check_bad_data(subjects, n_classes):
 # columns=['f1','f2','f3']
 # df = pd.DataFrame(data=x, index=columns, columns=names)
 # print(df)
-data = np.asarray([
+# data = np.asarray([
+#
+#     [90.977444,
+#     93.984962,
+#     49.624060,
+#     63.909774],
+#
+#     [79.699248,
+#     73.684211,
+#     54.135338,
+#     57.894737],
+#
+#     [69.172932,
+#     73.684211,
+#     54.135338,
+#     61.654135],
+#
+#     [51.879699,
+#     48.120301,
+#     48.872180,
+#     55.639098],
+#
+#     [44.360902,
+#     45.864662,
+#     55.639098,
+#     52.631579]
+# ])
+# labels=['all','f1','f2','f3']
+# x_values=['-','0.0-2.0s','0.5-2.5s','1.0-3.0s','1.5-3.5s','2.0-4.0s']
+# matplot(data.T, title='Frequency Band Accuracies for 2s Time Slices', xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=labels, bar_plot=False,
+#             x_values=x_values, ticks=None,min_x=0,marker='o',fig_size=(8.0,6.0))
 
-    [90.977444,
-    93.984962,
-    49.624060,
-    63.909774],
-
-    [79.699248,
-    73.684211,
-    54.135338,
-    57.894737],
-
-    [69.172932,
-    73.684211,
-    54.135338,
-    61.654135],
-
-    [51.879699,
-    48.120301,
-    48.872180,
-    55.639098],
-
-    [44.360902,
-    45.864662,
-    55.639098,
-    52.631579]
-])
-labels=['all','f1','f2','f3']
-x_values=['-','0.0-2.0s','0.5-2.5s','1.0-3.0s','1.5-3.5s','2.0-4.0s']
-matplot(data.T, title='Frequency Band Accuracies for 2s Time Slices', xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=labels, bar_plot=False,
-            x_values=x_values, ticks=None,min_x=0,marker='o',fig_size=(8.0,6.0))
+file='./test.npz'
+np.savez(file,test_string="Test")
+test_string= np.load(file)['test_string']
+print(test_string)
