@@ -6,8 +6,6 @@ specified model should have subdirectories with Training
 of different Time Slices
 """
 import argparse
-import os
-from datetime import datetime
 
 import numpy as np
 
@@ -17,7 +15,7 @@ from data.datasets.datasets import DATASETS
 from machine_learning.configs_results import load_npz
 from machine_learning.modes import testing
 from machine_learning.util import preferred_device
-from util.misc import datetime_to_folder_str, makedir, get_subdirs
+from util.misc import makedir, get_subdirs
 from util.plot import matplot
 
 parser = argparse.ArgumentParser(

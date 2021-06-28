@@ -21,7 +21,7 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from scipy import signal
-from config import eeg_config, datasets_folder, SHOW_PLOTS
+from config import eeg_config, datasets_folder
 from data.datasets.bcic.bcic_dataset import BCIC_CHANNELS
 from data.data_utils import butter_bandpass_filt
 from config import global_config

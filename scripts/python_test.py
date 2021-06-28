@@ -3,8 +3,6 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
-import os
-import sys
 
 import mne
 import numpy as np
@@ -12,7 +10,6 @@ import torch
 
 from config import ROOT
 from data.datasets.phys.phys_data_loading import PHYS_DataLoader
-from util.plot import matplot
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -123,9 +120,9 @@ mne.set_log_level('WARNING')
 #         data, labels = load_n_classes_tasks(subject, n_class)
 #         all_data, all_labels = np.concatenate((all_data, data)), np.concatenate((all_labels, labels))
 #     print("all_data",all_data.shape,"all_labels",all_labels.shape)
-#     np.savez('test.npz',X=all_data,y=all_labels)
+#     np.savez('util.npz',X=all_data,y=all_labels)
 # def load_subjects_numpy():
-#     data = np.load('test.npz')
+#     data = np.load('util.npz')
 #     return data['X'],data['y']
 
 # save_subjects_numpy()
@@ -218,9 +215,9 @@ def check_bad_data(subjects, n_classes):
 # x = ALL_SUBJECTS
 # batch_size = 16
 # m = int(len(ALL_SUBJECTS) / int(math.ceil(len(x) / batch_size)))+1
-# test = [x[i:i + m] for i in range(0, len(x), m)]
-# # test[-2:] = [test[-2] + test[-1]]
-# print(test)
+# util = [x[i:i + m] for i in range(0, len(x), m)]
+# # util[-2:] = [util[-2] + util[-1]]
+# print(util)
 # X, y = load_n_classes_tasks(1, 3, equal_trials=True)
 # print(y)
 # for i in range(4):
@@ -289,7 +286,7 @@ def check_bad_data(subjects, n_classes):
 
 #
 # def save_pd(arr,i):
-#     with open(os.path.join(f"./results/test", f'batch_training_results{i}.txt'),
+#     with open(os.path.join(f"./results/util", f'batch_training_results{i}.txt'),
 #               'w') as outfile:
 #         df = pandas.DataFrame(data=arr, columns=['2clAcc','2clOF','3clAcc','3clOF'])
 #         df.to_string(outfile)
@@ -446,7 +443,7 @@ def check_bad_data(subjects, n_classes):
 # matplot(data.T, title='Frequency Band Accuracies for 2s Time Slices', xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=labels, bar_plot=False,
 #             x_values=x_values, ticks=None,min_x=0,marker='o',fig_size=(8.0,6.0))
 
-# file='./test.npz'
+# file='./util.npz'
 # np.savez(file,test_string="Test")
 # test_string= np.load(file)['test_string']
 # print(test_string)

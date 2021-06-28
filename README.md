@@ -83,7 +83,11 @@ ___
 * Utility methods ofr preprocessing data
 
 ___
-
+## Scripts
+ Have to be executed as python modules with:
+ 
+ ```python3 -m scripts.<script_name> ```
+ 
 ### batch_training.py
 * Can be used for Batchruns of Training Runs
 * Creates .csv and .txt files containing Results of Training Batchruns
@@ -92,10 +96,18 @@ ___
 * Can be used to analyze influence of different Frequency bands
 * Test neural responses in different time slices
 
+### best_fold_frequency_test.py
+* Can be used to Test trained model of neural_responses_training.py
+* Tests different Fx-filtered Test Data of trained Model
+
 #### bench_all_confs.py
 * Runs _main.py_ with all possible Configurations in benchmark mode (/w TRT (fp16/32))
 * Saves results in parent folder _./results/{model_path}/benchmark/_
 * Benchmarking with different Batch Sizes with `--bs` argument
+
+#### visualize_results.py
+* Plots and saves Results from _bench_all_confs.py_ Runs as .png
+* `--model` specifies the folder location of the _results.npz_ file
 
 #### /util/plot.py
 * Plot Results with Matplotlib
@@ -103,9 +115,7 @@ ___
 #### /util/configs_results.py
 * Handles storing results/config .txt files
 
-#### visualize_results.py
-* Plots and saves Results from _bench_all_confs.py_ Runs as .png
-* `--model` specifies the folder location of the _results.npz_ file
+
 
 #### python_test.py
 Python Playground for testing, has no further use

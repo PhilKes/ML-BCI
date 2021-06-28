@@ -6,12 +6,6 @@ import math
 import os
 
 import numpy as np
-import torch  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import chs_names_txt
 

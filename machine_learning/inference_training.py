@@ -7,14 +7,10 @@ import time
 
 import numpy as np
 import torch  # noqa
-import torch.nn.functional as F  # noqa
 import torch.optim as optim  # noqa
 from sklearn.metrics import accuracy_score
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
+from torch import nn  # noqa
 from tqdm import tqdm
-import torch.nn.functional as F  # noqa
 
 from config import LR, eeg_config
 

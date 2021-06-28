@@ -102,13 +102,15 @@ def set_bandpassfilter(fmin=None, fmax=None, notch=False):
 
 # Project's root path
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.append(ROOT)
 to_path = lambda x: os.path.join(ROOT, x)
 
 results_folder = to_path('results')
-training_results_folder = to_path('training')
-benchmark_results_folder = to_path('benchmark')
-live_sim_results_folder = to_path('live_sim')
-training_ss_results_folder = to_path('training_ss')
+training_results_folder = 'training'
+benchmark_results_folder = 'benchmark'
+live_sim_results_folder = 'live_sim'
+training_ss_results_folder = 'training_ss'
 
 trained_model_name = "trained_model.pt"
 trained_ss_model_name = "trained_ss_model.pt"

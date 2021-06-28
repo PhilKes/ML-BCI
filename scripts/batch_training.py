@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 import os
+import sys
 from datetime import datetime
 
 import numpy
 import pandas as pd
 
-from config import results_folder, training_results_folder, training_ss_results_folder
+from config import results_folder, training_results_folder, training_ss_results_folder, ROOT
 from data.datasets.bcic.bcic_dataset import BCIC_short_name
 from data.datasets.phys.phys_dataset import PHYS_short_name
 from main import single_run

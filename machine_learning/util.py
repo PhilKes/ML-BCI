@@ -91,7 +91,7 @@ class ML_Run_Data:
         self.best_fold = -1
         self.class_accuracies, self.class_trials = np.zeros((folds, n_class)), np.zeros(n_class)
         self.avg_class_accs = np.zeros(self.n_class)
-        # All Epoch Losses on Train/test for every Fold an epoch
+        # All Epoch Losses on Train/util for every Fold an epoch
         self.epoch_losses_train = np.zeros((folds, num_epochs))
         self.epoch_losses_test = np.zeros((folds, num_epochs))
         # Subject Splits

@@ -15,9 +15,7 @@ History:
 import sys
 
 import mne
-import torch
 
-from config import set_bandpassfilter
 from machine_learning.modes import training_cv, benchmarking, live_sim, \
     training_ss, testing
 from machine_learning.util import preferred_device

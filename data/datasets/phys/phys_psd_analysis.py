@@ -60,7 +60,7 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
     folds = 2
     groups = groups_labels(len(used_subjects), folds)
 
-    # Split Data into training + test
+    # Split Data into training + util
     cv = GroupKFold(n_splits=folds)
 
     cv_split = cv.split(X=used_subjects, groups=groups)

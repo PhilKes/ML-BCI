@@ -34,7 +34,7 @@ from machine_learning.inference_training import do_train, do_test, do_benchmark,
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
     ML_Run_Data
 from util.dot_dict import DotDict
-from util.misc import split_list_into_chunks, groups_labels, get_class_avgs
+from util.misc import split_list_into_chunks, groups_labels
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
 from config import global_config
 
@@ -89,7 +89,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(used_subjects), folds)
 
-    # Split Data into training + test
+    # Split Data into training + util
     cv = GroupKFold(n_splits=folds)
 
     best_n_class_models = {}
@@ -195,7 +195,7 @@ def testing(n_class, model_path, device, ch_names, preloaded=(None, None)):
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(dataset.available_subjects), dataset.folds)
 
-    # Split Data into training + test
+    # Split Data into training + util
     cv = GroupKFold(n_splits=dataset.folds)
 
     cv_split = cv.split(X=dataset.available_subjects, groups=groups)

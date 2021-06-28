@@ -96,7 +96,7 @@ def training_result_str(run_data, only_fold=None, early_stop=True):
     return train_result_str.format(
         elapsed=run_data.elapsed,
         folds_str=folds_str,
-        acg_acc=np.average(run_data.fold_accuracies),
+        avg_acc=np.average(run_data.fold_accuracies),
         avg_of=np.average(run_data.fold_accuracies) - np.average(run_data.accuracies_overfitting),
         trials_str=trials_str,
         classes_str=classes_str,
@@ -111,7 +111,7 @@ Elapsed Time: {elapsed}
 Accuracies of Folds:
 {folds_str}
 Avg. acc: {avg_acc:.2f}
-{f'Avg. Overfitting difference: {avg_of:.2f}' if TEST_OVERFITTING else ''}
+Avg. Overfitting difference: {avg_of:.2f}'
 Trials per class:
 {trials_str}
 Avg. Class Accuracies:

@@ -6,13 +6,16 @@ Script to execute Training to analyze the Frequency bands of neural responses on
 For every Frequency Band the impact on different Time Slices (2.0s) are analyzed
 Saves results in ./results/neural_resp_YYYY-mm-dd_HH_MM_SS"
 Uses Cross Validation (--best argument to use only Best-Fold)
+
+EXECUTE AS MODULE:
+ ```python3 -m scripts.neural_responses_training --best_fold ```
 """
 import argparse
 from datetime import datetime
 
 import numpy as np
 
-from config import set_bandpassfilter
+from config import set_bandpassfilter, results_folder
 from data.data_utils import save_accs_panda, subtract_first_config_accs
 from data.datasets.bcic.bcic_dataset import BCIC_short_name
 from data.datasets.datasets import DATASETS
@@ -20,7 +23,6 @@ from data.datasets.phys.phys_dataset import PHYS_short_name
 from scripts.batch_training import run_batch_training
 from util.misc import datetime_to_folder_str
 from util.plot import matplot
-from config import results_folder
 
 parser = argparse.ArgumentParser(
     description='Script to analyze influence of Neural Response Frequency Bands (f1/f2/f3)')
@@ -98,5 +100,6 @@ for ds_idx, ds in enumerate(ds_used):
     ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]), order='F')
 
     # Save accuracy differences as .csv and .txt
-    save_accs_panda("neural_responses_accs", f"{results_folder}/{folderName}/{ds}", ds_acc_diffs, time_slices, fbs_names[1:],
+    save_accs_panda("neural_responses_accs", f"{results_folder}/{folderName}/{ds}", ds_acc_diffs, time_slices,
+                    fbs_names[1:],
                     ds)
