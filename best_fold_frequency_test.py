@@ -34,33 +34,33 @@ fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
 fbs_names = ['all', 'f1', 'f2', 'f3']
 
 device = preferred_device("gpu")
-
-for path, time_slices_directories, files in os.walk(args.model):
+time_slices_dirs = sorted(os.listdir(args.model))
+print(time_slices_dirs)
+results = np.zeros((len(time_slices_dirs), len(fbs)))
+for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     # Accuracy for every frequency band with every Time Slice (directory)
-    results = np.zeros((len(time_slices_directories), len(fbs)))
-    for slice_idx, dir in enumerate(time_slices_directories):
-        training_folder = f"{path}/{dir}/training"
-        n_class_results = load_npz(f"{training_folder}/{n_class}class-training.npz")
-        ds = n_class_results['mi_ds'].item()
-        dataset = DATASETS[ds]
-        tmin = n_class_results['tmin'].item()
-        tmax = n_class_results['tmax'].item()
-        ch_names = dataset.channels
-        set_eeg_config(dataset.eeg_config)
-        testing_folder = f"{training_folder}/testing"
-        makedir(testing_folder)
+    training_folder = f"{args.model}/{time_slices_dir}/training"
+    n_class_results = load_npz(f"{training_folder}/{n_class}class-training.npz")
+    ds = n_class_results['mi_ds'].item()
+    dataset = DATASETS[ds]
+    tmin = n_class_results['tmin'].item()
+    tmax = n_class_results['tmax'].item()
+    ch_names = dataset.channels
+    set_eeg_config(dataset.eeg_config)
+    testing_folder = f"{training_folder}/testing"
+    makedir(testing_folder)
 
-        print("PRELOADING ALL DATA IN MEMORY")
-        # preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
-        #                                                               ch_names, True, normalize=False)
-        for fb_idx, (bp, fb_name) in enumerate(zip(fbs, fbs_names)):
-            print(f'Testing with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
-            set_eeg_times(tmin, tmax, dataset.eeg_config.CUE_OFFSET)
-            set_bandpassfilter(*bp)
-            results[slice_idx, fb_idx] = testing(n_class, training_folder, device, ch_names)
+    # print("PRELOADING ALL DATA IN MEMORY")
+    # preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
+    #                                                               ch_names, True, normalize=False)
+    for fb_idx, (bp, fb_name) in enumerate(zip(fbs, fbs_names)):
+        print(f'Testing with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
+        set_eeg_times(tmin, tmax, dataset.eeg_config.CUE_OFFSET)
+        set_bandpassfilter(*bp)
+        results[slice_idx, fb_idx] = testing(n_class, training_folder, device, ch_names)
 
-        save_accs_panda(f"Frequency_bands_test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
-                        fbs_names, tag=ds)
+    save_accs_panda(f"Frequency_bands_test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
+                    fbs_names, tag=ds)
 
-print(f"Executing Training for Neural Response Frequency bands")
-folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}'
+save_accs_panda(f"Time Slices Fx-filtered Testing", f"{args.model}", results, time_slices_dirs,
+                fbs_names, tag=ds)

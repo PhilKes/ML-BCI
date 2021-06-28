@@ -273,7 +273,8 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
             hlines=[np.average(accuracies)],
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
-    class_accuracies = run_data.class_accuracies[run_data.best_fold]
+    highest_acc_fold=np.argmax(accuracies).item()
+    class_accuracies = run_data.class_accuracies[highest_acc_fold]
     matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag} of best Fold", "Class",
             "Accuracy in %", show_legend=False,
             x_values=['0'] + class_labels[n_class],
@@ -289,8 +290,8 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
             max_x=run_data.epoch_losses_test.shape[-1] + 5,
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)
     train_test_data = np.zeros((2, run_data.epoch_losses_train.shape[1]))
-    train_test_data[0] = run_data.epoch_losses_train[run_data.best_fold]
-    train_test_data[1] = run_data.epoch_losses_test[run_data.best_fold]
+    train_test_data[0] = run_data.epoch_losses_train[highest_acc_fold]
+    train_test_data[1] = run_data.epoch_losses_test[highest_acc_fold]
     matplot(train_test_data,
             f"{n_class}class Train-Test Losses of best Fold", 'Epoch',
             f'loss per batch (size = {batch_size})', min_x=-5,
@@ -300,7 +301,6 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
 
 # Load previous training results and replot all statistics
 def load_and_plot_training(model_path):
-    # TODO save best fold nr in training-results.npzs
     # -> have to manually tell which was best fold from results.txt
     best_folds = {2: 2, 3: 2, 4: 2}
     for n_class in N_CLASSES:

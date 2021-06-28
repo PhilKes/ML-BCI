@@ -135,6 +135,7 @@ class PHYS_DataLoader(MI_DataLoader):
             trials -= PHYS_CONFIG.REST_TRIALS_LESS
 
         print(eeg_config)
+        print(global_config)
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
         print("Preload Shape", preloaded_data.shape)
@@ -301,7 +302,7 @@ class PHYS_DataLoader(MI_DataLoader):
                              phase='zero')
         if ((fmin is not None) | (fmax is not None)):
             # If method=”iir”, 4th order Butterworth will be used
-            iir_params = dict(order=7, ftype='butter', output='sos')
+            # iir_params = dict(order=7, ftype='butter', output='sos')
             # raw.filter(fmin, fmax, method='iir', iir_params=iir_params)
             # Apply butter bandpass filter to all channels
             raw.apply_function(butter_bandpass_filt, channel_wise=False,

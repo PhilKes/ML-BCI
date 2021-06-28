@@ -134,8 +134,10 @@ class ML_Run_Data:
 
     def set_best_fold(self, fold, act_labels=None, pred_labels=None):
         self.best_fold = fold
-        self.best_fold_act_labels = act_labels
-        self.best_fold_pred_labels = pred_labels
+        if act_labels is not None:
+            self.best_fold_act_labels = act_labels
+        if pred_labels is not None:
+            self.best_fold_pred_labels = pred_labels
 
 
 def preferred_device(preferred):

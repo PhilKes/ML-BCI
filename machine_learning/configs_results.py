@@ -7,17 +7,12 @@ import os
 
 import numpy as np
 import torch  # noqa
-import torch.nn.functional as F  # noqa
-import torch.optim as optim  # noqa
 from sklearn.metrics import recall_score, precision_score
-from torch import nn, Tensor  # noqa
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler, Subset  # noqa
-from torch.utils.data.dataset import ConcatDataset as _ConcatDataset  # noqa
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, \
     training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices
-from util.misc import datetime_to_folder_str, get_str_n_classes, makedir
+from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write
 
 
 def create_results_folders(path=None, name=None, datetime=None, mode='train'):
@@ -41,42 +36,34 @@ def create_results_folders(path=None, name=None, datetime=None, mode='train'):
 # Saves config + results.txt in dir_results
 def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
                            tag=None):
-    file_result = open(f"{dir_results}/{n_class}class-benchmark{'' if tag is None else f'_{tag}'}.txt", "w+")
-    file_result.write(str_conf)
-    file_result.write(res_str)
-    file_result.close()
+    file_write(f"{dir_results}/{n_class}class-benchmark{'' if tag is None else f'_{tag}'}.txt",str_conf+"\n"+res_str)
     # Save trained EEGNet to results folder
-
     torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
 # Saves config + results.txt in dir_results
 def save_training_results(n_class, str_res,
                           dir_results, tag=None):
-    file_result = open(f"{dir_results}/{n_class}class-training{'' if tag is None else f'_{tag}'}.txt", "w+")
-    file_result.write(str_res)
-    file_result.close()
+    file_write(f"{dir_results}/{n_class}class-training{'' if tag is None else f'_{tag}'}.txt",str_res)
 
 
 # Saves config + results.txt in dir_results
 def save_live_sim_results(n_class, str_res,
                           dir_results, tag=None):
-    file_result = open(f"{dir_results}/{n_class}class-live_sim{'' if tag is None else f'_{tag}'}.txt", "w+")
-    file_result.write(str_res)
-    file_result.close()
+    file_write(f"{dir_results}/{n_class}class-live_sim{'' if tag is None else f'_{tag}'}.txt", str_res)
 
 
 def save_config(str_conf, ch_names, dir_results, tag=None):
-    file_result = open(f"{dir_results}/config{'' if tag is None else f'_{tag}'}.txt", "w+")
-    file_result.write(str_conf)
-    file_result.close()
+    file_write(f"{dir_results}/config{'' if tag is None else f'_{tag}'}.txt", str_conf)
     np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
 
 
+
 def save_training_numpy_data(run_data, save_path, n_class,
-                             excluded_subjects,mi_ds):
-    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=run_data.fold_accuracies, train_losses=run_data.epoch_losses_train,
-             class_accs=run_data.class_accuracies, test_losses=run_data.epoch_losses_test,
+                             excluded_subjects, mi_ds):
+    np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=run_data.fold_accuracies,
+             train_losses=run_data.epoch_losses_train, class_accs=run_data.class_accuracies,
+             test_losses=run_data.epoch_losses_test, best_fold=run_data.best_fold,
              tmin=eeg_config.TMIN, tmax=eeg_config.TMAX, slices=eeg_config.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
     if run_data.best_fold_act_labels is not None:
@@ -84,40 +71,56 @@ def save_training_numpy_data(run_data, save_path, n_class,
                  actual_labels=run_data.best_fold_act_labels, pred_labels=run_data.best_fold_pred_labels)
 
 
-def training_result_str(run_data,only_fold=None, early_stop=True):
+def training_result_str(run_data, only_fold=None, early_stop=True):
     folds_str = ""
     for fold in range(len(run_data.fold_accuracies)):
-        folds_str += f'''\tFold {fold + 1+ (only_fold if only_fold is not None else 0)} {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'''
+        folds_str += f'\tFold {fold + 1 + (only_fold if only_fold is not None else 0)}' \
+            f' {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'
         if TEST_OVERFITTING:
-            folds_str += f"\t\tOverfitting (Test-Training): {run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
+            folds_str += f"\t\tOverfitting (Test-Training): " \
+                f"{run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
 
     trials_str = ""
     for cl, trs in enumerate(run_data.class_trials):
         trials_str += f"\t[{cl}]: {int(trs)}"
     classes_str = ""
-    for l,avg in enumerate(run_data.avg_class_accs):
+    for l, avg in enumerate(run_data.avg_class_accs):
         classes_str += f'\t[{l}]: {avg:.2f}'
     best_epochs_str = ""
     if early_stop:
         best_epochs_str += "Best Validation Loss Epochs of Folds:\n"
         for fold in range(run_data.best_valid_epochs.shape[0]):
-            best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == run_data.best_fold else ""}: {run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
+            best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == run_data.best_fold else ""}: ' \
+                f'{run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
 
-    return f"""#### Results ####
-Elapsed Time: {run_data.elapsed}
+    return train_result_str.format(
+        elapsed=run_data.elapsed,
+        fold_str=folds_str,
+        acg_acc=np.average(run_data.fold_accuracies),
+        avg_of=np.average(run_data.fold_accuracies) - np.average(run_data.accuracies_overfitting),
+        trials_str=trials_str,
+        classes_str=classes_str,
+        best_epochs_str=best_epochs_str,
+        recall=recall_score(run_data.best_fold_act_labels, run_data.best_fold_pred_labels, average='macro'),
+        precision=precision_score(run_data.best_fold_act_labels, run_data.best_fold_pred_labels, average='macro')
+    )
+
+
+train_result_str = f"""#### Results ####
+Elapsed Time: {elapsed}
 Accuracies of Folds:
 {folds_str}
-Avg. acc: {np.average(run_data.fold_accuracies):.2f}
-{f'Avg. Overfitting difference: {np.average(run_data.fold_accuracies) - np.average(run_data.accuracies_overfitting):.2f}' if TEST_OVERFITTING else ''}
+Avg. acc: {avg_acc:.2f}
+{f'Avg. Overfitting difference: {avg_of:.2f}' if TEST_OVERFITTING else ''}
 Trials per class:
 {trials_str}
 Avg. Class Accuracies:
 {classes_str}
 {best_epochs_str}
 Recall of best Fold:
-{recall_score(run_data.best_fold_act_labels, run_data.best_fold_pred_labels,average='macro'):.4f}
+{recall:.4f}
 Precision of best Fold:
-{precision_score(run_data.best_fold_act_labels, run_data.best_fold_pred_labels,average='macro'):.4f}
+{precision:.4f}
 
 ###############\n\n"""
 
@@ -211,7 +214,7 @@ Run: {config.run}
 
 
 def get_global_config_str():
-    return f"""EEG Epoch interval: [{eeg_config.TMIN-eeg_config.CUE_OFFSET};{eeg_config.TMAX-eeg_config.CUE_OFFSET}]s
+    return f"""EEG Epoch interval: [{eeg_config.TMIN - eeg_config.CUE_OFFSET};{eeg_config.TMAX - eeg_config.CUE_OFFSET}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
 Trials Slices:{eeg_config.TRIALS_SLICES}"""

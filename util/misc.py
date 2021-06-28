@@ -116,6 +116,7 @@ def get_class_prediction_stats(n_class, class_hits):
         class_accs[cl] = (100 * (sum(class_hits[cl]) / class_trials[cl]))
     return class_trials, class_accs
 
+
 # Calculate average accuracies per class
 def get_class_avgs(n_class, class_accuracies):
     avg_class_accs = np.zeros(n_class)
@@ -123,3 +124,9 @@ def get_class_avgs(n_class, class_accuracies):
         avg_class_accs[cl] = np.average(
             [float(class_accuracies[fold][cl]) for fold in range(class_accuracies.shape[0])])
     return avg_class_accs
+
+
+def file_write(path, data):
+    file_result = open(path, "w+")
+    file_result.write(data)
+    file_result.close()
