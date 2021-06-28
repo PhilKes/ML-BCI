@@ -59,8 +59,8 @@ for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
         set_bandpassfilter(*bp)
         results[slice_idx, fb_idx] = testing(n_class, training_folder, device, ch_names)
 
-    save_accs_panda(f"Frequency_bands_test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
+    save_accs_panda(f"Fx-filtered_Test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
                     fbs_names, tag=ds)
 
-save_accs_panda(f"Time Slices Fx-filtered Testing", f"{args.model}", results, time_slices_dirs,
+save_accs_panda(f"Time_Slices_Fx-filtered_Test", f"{args.model}", results.T, time_slices_dirs,
                 fbs_names, tag=ds)

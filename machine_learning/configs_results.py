@@ -106,7 +106,7 @@ def training_result_str(run_data, only_fold=None, early_stop=True):
     )
 
 
-train_result_str = f"""#### Results ####
+train_result_str = """#### Results ####
 Elapsed Time: {elapsed}
 Accuracies of Folds:
 {folds_str}
