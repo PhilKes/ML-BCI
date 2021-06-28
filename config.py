@@ -2,6 +2,9 @@
 Configuration File containing global default values
 """
 import math
+import os
+import sys
+
 import matplotlib.pyplot as plt
 from data.datasets.phys.phys_dataset import PHYS_CONFIG, PHYS_cv_folds
 from util.dot_dict import DotDict
@@ -97,17 +100,22 @@ def set_bandpassfilter(fmin=None, fmax=None, notch=False):
     global_config.USE_NOTCH_FILTER = notch
 
 
-results_folder = './results'
-training_results_folder = f"/training"
-benchmark_results_folder = f"/benchmark"
-live_sim_results_folder = f"/live_sim"
-training_ss_results_folder = f"/training_ss"
+# Project's root path
+ROOT = os.path.dirname(os.path.abspath(__file__))
+to_path = lambda x: os.path.join(ROOT, x)
+
+results_folder = to_path('results')
+training_results_folder = to_path('training')
+benchmark_results_folder = to_path('benchmark')
+live_sim_results_folder = to_path('live_sim')
+training_ss_results_folder = to_path('training_ss')
 
 trained_model_name = "trained_model.pt"
 trained_ss_model_name = "trained_ss_model.pt"
 chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to
 # on initial Run MNE needs to download the Dataset
+
 datasets_folder = '/opt/datasets'
 
 # Selections of Channels for reduced amount of needed EEG Channels

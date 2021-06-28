@@ -10,7 +10,7 @@ import argparse
 import numpy as np
 from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES
 from main import single_run
-from util.visualize_bench_all import visualize_benchmarks
+from scripts.visualize_bench_all import visualize_benchmarks
 
 parser = argparse.ArgumentParser(
     description='Script to run Benchmarking of trained EEGNet Model with all possible Configurations')

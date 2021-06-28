@@ -29,9 +29,11 @@ from data.datasets.phys.phys_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS
     n_classes_live_run, PHYS_name, PHYS_cv_folds, PHYS_short_name
 from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
+from config import results_folder
 
 # Dont print MNE loading logs
 mne.set_log_level('WARNING')
+
 
 class PHYS_DataLoader(MI_DataLoader):
     name = PHYS_name
@@ -382,7 +384,8 @@ class PHYS_TrialsDataset(Dataset):
 
 
 # Plots Subject Run with raw EEG Channel data
-def plot_live_sim_subject_run(subject=1, n_class=3, save_path="./results/plots_training", ch_names=PHYS_CHANNELS):
+def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}/plots_training",
+                              ch_names=PHYS_CHANNELS):
     # ch_names = ['F4', 'Oz', 'F7', 'F6']
 
     # Load Raw Subject Run for n_class

@@ -3,11 +3,14 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
+import os
+import sys
 
 import mne
 import numpy as np
 import torch
 
+from config import ROOT
 from data.datasets.phys.phys_data_loading import PHYS_DataLoader
 from util.plot import matplot
 
@@ -443,7 +446,10 @@ def check_bad_data(subjects, n_classes):
 # matplot(data.T, title='Frequency Band Accuracies for 2s Time Slices', xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=labels, bar_plot=False,
 #             x_values=x_values, ticks=None,min_x=0,marker='o',fig_size=(8.0,6.0))
 
-file='./test.npz'
-np.savez(file,test_string="Test")
-test_string= np.load(file)['test_string']
-print(test_string)
+# file='./test.npz'
+# np.savez(file,test_string="Test")
+# test_string= np.load(file)['test_string']
+# print(test_string)
+
+
+print(ROOT)

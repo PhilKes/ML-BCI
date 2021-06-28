@@ -12,12 +12,12 @@ from datetime import datetime
 
 import numpy as np
 
-from batch_training import run_batch_training
 from config import set_bandpassfilter
 from data.data_utils import save_accs_panda, subtract_first_config_accs
 from data.datasets.bcic.bcic_dataset import BCIC_short_name
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_dataset import PHYS_short_name
+from scripts.batch_training import run_batch_training
 from util.misc import datetime_to_folder_str
 from util.plot import matplot
 from config import results_folder
