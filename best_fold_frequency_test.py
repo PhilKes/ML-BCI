@@ -17,7 +17,8 @@ from data.datasets.datasets import DATASETS
 from machine_learning.configs_results import load_npz
 from machine_learning.modes import testing
 from machine_learning.util import preferred_device
-from util.misc import datetime_to_folder_str, makedir
+from util.misc import datetime_to_folder_str, makedir, get_subdirs
+from util.plot import matplot
 
 parser = argparse.ArgumentParser(
     description='Script to Test Accuracy of trained model on f1/f2/f3 Test Data')
@@ -34,7 +35,7 @@ fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
 fbs_names = ['all', 'f1', 'f2', 'f3']
 
 device = preferred_device("gpu")
-time_slices_dirs = sorted(os.listdir(args.model))
+time_slices_dirs = get_subdirs(args.model)
 print(time_slices_dirs)
 results = np.zeros((len(time_slices_dirs), len(fbs)))
 for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
@@ -62,5 +63,10 @@ for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     save_accs_panda(f"Fx-filtered_Test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
                     fbs_names, tag=ds)
 
-save_accs_panda(f"Time_Slices_Fx-filtered_Test", f"{args.model}", results.T, time_slices_dirs,
+save_accs_panda(f"Time_Slices_Fx-filtered_Test_accs", args.model, results.T, time_slices_dirs,
                 fbs_names, tag=ds)
+
+
+matplot(results.T, title=f'{ds} Time Slices Fx-filtered Testing', fig_size=(8.0, 6.0),
+        xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=fbs_names,
+        x_values=['-'] + time_slices_dirs, min_x=0, marker='o', save_path=args.model)

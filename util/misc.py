@@ -130,3 +130,8 @@ def file_write(path, data):
     file_result = open(path, "w+")
     file_result.write(data)
     file_result.close()
+
+
+# Get Subdirectories of dir sorted by name
+def get_subdirs(dir):
+    return sorted([path for path in os.listdir(dir) if os.path.isdir(os.path.join(dir, path))])

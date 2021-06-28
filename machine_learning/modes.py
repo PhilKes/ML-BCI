@@ -208,10 +208,10 @@ def testing(n_class, model_path, device, ch_names, preloaded=(None, None)):
     if DATA_PRELOAD:
         if preloaded[0] is None:
             print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = dataset.load_subjects_data(test_subjects, n_class,
-                                                                          ch_names, True, normalize=False)
-            # preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
+            # preloaded_data, preloaded_labels = dataset.load_subjects_data(test_subjects, n_class,
             #                                                               ch_names, True, normalize=False)
+            preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
+                                                                          ch_names, True, normalize=False)
         else:
             preloaded_data, preloaded_labels = preloaded
 
