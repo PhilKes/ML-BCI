@@ -27,6 +27,7 @@ from data.datasets.phys.phys_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS
     TRIALS_PER_SUBJECT_RUN, \
     PHYS_CONFIG, \
     n_classes_live_run, PHYS_name, PHYS_cv_folds, PHYS_short_name
+from machine_learning.configs_results import get_global_config_str
 from util.misc import print_subjects_ranges, split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
 from config import results_folder
@@ -45,7 +46,7 @@ class PHYS_DataLoader(MI_DataLoader):
 
     # Returns Loaders of Training + Test Datasets from index splits
     # for n_class classification
-    # also returns Validtion Loader containing validation_subjects subject for loss calculation
+    # also returns loader_valid containing validation_subjects for loss calculation if validation_subjects are present
     @staticmethod
     def create_loaders_from_splits(splits, validation_subjects, n_class, device, preloaded_data=None,
                                    preloaded_labels=None, bs=BATCH_SIZE, ch_names=PHYS_CHANNELS,
@@ -76,6 +77,7 @@ class PHYS_DataLoader(MI_DataLoader):
         return loader_train, loader_test, loader_valid
 
     # Creates DataLoader with Random Sampling from subject list
+    # preloaded_data + preloaded_labels should only contain data for given subjects NOT entire Dataset!
     @staticmethod
     def create_loader_from_subjects(subjects, n_class, device, preloaded_data=None, preloaded_labels=None,
                                     bs=BATCH_SIZE, ch_names=PHYS_CHANNELS, equal_trials=True):
@@ -136,8 +138,7 @@ class PHYS_DataLoader(MI_DataLoader):
         if n_class > 2:
             trials -= PHYS_CONFIG.REST_TRIALS_LESS
 
-        print(eeg_config)
-        print(global_config)
+        print(get_global_config_str())
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
         print("Preload Shape", preloaded_data.shape)
@@ -347,12 +348,13 @@ class PHYS_TrialsDataset(Dataset):
         local_trial_idx = trial % self.trials_per_subject
 
         # determine required subject for trial
-        subject = self.subjects[int(trial / self.trials_per_subject)]
+        subject_idx = int(trial / self.trials_per_subject)
+        subject = self.subjects[subject_idx]
 
         # Immediately return from preloaded data if available
         if self.preloaded_data is not None:
-            idx = self.subjects.index(subject)
-            return self.preloaded_data[idx][local_trial_idx], self.preloaded_labels[idx][local_trial_idx]
+            return self.preloaded_data[subject_idx][local_trial_idx], self.preloaded_labels[subject_idx][
+                local_trial_idx]
 
         # If Subject is in current buffer, skip MNE Loading
         if self.loaded_subject == subject:

@@ -250,9 +250,8 @@ class BCIC_IV2a_dataset:
                         # class_vec = [class1, class2, class3, class4]
                         # Then pl_labels is the index to the class to which current
                         # trials belongs.
-                        # Have care!!! We have to subtract 1 because indexing starts
-                        # with index 0.
-                        self.pl_labels[subject - 1, pl_trial_ind] = type_e - 768 - 1
+                        subject_idx = self.subjects.index(subject)
+                        self.pl_labels[subject_idx, pl_trial_ind] = type_e - 768 - 1
 
                         start = events_position[0, index]
                         stop = start + events_duration[0, index]
@@ -266,7 +265,7 @@ class BCIC_IV2a_dataset:
                             # Copy part of channel data into pl_data
                             start_idx = int(self.tmin * self.fs)
                             for idx in range(self.n_samples):
-                                self.pl_data[subject - 1, pl_trial_ind, channel, idx] = float(trial[start_idx + idx])
+                                self.pl_data[subject_idx, pl_trial_ind, channel, idx] = float(trial[start_idx + idx])
 
                         pl_trial_ind = pl_trial_ind + 1
 

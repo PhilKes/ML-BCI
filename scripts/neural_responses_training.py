@@ -96,6 +96,5 @@ for ds_idx, ds in enumerate(ds_used):
     ds_acc_diffs = ds_acc_diffs.reshape((len(FBS) - 1, tmins.shape[0]), order='F')
 
     # Save accuracy differences as .csv and .txt
-    save_accs_panda("neural_responses_accs", f"{results_folder}/{folderName}/{ds}", ds_acc_diffs, time_slices,
-                    FBS_NAMES[1:],
-                    ds)
+    save_accs_panda("neural_responses_accs", f"{results_folder}/{folderName}/{ds}",
+                    ds_acc_diffs, time_slices, FBS_NAMES[1:], ds)

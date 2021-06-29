@@ -4,6 +4,9 @@ Determines Accuracies on Test Set of best Fold
 with the Test Data being bandpassfiltered (all/f1/f2/f3)
 specified model should have subdirectories with Training
 of different Time Slices
+
+EXECUTE AS MODULE:
+    python3 -m scripts.best_fold_frequency_test --model
 """
 import argparse
 

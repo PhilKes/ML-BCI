@@ -180,7 +180,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
 
 
 # Test pretrained model (Best Fold)
-def testing(n_class, model_path, device, ch_names, preloaded=(None, None)):
+def testing(n_class, model_path, device, ch_names):
     n_class_results = load_npz(get_results_file(model_path, n_class))
     ds_short_name = n_class_results['mi_ds'].item()
     dataset = DATASETS[ds_short_name]
@@ -206,14 +206,10 @@ def testing(n_class, model_path, device, ch_names, preloaded=(None, None)):
     test_subjects=next(cv_split)[1].tolist()
     model = get_model(n_class, len(ch_names), device, model_path)
     if DATA_PRELOAD:
-        if preloaded[0] is None:
-            print("PRELOADING ALL DATA IN MEMORY")
-            # preloaded_data, preloaded_labels = dataset.load_subjects_data(test_subjects, n_class,
-            #                                                               ch_names, True, normalize=False)
-            preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
-                                                                          ch_names, True, normalize=False)
-        else:
-            preloaded_data, preloaded_labels = preloaded
+        print("PRELOADING ALL DATA IN MEMORY")
+        preloaded_data, preloaded_labels = dataset.load_subjects_data(test_subjects, n_class,
+                                                                      ch_names, True, normalize=False)
+
 
     # Test with Best-Fold Test set subjects
     loader_test = dataset.create_loader_from_subjects(test_subjects, n_class, device,
