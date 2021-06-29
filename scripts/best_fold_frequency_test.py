@@ -9,7 +9,7 @@ import argparse
 
 import numpy as np
 
-from config import set_bandpassfilter, set_eeg_times, set_eeg_config
+from config import set_bandpassfilter, set_eeg_times, set_eeg_config, FBS, FBS_NAMES
 from data.data_utils import save_accs_panda
 from data.datasets.datasets import DATASETS
 from machine_learning.configs_results import load_npz
@@ -28,14 +28,10 @@ n_class = 2
 
 args = parser.parse_args()
 
-# Neural Response Frequency bands
-fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
-fbs_names = ['all', 'f1', 'f2', 'f3']
-
 device = preferred_device("gpu")
 time_slices_dirs = get_subdirs(args.model)
 print(time_slices_dirs)
-results = np.zeros((len(time_slices_dirs), len(fbs)))
+results = np.zeros((len(time_slices_dirs), len(FBS)))
 for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     # Accuracy for every frequency band with every Time Slice (directory)
     training_folder = f"{args.model}/{time_slices_dir}/training"
@@ -52,19 +48,19 @@ for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     # print("PRELOADING ALL DATA IN MEMORY")
     # preloaded_data, preloaded_labels = dataset.load_subjects_data(dataset.available_subjects, n_class,
     #                                                               ch_names, True, normalize=False)
-    for fb_idx, (bp, fb_name) in enumerate(zip(fbs, fbs_names)):
+    for fb_idx, (bp, fb_name) in enumerate(zip(FBS, FBS_NAMES)):
         print(f'Testing with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
         set_eeg_times(tmin, tmax, dataset.eeg_config.CUE_OFFSET)
         set_bandpassfilter(*bp)
         results[slice_idx, fb_idx] = testing(n_class, training_folder, device, ch_names)
 
     save_accs_panda(f"Fx-filtered_Test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],
-                    fbs_names, tag=ds)
+                    FBS_NAMES, tag=ds)
 
 save_accs_panda(f"Time_Slices_Fx-filtered_Test_accs", args.model, results.T, time_slices_dirs,
-                fbs_names, tag=ds)
+                FBS_NAMES, tag=ds)
 
 
 matplot(results.T, title=f'{ds} Time Slices Fx-filtered Testing', fig_size=(8.0, 6.0),
-        xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=fbs_names,
+        xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=FBS_NAMES,
         x_values=['-'] + time_slices_dirs, min_x=0, marker='o', save_path=args.model)

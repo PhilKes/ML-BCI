@@ -80,6 +80,7 @@ def set_eeg_trials_slices(slices):
 def set_eeg_times(tmin, tmax, cue_offset):
     eeg_config.TMIN = tmin + cue_offset
     eeg_config.TMAX = tmax + cue_offset
+    eeg_config.CUE_OFFSET = cue_offset
     eeg_config.SAMPLES = int((tmax - tmin) * eeg_config.SAMPLERATE)
 
 
@@ -107,10 +108,10 @@ sys.path.append(ROOT)
 to_path = lambda x: os.path.join(ROOT, x)
 
 results_folder = to_path('results')
-training_results_folder = 'training'
-benchmark_results_folder = 'benchmark'
-live_sim_results_folder = 'live_sim'
-training_ss_results_folder = 'training_ss'
+training_results_folder = '/training'
+benchmark_results_folder = '/benchmark'
+live_sim_results_folder = '/live_sim'
+training_ss_results_folder = '/training_ss'
 
 trained_model_name = "trained_model.pt"
 trained_ss_model_name = "trained_ss_model.pt"
@@ -246,3 +247,7 @@ MOTORIMG_CHANNELS = {
     '16_bs': MOTORIMG_CHANNELS_16_bs,
     '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21
 }
+
+# Neural Response Frequency bands (FMIN,FMAX)-Tuples
+FBS = [(None, None), (None, 8), (8, 16), (16, 28)]
+FBS_NAMES = ['all', 'f1', 'f2', 'f3']

@@ -36,7 +36,8 @@ def create_results_folders(path=None, name=None, datetime=None, mode='train'):
 # Saves config + results.txt in dir_results
 def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
                            tag=None):
-    file_write(f"{dir_results}/{n_class}class-benchmark{'' if tag is None else f'_{tag}'}.txt",str_conf+"\n"+res_str)
+    file_write(f"{dir_results}/{n_class}class-benchmark{'' if tag is None else f'_{tag}'}.txt",
+               str_conf + "\n" + res_str)
     # Save trained EEGNet to results folder
     torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
@@ -44,7 +45,7 @@ def save_benchmark_results(str_conf, n_class, res_str, model, dir_results,
 # Saves config + results.txt in dir_results
 def save_training_results(n_class, str_res,
                           dir_results, tag=None):
-    file_write(f"{dir_results}/{n_class}class-training{'' if tag is None else f'_{tag}'}.txt",str_res)
+    file_write(f"{dir_results}/{n_class}class-training{'' if tag is None else f'_{tag}'}.txt", str_res)
 
 
 # Saves config + results.txt in dir_results
@@ -58,13 +59,13 @@ def save_config(str_conf, ch_names, dir_results, tag=None):
     np.savetxt(f"{dir_results}/{chs_names_txt}", ch_names, delimiter=" ", fmt="%s")
 
 
-
 def save_training_numpy_data(run_data, save_path, n_class,
                              excluded_subjects, mi_ds):
     np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=run_data.fold_accuracies,
              train_losses=run_data.epoch_losses_train, class_accs=run_data.class_accuracies,
              test_losses=run_data.epoch_losses_test, best_fold=run_data.best_fold,
-             tmin=eeg_config.TMIN, tmax=eeg_config.TMAX, slices=eeg_config.TRIALS_SLICES,
+             tmin=eeg_config.TMIN - eeg_config.CUE_OFFSET, tmax=eeg_config.TMAX - eeg_config.CUE_OFFSET,
+             slices=eeg_config.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
     if run_data.best_fold_act_labels is not None:
         np.savez(f"{save_path}/{n_class}class_training_actual_predicted.npz",

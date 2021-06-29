@@ -8,14 +8,14 @@ Saves results in ./results/neural_resp_YYYY-mm-dd_HH_MM_SS"
 Uses Cross Validation (--best argument to use only Best-Fold)
 
 EXECUTE AS MODULE:
- ```python3 -m scripts.neural_responses_training --best_fold ```
+    python3 -m scripts.neural_responses_training --best_fold
 """
 import argparse
 from datetime import datetime
 
 import numpy as np
 
-from config import set_bandpassfilter, results_folder
+from config import set_bandpassfilter, results_folder, FBS_NAMES, FBS
 from data.data_utils import save_accs_panda, subtract_first_config_accs
 from data.datasets.bcic.bcic_dataset import BCIC_short_name
 from data.datasets.datasets import DATASETS
@@ -36,10 +36,6 @@ ds_used = [bcic.name_short, phys.name_short]
 
 # Folds to use if --best_fold is used (0-base index)
 ds_best_folds = [2, 2]
-
-# Neural Response Frequency bands
-fbs = [(None, None), (None, 8), (8, 16), (16, 28)]
-fbs_names = ['all', 'f1', 'f2', 'f3']
 
 # 2 Second time slices in steps of 0.5 (max t=4.0)
 time_max = 4.0
@@ -67,7 +63,7 @@ def func(x): return lambda: set_bandpassfilter(*x)
 for tmin in tmins:
     tmax = tmin + time_delta
     for ds_idx, ds in enumerate(ds_used):
-        for fb_idx, fb_name in enumerate(fbs_names):
+        for fb_idx, fb_name in enumerate(FBS_NAMES):
             print(f'Training with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
             confs[ds]['params'].append(
                 ['--dataset', str(ds),
@@ -75,7 +71,7 @@ for tmin in tmins:
                  '--tmax', f'{tmax}',
                  ])
             confs[ds]['names'].append(f'{ds.lower()}_bp_{fb_name}/t_{tmin}_{tmax}')
-            confs[ds]['init'].append(func(fbs[fb_idx]))
+            confs[ds]['init'].append(func(FBS[fb_idx]))
 
             if args.use_cv is False:
                 confs[ds]['params'][-1].extend(['--only_fold', str(ds_best_folds[ds_idx])])
@@ -88,18 +84,18 @@ folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}_{"CV" if arg
 results = run_batch_training(confs, n_classes, name=folderName)
 for ds_idx, ds in enumerate(ds_used):
     plot_data = results[ds_idx][:, :, 0]
-    plot_data = np.reshape(plot_data, (len(time_slices), len(fbs))).T
+    plot_data = np.reshape(plot_data, (len(time_slices), len(FBS))).T
 
     matplot(plot_data, title=f'{ds} Frequency Band Accuracies', fig_size=(8.0, 6.0),
-            xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=fbs_names,
+            xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=FBS_NAMES,
             x_values=['-'] + time_slices, min_x=0, marker='o', save_path=f"{results_folder}/{folderName}/{ds}")
 
-    ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(fbs))
+    ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(FBS))
 
     # Reshape into rows for every frequency band
-    ds_acc_diffs = ds_acc_diffs.reshape((len(fbs) - 1, tmins.shape[0]), order='F')
+    ds_acc_diffs = ds_acc_diffs.reshape((len(FBS) - 1, tmins.shape[0]), order='F')
 
     # Save accuracy differences as .csv and .txt
     save_accs_panda("neural_responses_accs", f"{results_folder}/{folderName}/{ds}", ds_acc_diffs, time_slices,
-                    fbs_names[1:],
+                    FBS_NAMES[1:],
                     ds)
