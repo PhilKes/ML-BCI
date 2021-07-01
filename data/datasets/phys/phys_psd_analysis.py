@@ -8,7 +8,7 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, DATA_PRELOAD, eeg_config
+from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, eeg_config
 from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS, PHYS_DataLoader
 from data.datasets.phys.phys_dataset import PHYS_CHANNELS
 from util.dot_dict import DotDict
@@ -49,10 +49,10 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     n_class = 2
     preloaded_data, preloaded_labels = None, None
-    if DATA_PRELOAD:
-        print("PRELOADING ALL DATA IN MEMORY")
-        preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
-                                                                  ch_names, equal_trials, normalize=False)
+
+    print("PRELOADING ALL DATA IN MEMORY")
+    preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
+                                                              ch_names, equal_trials, normalize=False)
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -181,11 +181,9 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
     print("  - Available subjects:", len(available_subjects))
 
     n_class = 2
-    preloaded_data, preloaded_labels = None, None
-    if DATA_PRELOAD:
-        print("PRELOADING ALL DATA IN MEMORY")
-        preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
-                                                                  ch_names, equal_trials, normalize=False)
+    print("PRELOADING ALL DATA IN MEMORY")
+    preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
+                                                              ch_names, equal_trials, normalize=False)
 
     print("  - preloaded_data.shape =", preloaded_data.shape)
     print("  - preloaded_labels.shape =", preloaded_labels.shape)

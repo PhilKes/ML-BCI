@@ -165,7 +165,6 @@ def add_benchmark_arguments(parser):
     parser.add_argument('-benchmark',
                         help="Runs Benchmarking with Physionet Dataset with specified trained model",
                         action='store_true', required=False)
-    # If DATA_PRELOAD=True (config.py): high memory usage -> decrease subjects for lower memory usage when benchmarking
     parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
                         help=f"Chunk size for preloading subjects in memory (only for benchmark, default:{SUBJECTS_CS}, lower for less memory usage )")
     parser.add_argument('--trt', action='store_true',

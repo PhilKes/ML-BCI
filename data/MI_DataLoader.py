@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 
 from torch.utils.data import RandomSampler, DataLoader
 
-from config import BATCH_SIZE, global_config, DATA_PRELOAD
+from config import BATCH_SIZE, global_config
 import numpy as np
 
 from util.misc import print_subjects_ranges
@@ -70,14 +70,14 @@ class MI_DataLoader:
 
     # Creates DataLoader with Random Sampling from subject list
     @classmethod
-    def create_loader_from_subjects(cls, subjects, n_class, device, preloaded_data=None, preloaded_labels=None,
+    def create_loader_from_subjects(cls, subjects, n_class, device, preloaded_data, preloaded_labels,
                                     bs=BATCH_SIZE, ch_names=[], equal_trials=True):
         """
                Create Loaders for given subjects
                :return: Loader
                """
         trials_ds = cls.ds_class(subjects, n_class, device,
-                                 preloaded_tuple=(preloaded_data, preloaded_labels) if DATA_PRELOAD else None,
+                                 preloaded_tuple=(preloaded_data, preloaded_labels),
                                  ch_names=ch_names, equal_trials=equal_trials)
         # Sample the trials in random order
         sampler = RandomSampler(trials_ds)
@@ -113,7 +113,11 @@ class MI_DataLoader:
         Create Loader with preloaded data for given subjects
         :return: Loader of subjects' data
         """
-        raise NotImplementedError('This method is not implemented!')
+        print(f"Preloading Subjects [{subjects[0]}-{subjects[-1]}] Data in memory")
+        preloaded_data, preloaded_labels = cls.load_subjects_data(subjects, n_class, ch_names,
+                                                                  equal_trials=equal_trials)
+        return cls.create_loader_from_subjects(subjects, n_class, device, preloaded_data,
+                                               preloaded_labels, batch_size, equal_trials=equal_trials)
 
     @classmethod
     def mne_load_subject_raw(cls, subject: int, runs: List[int], ch_names: List[str] = [], notch: bool = False,

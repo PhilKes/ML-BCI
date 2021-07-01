@@ -34,7 +34,7 @@ class BCIC_TrialsDataset(Dataset):
       Methods __len__ and __get_item__ must be implemented.
     """
 
-    def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
+    def __init__(self, subjects, n_classes, device, preloaded_tuple,
                  ch_names=PHYS_CHANNELS, equal_trials=True):
         """
         Method: constructor
@@ -46,8 +46,8 @@ class BCIC_TrialsDataset(Dataset):
         self.device = device
 
         self.equal_trials = equal_trials
-        self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
-        self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
+        self.preloaded_data = preloaded_tuple[0]
+        self.preloaded_labels = preloaded_tuple[1]
         self.ch_names = ch_names
 
         # max number of trials (which is the same for each subject
@@ -132,11 +132,6 @@ class BCIC_Dataloader(MI_DataLoader):
 
     @classmethod
     def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):
-        # TODO
-        raise NotImplementedError('This method is not implemented!')
-
-    @classmethod
-    def create_preloaded_loader(cls, subjects_chunk, n_class, ch_names, batch_size, device, equal_trials):
         # TODO
         raise NotImplementedError('This method is not implemented!')
 

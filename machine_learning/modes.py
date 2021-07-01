@@ -19,7 +19,7 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, DATA_PRELOAD, TEST_OVERFITTING, GPU_WARMUPS, \
+from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
@@ -101,12 +101,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         folds = 1
 
     for i, n_class in enumerate(n_classes):
-        preloaded_data, preloaded_labels = None, None
 
-        if DATA_PRELOAD:
-            print("PRELOADING ALL DATA IN MEMORY")
-            preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                          ch_names, equal_trials, normalize=False)
+        print("PRELOADING ALL DATA IN MEMORY")
+        preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
+                                                                      ch_names, equal_trials, normalize=False)
 
         print(f"######### {n_class}Class-Classification")
         cv_split = cv.split(X=used_subjects, groups=groups)
@@ -207,16 +205,15 @@ def testing(n_class, model_path, device, ch_names):
     subjects_test = [dataset.available_subjects[idx] for idx in test_subjects_idxs]
 
     model = get_model(n_class, len(ch_names), device, model_path)
-    if DATA_PRELOAD:
-        print("PRELOADING ALL DATA IN MEMORY")
-        preloaded_data, preloaded_labels = dataset.load_subjects_data(subjects_test, n_class,
-                                                                      ch_names, True, normalize=False)
+
+    print("PRELOADING ALL DATA IN MEMORY")
+    preloaded_data, preloaded_labels = dataset.load_subjects_data(subjects_test, n_class,
+                                                                  ch_names)
 
     # Test with Best-Fold Test set subjects
     loader_test = dataset.create_loader_from_subjects(subjects_test, n_class, device,
-                                                      preloaded_data=preloaded_data,
-                                                      preloaded_labels=preloaded_labels,
-                                                      bs=BATCH_SIZE, ch_names=dataset.channels, equal_trials=True)
+                                                      preloaded_data, preloaded_labels,
+                                                      BATCH_SIZE, dataset.channels)
     test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
     print(f"Test Accuracy: {test_accuracy}")
     return test_accuracy

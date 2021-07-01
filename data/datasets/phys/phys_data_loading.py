@@ -38,7 +38,7 @@ mne.set_log_level('WARNING')
 # Dataset for EEG Trials Data (divided by subjects)
 class PHYS_TrialsDataset(Dataset):
 
-    def __init__(self, subjects, n_classes, device, preloaded_tuple=None,
+    def __init__(self, subjects, n_classes, device, preloaded_tuple,
                  ch_names=PHYS_CHANNELS, equal_trials=True):
         self.subjects = subjects
         # Buffers for last loaded Subject data+labels
@@ -51,8 +51,8 @@ class PHYS_TrialsDataset(Dataset):
         self.trials_per_subject = get_trials_size(n_classes,
                                                   equal_trials) * eeg_config.TRIALS_SLICES - PHYS_CONFIG.REST_TRIALS_LESS
         self.equal_trials = equal_trials
-        self.preloaded_data = preloaded_tuple[0] if preloaded_tuple is not None else None
-        self.preloaded_labels = preloaded_tuple[1] if preloaded_tuple is not None else None
+        self.preloaded_data = preloaded_tuple[0]
+        self.preloaded_labels = preloaded_tuple[1]
         self.ch_names = ch_names
 
     # Length of Dataset (all trials)
@@ -60,7 +60,6 @@ class PHYS_TrialsDataset(Dataset):
         return len(self.subjects) * self.trials_per_subject
 
     # Determines corresponding Subject of trial and loads subject's data+labels
-    # Uses buffer for last loaded subject if DATA_PRELOAD = False
     # trial: trial idx
     # returns trial data (X) and trial label (y)
     def load_trial(self, trial):
@@ -68,31 +67,10 @@ class PHYS_TrialsDataset(Dataset):
 
         # determine required subject for trial
         subject_idx = int(trial / self.trials_per_subject)
-        subject = self.subjects[subject_idx]
 
-        # Immediately return from preloaded data if available
-        if self.preloaded_data is not None:
-            return self.preloaded_data[subject_idx][local_trial_idx], self.preloaded_labels[subject_idx][
-                local_trial_idx]
-
-        # If Subject is in current buffer, skip MNE Loading
-        if self.loaded_subject == subject:
-            return self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
-
-        subject_data, subject_labels = PHYS_DataLoader.load_n_classes_tasks(subject, self.n_classes,
-                                                                            ch_names=self.ch_names,
-                                                                            equal_trials=self.equal_trials)
-        # Buffer newly loaded subject
-        self.loaded_subject = subject
-        self.loaded_subject_data = subject_data
-        # BCELoss excepts one-hot encoded, Cross Entropy (used here) not:
-        #   labels (0,1,2) to categorical/one-hot encoded: 0 = [1 0 0], 1 =[0 1 0],...
-        #   self.loaded_subject_labels = np.eye(self.n_classes, dtype='uint8')[subject_labels]
-        #   (https://discuss.pytorch.org/t/cross-entropy-with-one-hot-targets/13580/2)
-        self.loaded_subject_labels = subject_labels
-        # Return single trial from all Subject's Trials
-        X, y = self.loaded_subject_data[local_trial_idx], self.loaded_subject_labels[local_trial_idx]
-        return X, y
+        # Immediately return from preloaded data
+        return self.preloaded_data[subject_idx][local_trial_idx], self.preloaded_labels[subject_idx][
+            local_trial_idx]
 
     # Returns a single trial as Tensor with Labels
     def __getitem__(self, trial):
@@ -102,6 +80,7 @@ class PHYS_TrialsDataset(Dataset):
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y
+
 
 class PHYS_DataLoader(MI_DataLoader):
     name = PHYS_name
@@ -121,9 +100,9 @@ class PHYS_DataLoader(MI_DataLoader):
         train_runs = n_class_runs[:-n_test_runs]
         test_runs = n_class_runs[-n_test_runs:]
         loader_train = cls.create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
-                                                                       ignored_runs=test_runs)
+                                                           ignored_runs=test_runs)
         loader_test = cls.create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
-                                                                      ignored_runs=train_runs)
+                                                          ignored_runs=train_runs)
         return loader_train, loader_test
 
     # Creates Loader containing all Trials of n_class Runs of subject
@@ -132,7 +111,7 @@ class PHYS_DataLoader(MI_DataLoader):
     def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names, device,
                                         ignored_runs=[]):
         preloaded_data, preloaded_labels = cls.load_subjects_data([subject], n_class, ch_names,
-                                                                              ignored_runs=ignored_runs)
+                                                                  ignored_runs=ignored_runs)
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
                                                  preloaded_data.shape[3]))
         preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
@@ -140,14 +119,6 @@ class PHYS_DataLoader(MI_DataLoader):
                                  torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
         loader_data = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
         return loader_data
-
-    @classmethod
-    def create_preloaded_loader(cls, subjects, n_class, ch_names, batch_size, device, equal_trials=True):
-        print(f"Preloading Subjects [{subjects[0]}-{subjects[-1]}] Data in memory")
-        preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(subjects, n_class, ch_names,
-                                                                              equal_trials=equal_trials)
-        return cls.create_loader_from_subjects(subjects, n_class, device, preloaded_data,
-                                                           preloaded_labels, batch_size, equal_trials=equal_trials)
 
     # Loads all Subjects Data + Labels for n_class Classification
     # Very high memory usage for ALL_SUBJECTS (~2GB)
@@ -168,8 +139,8 @@ class PHYS_DataLoader(MI_DataLoader):
         print("Preload Shape", preloaded_data.shape)
         for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
             data, labels = cls.load_n_classes_tasks(subject, n_class, ch_names, equal_trials,
-                                                                trials_per_run_class,
-                                                                ignored_runs)
+                                                    trials_per_run_class,
+                                                    ignored_runs)
             # if data.shape[0] > preloaded_data.shape[1]:
             #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
             if eeg_config.TRIALS_SLICES > 1:
@@ -192,12 +163,12 @@ class PHYS_DataLoader(MI_DataLoader):
         if (not PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
             tasks.remove(0)
         data, labels = cls.load_task_runs(subject, tasks,
-                                                      exclude_bothfists=(n_classes == 4),
-                                                      exclude_rests=(n_classes == 2),
-                                                      ch_names=ch_names, ignored_runs=ignored_runs,
-                                                      equal_trials=equal_trials,
-                                                      trials_per_run_class=trials_per_run_class,
-                                                      n_class=n_classes)
+                                          exclude_bothfists=(n_classes == 4),
+                                          exclude_rests=(n_classes == 2),
+                                          ch_names=ch_names, ignored_runs=ignored_runs,
+                                          equal_trials=equal_trials,
+                                          trials_per_run_class=trials_per_run_class,
+                                          n_class=n_classes)
         if n_classes == 2:
             labels = dec_label(labels)
         # TODO? if REST_TRIALS_FROM_BASELINE_RUN:
@@ -263,7 +234,7 @@ class PHYS_DataLoader(MI_DataLoader):
                     tasks_event_dict = {'T2': 2}
                 used_runs = [run for run in runs[task] if run not in ignored_runs]
                 data, labels = cls.mne_load_subject(subject, used_runs, event_id=tasks_event_dict,
-                                                                ch_names=ch_names)
+                                                    ch_names=ch_names)
                 # Ensure equal amount of trials per class
                 if equal_trials:
                     classes = n_class
@@ -294,7 +265,7 @@ class PHYS_DataLoader(MI_DataLoader):
             tmax = eeg_config.TMAX
         if tmin is None:
             tmin = eeg_config.TMIN
-        raw = PHYS_DataLoader.mne_load_subject_raw(subject, runs)
+        raw = cls.mne_load_subject_raw(subject, runs)
 
         events, event_ids = mne.events_from_annotations(raw, event_id=event_id)
         picks = mne.pick_channels(raw.info['ch_names'], ch_names)
@@ -338,8 +309,6 @@ class PHYS_DataLoader(MI_DataLoader):
                                fs=eeg_config.SAMPLERATE, order=7)
             raw.load_data()
         return raw
-
-
 
 
 # Plots Subject Run with raw EEG Channel data
