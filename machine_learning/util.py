@@ -1,10 +1,12 @@
+from typing import Any, Dict, List
+
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch  # noqa
 from config import eeg_config, TEST_OVERFITTING
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
-from datetime import datetime
+from datetime import datetime, timedelta
 from util.misc import get_class_avgs
 
 
@@ -75,6 +77,26 @@ class ML_Run_Data:
     storing Accuracies, Losses, Best Fold, Elapsed Time,...
     """
 
+    n_class: int
+    folds: int
+    fold_accuracies: np.ndarray
+    accuracies_overfitting: np.ndarray
+    best_losses_test: np.ndarray
+    best_epochs_test: np.ndarray
+    best_fold_act_labels: np.ndarray
+    best_fold_pred_labels: np.ndarray
+    best_fold: int
+    class_accuracies: np.ndarray
+    class_trials: np.ndarray
+    avg_class_accs: np.ndarray
+    epoch_losses_train: np.ndarray
+    epoch_losses_test: np.ndarray
+    cv_split: Any
+    start: datetime
+    end: datetime
+    elapsed: timedelta
+    best_model: List[Dict]
+
     def __init__(self, folds, n_class, num_epochs, cv_split):
         self.n_class = n_class
         self.folds = folds
@@ -142,7 +164,7 @@ class ML_Run_Data:
 
 def preferred_device(preferred):
     dev = None
-    if (preferred== "gpu") & torch.cuda.is_available():
+    if (preferred == "gpu") & torch.cuda.is_available():
         dev = "cuda:0"
     else:
         dev = "cpu"

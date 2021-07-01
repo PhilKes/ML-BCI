@@ -3,6 +3,7 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
+from typing import List
 
 import mne
 import numpy as np
@@ -478,30 +479,35 @@ def copy_attrs(obj_to, obj_from):
 
 
 class LSMRTrialData:
+    tasknumber: int
+    runnumber: int
+    trialnumber: int
+    targetnumber: int
+    triallength: float
+    targethitnumber: int
+    resultind: int
+    result: int
+    forcedresult: int
+    artifact: int
 
     def __init__(self, trialdata):
         super().__init__()
-        self.tasknumber = None
-        self.runnumber = None
-        self.trialnumber = None
-        self.targetnumber = None
-        self.triallength = None
-        self.targethitnumber = None
-        self.resultind = None
-        self.results = None
-        self.forcedresult = None
-        self.artifact = None
         copy_attrs(self, trialdata)
 
 
-ignore_metadata = True
+import pandas as pd
+
+from collections import Counter
+
+ignore_metadata = False
 
 
-class LSMRDataset:
+class LSMRSubjectRun:
     metadata: LSMRMetadata
-    trialdata: list
-    data = None
-    time = None
+    trialdata: List[LSMRTrialData]
+    data: np.ndarray
+    time: np.ndarray
+    srate: int
 
     def __init__(self, matlab):
         super().__init__()
@@ -513,49 +519,98 @@ class LSMRDataset:
         for trialdata in matlab['TrialData'][0, 0][0]:
             self.trialdata.append(LSMRTrialData(trialdata))
         self.data = matlab['data'][0, 0][0]
-        samples = 8000
-        x = np.zeros((0, 62, samples), dtype=np.object)
-        for i in self.data:
-            if i.shape[1] >= samples:
-                x = np.concatenate((x, i[:, :samples].reshape(1, i.shape[0], samples)))
-        self.data = x
+
+        # samples = 8000
+        # x = np.zeros((0, 62, samples), dtype=np.object)
+        # for i in self.data:
+        #     if i.shape[1] >= samples:
+        #         x = np.concatenate((x, i[:, :samples].reshape(1, i.shape[0], samples)))
+        # self.data = x
         self.time = matlab['time'][0, 0][0]
+        self.srate = matlab['SRATE'][0, 0].item()
+        self.print_stats()
+
+    def print_stats(self):
+        # TODO Trials have highly varying nr. of Samples
+        #    max. Samples per Trial: 11041 -> means Timeout (trialdata.result= NaN)
+        #    if less than 11040 Samples, result either 0 or 1 (hit correct or wrong target)
+        #    use trialdata.result or forcedresult?
+        max_samples = 11040
+        results = np.zeros(0, dtype=np.int)
+        forcedresults = np.zeros(0, dtype=np.int)
+        samples = np.zeros(0, dtype=np.int)
+        for trial, i in enumerate(self.data):
+            t = self.trialdata[trial]
+            results = np.append(results, t.result)
+            forcedresults = np.append(forcedresults, t.forcedresult)
+            samples = np.append(samples, i.shape[1])
+        # print("NaN results: "+str(np.count_nonzero(np.isnan(results))))
+        print("--- Total Trials ---")
+        print(len(results), "\n")
+        print("--- Result Counts ---")
+        df = pd.DataFrame(results, columns=['result'])
+        print(df['result'].value_counts(dropna=False), "\n")
+        print("--- Forcedresult Counts ---")
+        df = pd.DataFrame(forcedresults, columns=['result'])
+        print(df['result'].value_counts(dropna=False), "\n")
+        print("--- Samples Counts ---")
+        df = pd.DataFrame(samples, columns=['samples'])
+        print(df['samples'].value_counts(dropna=False))
 
     def to_npz(self, path):
-        np.savez_compressed(f"{path}.npz",
-                            data=self.data,
-                            time=self.time,
-                            trialdata=np.asarray(self.trialdata)
-                            )
+        # TODO savez or savez_compressed?
+        #  Loading Time of S1_Session_1 in Seconds:
+        #  scipy (600MB)   |   numpy (970MB)    |   numpy compr. (460MB)
+        #      4.3         |      0.90          |      3.3
+        np.savez(f"{path}.npz",
+                 data=self.data,
+                 time=self.time,
+                 trialdata=np.asarray(self.trialdata),
+                 metadata=self.metadata,
+                 srate=self.srate
+                 )
 
     @staticmethod
     def from_npz(path):
         npz = np.load(f"{path}.npz", allow_pickle=True)
         if all(attr in npz.files for attr in ['data', 'time', 'trialdata']):
-            ds = LSMRDataset(None)
+            ds = LSMRSubjectRun(None)
             ds.data = npz['data']
             ds.time = npz['time']
             ds.trialdata = npz['trialdata'].tolist()
+            ds.metadata = npz['metadata']
+            ds.srate = npz['srate']
             return ds
         raise Exception("Incompatible .npz file provided!")
 
 
+from config import datasets_folder
 import time
 
+lsmr = "LSMR-2021"
+
+
+def load_subject_run(subject, run):
+    x = io.loadmat(f"{datasets_folder}/{lsmr}/matlab/S{subject + 1}_Session_{run + 1}")['BCI']
+    return x
+
+
 start = time.time()
-x = io.loadmat("../../datasets/LSMR-2021/S1_Session_1")['BCI']
-ds = LSMRDataset(x)
+ds = LSMRSubjectRun(load_subject_run(0, 0))
 print(time.time() - start)
 
 # metadata=x['metadata'][0, 0][0, 0]
 # metadata= LSMRMetadata(metadata)
 # print(metadata)
 
-path = "../../datasets/LSMR-2021/S1_Session_1"
+path = f"{datasets_folder}/{lsmr}/numpy/S1_Session_1"
+
+# start = time.time()
 ds.to_npz(path)
+# print(time.time() - start)
 
 start = time.time()
-ds2 = LSMRDataset.from_npz(path)
+LSMRSubjectRun.from_npz(path)
 print(time.time() - start)
 # data = x['TrialData'][0, 0]
 # print(data)

@@ -126,7 +126,6 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
                                                          preloaded_data,
                                                          preloaded_labels, batch_size, ch_names, equal_trials,
                                                          used_subjects=used_subjects)
-
             loader_train, loader_test, loader_valid = loaders
 
             model = get_model(n_class, len(ch_names), device)
@@ -180,6 +179,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
 
 
 # Test pretrained model (Best Fold)
+# Determines Accuracy on Best-Fold's Test Set
 def testing(n_class, model_path, device, ch_names):
     n_class_results = load_npz(get_results_file(model_path, n_class))
     ds_short_name = n_class_results['mi_ds'].item()
@@ -197,22 +197,23 @@ def testing(n_class, model_path, device, ch_names):
 
     # Split Data into training + util
     cv = GroupKFold(n_splits=dataset.folds)
-
     cv_split = cv.split(X=dataset.available_subjects, groups=groups)
     # Skip to best fold
     for f in range(best_fold):
         next(cv_split)
 
-    test_subjects=next(cv_split)[1].tolist()
+    # Get Test Subjects of Best Fold
+    test_subjects_idxs = next(cv_split)[1].tolist()
+    subjects_test = [dataset.available_subjects[idx] for idx in test_subjects_idxs]
+
     model = get_model(n_class, len(ch_names), device, model_path)
     if DATA_PRELOAD:
         print("PRELOADING ALL DATA IN MEMORY")
-        preloaded_data, preloaded_labels = dataset.load_subjects_data(test_subjects, n_class,
+        preloaded_data, preloaded_labels = dataset.load_subjects_data(subjects_test, n_class,
                                                                       ch_names, True, normalize=False)
 
-
     # Test with Best-Fold Test set subjects
-    loader_test = dataset.create_loader_from_subjects(test_subjects, n_class, device,
+    loader_test = dataset.create_loader_from_subjects(subjects_test, n_class, device,
                                                       preloaded_data=preloaded_data,
                                                       preloaded_labels=preloaded_labels,
                                                       bs=BATCH_SIZE, ch_names=dataset.channels, equal_trials=True)
