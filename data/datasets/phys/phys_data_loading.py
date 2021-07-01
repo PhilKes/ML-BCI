@@ -23,6 +23,7 @@ from data.MI_DataLoader import MI_DataLoader
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, n_classes_tasks, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
     butter_bandpass_filt
+from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import runs, mne_dataset, PHYS_ALL_SUBJECTS, PHYS_CHANNELS, \
     TRIALS_PER_SUBJECT_RUN, \
     PHYS_CONFIG, \
@@ -35,33 +36,19 @@ from util.plot import matplot
 mne.set_log_level('WARNING')
 
 
-# Dataset for EEG Trials Data (divided by subjects)
-class PHYS_TrialsDataset(Dataset):
+class PHYS_TrialsDataset(TrialsDataset):
+    """
+     TrialsDataset class Implementation for Physionet Dataset
+    """
 
     def __init__(self, subjects, n_classes, device, preloaded_tuple,
                  ch_names=PHYS_CHANNELS, equal_trials=True):
-        self.subjects = subjects
-        # Buffers for last loaded Subject data+labels
-        self.loaded_subject = -1
-        self.loaded_subject_data = None
-        self.loaded_subject_labels = None
-        self.n_classes = n_classes
+        super().__init__(subjects, n_classes, device, preloaded_tuple, ch_names, equal_trials)
+
         self.runs = []
-        self.device = device
-        self.trials_per_subject = get_trials_size(n_classes,
-                                                  equal_trials) * eeg_config.TRIALS_SLICES - PHYS_CONFIG.REST_TRIALS_LESS
-        self.equal_trials = equal_trials
-        self.preloaded_data = preloaded_tuple[0]
-        self.preloaded_labels = preloaded_tuple[1]
-        self.ch_names = ch_names
+        self.trials_per_subject = get_trials_size(n_classes, equal_trials) \
+                                  * eeg_config.TRIALS_SLICES - PHYS_CONFIG.REST_TRIALS_LESS
 
-    # Length of Dataset (all trials)
-    def __len__(self):
-        return len(self.subjects) * self.trials_per_subject
-
-    # Determines corresponding Subject of trial and loads subject's data+labels
-    # trial: trial idx
-    # returns trial data (X) and trial label (y)
     def load_trial(self, trial):
         local_trial_idx = trial % self.trials_per_subject
 
@@ -71,15 +58,6 @@ class PHYS_TrialsDataset(Dataset):
         # Immediately return from preloaded data
         return self.preloaded_data[subject_idx][local_trial_idx], self.preloaded_labels[subject_idx][
             local_trial_idx]
-
-    # Returns a single trial as Tensor with Labels
-    def __getitem__(self, trial):
-        X, y = self.load_trial(trial)
-        # Shape of 1 Batch (list of multiple __getitem__() calls):
-        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Timepoints (641)]
-        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
-        # X = TRANSFORM(X)
-        return X, y
 
 
 class PHYS_DataLoader(MI_DataLoader):
@@ -120,9 +98,6 @@ class PHYS_DataLoader(MI_DataLoader):
         loader_data = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
         return loader_data
 
-    # Loads all Subjects Data + Labels for n_class Classification
-    # Very high memory usage for ALL_SUBJECTS (~2GB)
-    # used_runs can be passed to force to load only these runs
     @classmethod
     def load_subjects_data(cls, subjects, n_class, ch_names=PHYS_CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):

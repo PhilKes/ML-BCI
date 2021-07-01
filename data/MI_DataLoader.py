@@ -88,6 +88,7 @@ class MI_DataLoader:
                            normalize: bool = False, ignored_runs: List[int] = []):
         """
         Loads and returns n_class data of subjects
+        Can lead to high memory usage depending on the Dataset
         :param subjects: Subjects to be loaded
         :param equal_trials: Load equal amount of Trials for each class?
         :param ignored_runs: Runs to ignore (MNE with PHYS)
@@ -97,8 +98,7 @@ class MI_DataLoader:
 
     @classmethod
     def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
-                                            batch_size: int,
-                                            ch_names: List[str], device):
+                                            batch_size: int, ch_names: List[str], device):
         """
         Create Train/Test Loaders for a single subject
         :param n_test_runs: Which runs are used for the Test Loader

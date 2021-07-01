@@ -13,42 +13,24 @@ History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
 
-import torch  # noqa
-from torch.utils.data import Dataset  # noqa
-
 from config import global_config
 from data.MI_DataLoader import MI_DataLoader
+from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC_name, BCIC_ALL_SUBJECTS, BCIC_cv_folds, BCIC_CONFIG, BCIC_CHANNELS, \
     BCIC_short_name
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
 from data.datasets.phys.phys_dataset import PHYS_CHANNELS
 
 
-class BCIC_TrialsDataset(Dataset):
+class BCIC_TrialsDataset(TrialsDataset):
     """
-    Class: BCIC_TrialsDataset(Dataset)
-
-    Description:
-      Dataset class which is based on torch.utils.data.Dataset. This type of class is
-      required for creating a pytorch dataloader.
-      Methods __len__ and __get_item__ must be implemented.
+     TrialsDataset class Implementation for BCIC Dataset
     """
 
     def __init__(self, subjects, n_classes, device, preloaded_tuple,
                  ch_names=PHYS_CHANNELS, equal_trials=True):
-        """
-        Method: constructor
-        Parameters:
-            subjects: list of subjects
-        """
-        self.subjects = subjects
-        self.n_classes = n_classes
-        self.device = device
 
-        self.equal_trials = equal_trials
-        self.preloaded_data = preloaded_tuple[0]
-        self.preloaded_labels = preloaded_tuple[1]
-        self.ch_names = ch_names
+        super().__init__(subjects, n_classes, device, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
         self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class per subject
@@ -67,24 +49,7 @@ class BCIC_TrialsDataset(Dataset):
 
         print("trials_per_subject: ", self.trials_per_subject)
 
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    __len__ has to be implemented and has to return the overall number of trials.
-    """
-
-    def __len__(self):
-        ds_len = 0
-        for subject_idx in range(len(self.subjects)):
-            ds_len = ds_len + self.trials_per_subject[subject_idx]
-        # print("ds_len = ", ds_len)
-        return ds_len
-
-    """
-    __get_item__ has to be implemented and has to return the trial data and label
-    which corresponds to the passed index 'trial'.
-    """
-
-    # Returns a single trial as Tensor with Labels
-    def __getitem__(self, trial):
+    def load_trial(self, trial):
         # calculate subject id 'subject_idx' and subject specific trial id 'trial_idx'
         # from parameter trial
         subject_idx = None
@@ -100,13 +65,7 @@ class BCIC_TrialsDataset(Dataset):
 
         # print("trial , subject_idx, trial_idx: %d, %d, %d" % (trial_start, subject_idx, trial_idx))
 
-        X, y = self.preloaded_data[subject_idx][trial_idx], self.preloaded_labels[subject_idx][trial_idx]
-
-        # Shape of 1 Batch (list of multiple __getitem__() calls):
-        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Timepoints (641)]
-        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
-        # X = TRANSFORM(X)
-        return X, y
+        return self.preloaded_data[subject_idx][trial_idx], self.preloaded_labels[subject_idx][trial_idx]
 
 
 class BCIC_Dataloader(MI_DataLoader):
