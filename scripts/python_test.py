@@ -6,8 +6,9 @@ import math
 
 import mne
 import numpy as np
-import torch
 
+import torch
+from scipy import io
 from config import ROOT
 from data.datasets.phys.phys_data_loading import PHYS_DataLoader
 
@@ -449,4 +450,113 @@ def check_bad_data(subjects, n_classes):
 # print(test_string)
 
 
-print(ROOT)
+# print(ROOT)
+class LSMRMetadata:
+    mbsrsubject: int
+    meditationpractice: str
+    handedness: str
+    instrument: str
+    athlete: str
+    handsport: str
+    hobby: str
+    gender: str
+    age: int
+    date: int
+    day: int
+    time: int
+
+    def __init__(self, metadata):
+        super().__init__()
+        copy_attrs(self, metadata)
+
+
+def copy_attrs(obj_to, obj_from):
+    for i in range(len(obj_from.dtype.names)):
+        data = obj_from[i].item()
+        label = obj_from.dtype.names[i]
+        setattr(obj_to, str.lower(label), data)
+
+
+class LSMRTrialData:
+
+    def __init__(self, trialdata):
+        super().__init__()
+        self.tasknumber = None
+        self.runnumber = None
+        self.trialnumber = None
+        self.targetnumber = None
+        self.triallength = None
+        self.targethitnumber = None
+        self.resultind = None
+        self.results = None
+        self.forcedresult = None
+        self.artifact = None
+        copy_attrs(self, trialdata)
+
+
+ignore_metadata = True
+
+
+class LSMRDataset:
+    metadata: LSMRMetadata
+    trialdata: list
+    data = None
+    time = None
+
+    def __init__(self, matlab):
+        super().__init__()
+        if matlab is None:
+            return
+        if not ignore_metadata:
+            self.metadata = LSMRMetadata(matlab['metadata'][0, 0][0, 0])
+        self.trialdata = []
+        for trialdata in matlab['TrialData'][0, 0][0]:
+            self.trialdata.append(LSMRTrialData(trialdata))
+        self.data = matlab['data'][0, 0][0]
+        samples = 8000
+        x = np.zeros((0, 62, samples), dtype=np.object)
+        for i in self.data:
+            if i.shape[1] >= samples:
+                x = np.concatenate((x, i[:, :samples].reshape(1, i.shape[0], samples)))
+        self.data = x
+        self.time = matlab['time'][0, 0][0]
+
+    def to_npz(self, path):
+        np.savez_compressed(f"{path}.npz",
+                            data=self.data,
+                            time=self.time,
+                            trialdata=np.asarray(self.trialdata)
+                            )
+
+    @staticmethod
+    def from_npz(path):
+        npz = np.load(f"{path}.npz", allow_pickle=True)
+        if all(attr in npz.files for attr in ['data', 'time', 'trialdata']):
+            ds = LSMRDataset(None)
+            ds.data = npz['data']
+            ds.time = npz['time']
+            ds.trialdata = npz['trialdata'].tolist()
+            return ds
+        raise Exception("Incompatible .npz file provided!")
+
+
+import time
+
+start = time.time()
+x = io.loadmat("../../datasets/LSMR-2021/S1_Session_1")['BCI']
+ds = LSMRDataset(x)
+print(time.time() - start)
+
+# metadata=x['metadata'][0, 0][0, 0]
+# metadata= LSMRMetadata(metadata)
+# print(metadata)
+
+path = "../../datasets/LSMR-2021/S1_Session_1"
+ds.to_npz(path)
+
+start = time.time()
+ds2 = LSMRDataset.from_npz(path)
+print(time.time() - start)
+# data = x['TrialData'][0, 0]
+# print(data)
+print()
