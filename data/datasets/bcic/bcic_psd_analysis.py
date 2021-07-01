@@ -15,10 +15,9 @@ Author: Manfred Strahnen
 History:
   2021-05-25: Getting started - ms (Manfred Strahnen
 """
-from data.datasets.bcic.bcic_dataset import BCIC_CHANNELS
+from data.datasets.bcic.bcic_dataset import BCIC
 from config import eeg_config
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
-from data.datasets.bcic.bcic_dataset import BCIC_CONFIG
 
 """
 Subroutine: calc_psds()
@@ -32,17 +31,17 @@ def calc_psds():
     subjects = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     n_classes = 4
     training = 1
-    eeg_config.TMIN = BCIC_CONFIG.TMIN
-    eeg_config.TMAX = BCIC_CONFIG.TMAX
+    eeg_config.TMIN = BCIC.CONFIG.TMIN
+    eeg_config.TMAX = BCIC.CONFIG.TMAX
     eeg_config.TRIALS_SLICES = 1
-    eeg_config.SAMPLERATE = BCIC_CONFIG.SAMPLERATE
-    eeg_config.SAMPLES = (int)((BCIC_CONFIG.TMAX - BCIC_CONFIG.TMIN) * BCIC_CONFIG.SAMPLERATE)
+    eeg_config.SAMPLERATE = BCIC.CONFIG.SAMPLERATE
+    eeg_config.SAMPLES = (int)((BCIC.CONFIG.TMAX - BCIC.CONFIG.TMIN) * BCIC.CONFIG.SAMPLERATE)
     print("  - Subjects: ", subjects)
     print("  - n_classes: ", n_classes)
 
     print('  - Load BCIC data set')
     equal_trials = True
-    ch_names = BCIC_CHANNELS
+    ch_names = BCIC.CHANNELS
 
     ds_r = BCIC_IV2a_dataset(subjects=subjects, n_classes=n_classes, ch_names=ch_names)
     ds_r.load_subjects_data(training)

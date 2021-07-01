@@ -22,7 +22,7 @@ import sys
 import matplotlib.pyplot as plt
 from scipy import signal
 from config import eeg_config, datasets_folder
-from data.datasets.bcic.bcic_dataset import BCIC_CHANNELS
+from data.datasets.bcic.bcic_dataset import BCIC
 from data.data_utils import butter_bandpass_filt
 from config import global_config
 
@@ -115,7 +115,7 @@ class BCIC_IV2a_dataset:
     '''
 
     def __init__(self, subjects=[1], n_classes=4, path=f'{datasets_folder}/BCICompetition_IV-2a/',
-                 ch_names=BCIC_CHANNELS):
+                 ch_names=BCIC.CHANNELS):
         self.path = path
         self.orgfiles_path = path + "Numpy_files/"  # Location of original subject-specific data files
         self.pl_path = path + "pl_data/"  # Location where preloaded data is stored

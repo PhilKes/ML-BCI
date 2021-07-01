@@ -15,8 +15,7 @@ import argparse
 
 from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices, \
     set_eeg_config
-from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
-from data.datasets.phys.phys_dataset import excluded_subjects, PHYS_short_name
+from data.datasets.phys.phys_dataset import PHYS
 from util.misc import list_to_str
 from data.datasets.datasets import DATASETS
 
@@ -67,7 +66,7 @@ def add_common_arguments(parser):
                         help=f'Start Time of every Trial Epoch (default: {eeg_config.TMIN})')
     parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
                         help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
-    parser.add_argument('--dataset', type=str, default=PHYS_short_name,
+    parser.add_argument('--dataset', type=str, default=PHYS.short_name,
                         help=f'Name of the MI dataset (available: {",".join([ds for ds in DATASETS])})')
 
 
@@ -82,7 +81,7 @@ def check_common_arguments(parser, args):
         parser.error("You have to use --model to specify which model to use for -benchmark or -train_ss")
     if (args.device == "cpu") & (args.bs > 15):
         parser.error(f"Cannot use batch size > 15 if device='cpu' (Jetson Nano)")
-    if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in PHYS_ALL_SUBJECTS):
+    if (args.live_sim | args.train_ss) & (args.subject is not None) & (args.subject not in PHYS.ALL_SUBJECTS):
         parser.error(f"Subject {args.subject} does not exist!")
 
     if args.dataset not in DATASETS:
@@ -124,7 +123,7 @@ def add_train_arguments(parser):
     parser.add_argument('--early_stop', action='store_true',
                         help=f'If present, will determine the model with the lowest loss on the validation set')
     parser.add_argument('--excluded', nargs='+', type=int, default=[],
-                        help=f'List of Subjects that are excluded during Training (default excluded Subjects:{excluded_subjects})')
+                        help=f'List of Subjects that are excluded during Training')
 
     parser.add_argument('--only_fold', type=int, default=None,
                         help=f'Optional: Specify single Fold to be only trained on')
@@ -178,8 +177,8 @@ def add_benchmark_arguments(parser):
 
 
 def check_benchmark_arguments(parser, args):
-    if args.subjects_cs > len(PHYS_ALL_SUBJECTS):
-        parser.error(f"Maximum subjects_bs: {len(PHYS_ALL_SUBJECTS)}")
+    if args.subjects_cs > len(PHYS.ALL_SUBJECTS):
+        parser.error(f"Maximum subjects_bs: {len(PHYS.ALL_SUBJECTS)}")
     if (args.iters > 1) & (not args.benchmark):
         parser.error(f"Iteration parameter is only used if benchmarking")
     if args.fp16 & (not args.trt):

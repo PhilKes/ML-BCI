@@ -1,14 +1,13 @@
 #!/usr/bin/python3
 import os
-import sys
 from datetime import datetime
 
 import numpy
 import pandas as pd
 
-from config import results_folder, training_results_folder, training_ss_results_folder, ROOT
-from data.datasets.bcic.bcic_dataset import BCIC_short_name
-from data.datasets.phys.phys_dataset import PHYS_short_name
+from config import results_folder, training_results_folder, training_ss_results_folder
+from data.datasets.bcic.bcic_dataset import BCIC
+from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
 
 default_options = ['-train']
@@ -106,15 +105,15 @@ confs = {
     # },
     'PHYS': {
         'params': [
-            ['--dataset', PHYS_short_name, '--tmin', '0', '--tmax', '2'],
-            ['--dataset', PHYS_short_name, '--tmin', '0', '--tmax', '4']
+            ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '2'],
+            ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '4']
         ],
         'names': ['phys_all_2s', 'phys_all_4s']
     },
     'BCIC': {
         'params': [
-            ['--dataset', BCIC_short_name, '--tmin', '0', '--tmax', '2'],
-            ['--dataset', BCIC_short_name, '--tmin', '0', '--tmax', '4']
+            ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '2'],
+            ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '4']
         ],
         'names': ['bcic_all_2s', 'bcic_all_4s']
     },

@@ -9,8 +9,9 @@ import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, eeg_config
-from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS, PHYS_DataLoader
-from data.datasets.phys.phys_dataset import PHYS_CHANNELS
+from data.datasets.phys.phys_data_loading import PHYS_DataLoader
+from data.datasets.phys.phys_dataset import PHYS
+
 from util.dot_dict import DotDict
 from util.misc import groups_labels
 
@@ -18,21 +19,23 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import sys
 
+
 def psd_calc(in_data):
     fourier_transform = np.fft.rfft(in_data)
     abs_fourier_transform = np.abs(fourier_transform)
     psd = np.square(abs_fourier_transform)
-#    psd = 10 * np.log10(psd)
-#    frequency = np.linspace(0, fs / 2, len(psd))
-#    plt.plot(frequency, psd)
-#    plt.title("Power spectral density (log10)")
-#    plt.show()
+    #    psd = 10 * np.log10(psd)
+    #    frequency = np.linspace(0, fs / 2, len(psd))
+    #    plt.plot(frequency, psd)
+    #    plt.title("Power spectral density (log10)")
+    #    plt.show()
     return psd
+
 
 # Calculate mean psd over all subjects, all trials/subject and channel/trial
 # based on the data given by the 'Dataloader's'
 def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
-                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
+                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
                  equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
@@ -44,7 +47,7 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
     start = datetime.now()
     print("- Data analysis started")
 
-    available_subjects = [i for i in PHYS_ALL_SUBJECTS if i not in excluded]
+    available_subjects = [i for i in PHYS.ALL_SUBJECTS if i not in excluded]
     print("  - Available subjects:", len(available_subjects))
 
     n_class = 2
@@ -52,7 +55,7 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     print("PRELOADING ALL DATA IN MEMORY")
     preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
-                                                              ch_names, equal_trials, normalize=False)
+                                                                          ch_names, equal_trials, normalize=False)
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -67,15 +70,16 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     batch_size = 1
     # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-    loaders = PHYS_DataLoader.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device, preloaded_data,
-                                              preloaded_labels, batch_size, ch_names, equal_trials,
-                                              used_subjects=used_subjects)
+    loaders = PHYS_DataLoader.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+                                                         preloaded_data,
+                                                         preloaded_labels, batch_size, ch_names, equal_trials,
+                                                         used_subjects=used_subjects)
     loader_train, loader_test, loader_valid = loaders
 
     num_samples = eeg_config.SAMPLES
-    psd_all    = np.zeros(int(num_samples / 2) + 1)
-    psd_class0 = np.zeros(int(num_samples / 2) + 1)       # Mean psd of Left Hand trials
-    psd_class1 = np.zeros(int(num_samples / 2) + 1)       # Mean psd of Right Hand trials
+    psd_all = np.zeros(int(num_samples / 2) + 1)
+    psd_class0 = np.zeros(int(num_samples / 2) + 1)  # Mean psd of Left Hand trials
+    psd_class1 = np.zeros(int(num_samples / 2) + 1)  # Mean psd of Right Hand trials
     num_class0_trials = 0
     num_class1_trials = 0
 
@@ -83,12 +87,12 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
     # Training in batches from the DataLoader
     for idx_batch, (inputs, labels) in enumerate(pbar):
         # Convert inputs, labels tensors to np array
-#        inputs = inputs.cpu()
-#        labels = labels.cpu()
+        #        inputs = inputs.cpu()
+        #        labels = labels.cpu()
         inputs = inputs.numpy()
         labels = labels.numpy()
-#        print("inputs.shape =", inputs.shape)
-#        print("labels.shape =", labels.shape)
+        #        print("inputs.shape =", inputs.shape)
+        #        print("labels.shape =", labels.shape)
         num_channels = inputs.shape[2]
         for ch in range(num_channels):
             data = inputs[0, 0, ch, :]
@@ -127,7 +131,6 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
             else:
                 print("ERROR: Illegal label")
 
-
     print("num_class0_trials =", num_class0_trials)
     print("num_class1_trials =", num_class1_trials)
     psd_all = psd_all / (num_class0_trials + num_class1_trials)
@@ -136,9 +139,8 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     sampling_rate = 160
 
-
     # Plot psd's
-    psd_all    = 10 * np.log10(psd_all)
+    psd_all = 10 * np.log10(psd_all)
     psd_class0 = 10 * np.log10(psd_class0)
     psd_class1 = 10 * np.log10(psd_class1)
 
@@ -162,10 +164,11 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     return
 
+
 # Calculate mean psd over all subjects, all trials/subject and channel/trial
 # based on the 'preloaded' data
 def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
-                  save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
+                  save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
                   equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
@@ -177,18 +180,16 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
     start = datetime.now()
     print("- Data analysis started")
 
-    available_subjects = [i for i in PHYS_ALL_SUBJECTS if i not in excluded]
+    available_subjects = [i for i in PHYS.ALL_SUBJECTS if i not in excluded]
     print("  - Available subjects:", len(available_subjects))
 
     n_class = 2
     print("PRELOADING ALL DATA IN MEMORY")
     preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
-                                                              ch_names, equal_trials, normalize=False)
+                                                                          ch_names, equal_trials, normalize=False)
 
     print("  - preloaded_data.shape =", preloaded_data.shape)
     print("  - preloaded_labels.shape =", preloaded_labels.shape)
-
-
 
     # # plot channel x of trial y of subject z
     # subject = 0     # selected subject
@@ -200,16 +201,16 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
 
     # Assign basic parameters
     sampling_rate = 160.0
-    num_samples  = preloaded_data.shape[3]
+    num_samples = preloaded_data.shape[3]
     num_channels = preloaded_data.shape[2]
-    num_trials   = preloaded_data.shape[1]
+    num_trials = preloaded_data.shape[1]
     num_subjects = preloaded_data.shape[0]
-    print("  - subjects: %d, trials/subject: %d, EEG-channels/trial: %d"%(num_subjects, num_trials, num_channels))
+    print("  - subjects: %d, trials/subject: %d, EEG-channels/trial: %d" % (num_subjects, num_trials, num_channels))
 
     # Calculate and sum mean power spectral density psd
-    psd_all    = np.zeros(int(num_samples / 2) + 1)
-    psd_class0 = np.zeros(int(num_samples / 2) + 1)       # Mean psd of Left Hand trials
-    psd_class1 = np.zeros(int(num_samples / 2) + 1)       # Mean psd of Right Hand trials
+    psd_all = np.zeros(int(num_samples / 2) + 1)
+    psd_class0 = np.zeros(int(num_samples / 2) + 1)  # Mean psd of Left Hand trials
+    psd_class1 = np.zeros(int(num_samples / 2) + 1)  # Mean psd of Right Hand trials
     num_class0_trials = 0
     num_class1_trials = 1
     for subject in range(num_subjects):
@@ -229,12 +230,12 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
                 else:
                     print("ERROR: Illegal label")
 
-    psd_all =    psd_all    / (num_channels * num_trials        * num_subjects)
+    psd_all = psd_all / (num_channels * num_trials * num_subjects)
     psd_class0 = psd_class0 / (num_class0_trials)
     psd_class1 = psd_class1 / (num_class1_trials)
 
     # Plot psd's
-    psd_all    = 10 * np.log10(psd_all)
+    psd_all = 10 * np.log10(psd_all)
     psd_class0 = 10 * np.log10(psd_class0)
     psd_class1 = 10 * np.log10(psd_class1)
 
@@ -256,6 +257,7 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
     plt.show()
 
     return
+
 
 ########################################################################################
 if __name__ == '__main__':

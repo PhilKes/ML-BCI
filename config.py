@@ -6,7 +6,7 @@ import os
 import sys
 
 import matplotlib.pyplot as plt
-from data.datasets.phys.phys_dataset import PHYS_CONFIG, PHYS_cv_folds
+from data.datasets.phys.phys_dataset import PHYS
 from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
@@ -29,7 +29,7 @@ global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
 
 # Training Settings
 EPOCHS = 100
-SPLITS = PHYS_cv_folds
+SPLITS = PHYS.cv_folds
 VALIDATION_SUBJECTS = 0
 N_CLASSES = [2]
 
@@ -52,12 +52,12 @@ eegnet_config = DotDict(pool_size=4)
 
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 # Trials Slicing (divide every Trial in equally long Slices)
-eeg_config = DotDict(TMIN=PHYS_CONFIG.TMIN,
-                     TMAX=PHYS_CONFIG.TMAX,
-                     CUE_OFFSET=PHYS_CONFIG.CUE_OFFSET,
+eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,
+                     TMAX=PHYS.CONFIG.TMAX,
+                     CUE_OFFSET=PHYS.CONFIG.CUE_OFFSET,
                      TRIALS_SLICES=1,
-                     SAMPLERATE=PHYS_CONFIG.SAMPLERATE,
-                     SAMPLES=int((PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE))
+                     SAMPLERATE=PHYS.CONFIG.SAMPLERATE,
+                     SAMPLES=int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE))
 
 
 def set_eeg_config(cfg):
@@ -84,10 +84,10 @@ def set_eeg_times(tmin, tmax, cue_offset):
 
 
 def reset_eeg_times():
-    eeg_config.TMIN = PHYS_CONFIG.TMIN
-    eeg_config.TMAX = PHYS_CONFIG.TMAX
-    eeg_config.SAMPLERATE = PHYS_CONFIG.SAMPLERATE
-    eeg_config.SAMPLES = int((PHYS_CONFIG.TMAX - PHYS_CONFIG.TMIN) * PHYS_CONFIG.SAMPLERATE)
+    eeg_config.TMIN = PHYS.CONFIG.TMIN
+    eeg_config.TMAX = PHYS.CONFIG.TMAX
+    eeg_config.SAMPLERATE = PHYS.CONFIG.SAMPLERATE
+    eeg_config.SAMPLES = int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE)
 
 
 def set_poolsize(size):

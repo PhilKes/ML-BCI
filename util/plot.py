@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import precision_recall_fscore_support as score
 
 from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE, SHOW_PLOTS
-from data.datasets.phys.phys_dataset import class_labels
+from data.datasets.phys.phys_dataset import PHYS
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']
@@ -127,9 +127,9 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
         fig = plt.gcf()
         # np.save(f"{save_path}/{title}.npy", data)
         # save as PDF
-        fig.savefig(f"{save_path}/{title.replace(' ','_')}.png")
+        fig.savefig(f"{save_path}/{title.replace(' ', '_')}.png")
         if PLOT_TO_PDF:
-            fig.savefig(f"{save_path}/{title.replace(' ','_')}.pdf", bbox_inches='tight')
+            fig.savefig(f"{save_path}/{title.replace(' ', '_')}.pdf", bbox_inches='tight')
     # fig.tight_layout()
     if SHOW_PLOTS:
         plt.show(block=True)
@@ -273,11 +273,11 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
             hlines=[np.average(accuracies)],
             save_path=dir_results, show_legend=False,
             bar_plot=True, max_y=100.0)
-    highest_acc_fold=np.argmax(accuracies).item()
+    highest_acc_fold = np.argmax(accuracies).item()
     class_accuracies = run_data.class_accuracies[highest_acc_fold]
     matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag} of best Fold", "Class",
             "Accuracy in %", show_legend=False,
-            x_values=['0'] + class_labels[n_class],
+            x_values=['0'] + PHYS.class_labels[n_class],
             save_path=dir_results, hlines=[np.average(class_accuracies)],
             bar_plot=True, max_y=100.0)
     matplot(run_data.epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
@@ -461,7 +461,6 @@ def plot_confusion_matrices(model_path, n_classes=N_CLASSES):
         precisions, recalls, fscore, support = score(y_true, y_pred)
         acc = accuracy_score(y_true, y_pred)
         conf_mat = confusion_matrix(y_true, y_pred)
-        plot_confusion_matrix(conf_mat, class_labels[n_class], recalls, precisions, acc,
+        plot_confusion_matrix(conf_mat, PHYS.class_labels[n_class], recalls, precisions, acc,
                               title=f'{n_class}class Confusion Matrix of best Fold',
                               save_path=model_path)
-

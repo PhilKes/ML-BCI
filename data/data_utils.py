@@ -14,8 +14,7 @@ from scipy.signal import butter, sosfilt
 from sklearn.preprocessing import MinMaxScaler
 
 from config import eeg_config
-from data.datasets.phys.phys_dataset import trials_for_classes_per_subject_avail, n_classes_tasks, runs, \
-    PHYS_CHANNELS, PHYS_CONFIG
+from data.datasets.phys.phys_dataset import PHYS
 
 '''
 Subroutine: butter_bandpass_definition(lowcut=0.0, highcut=80.0, fs=160, order=3)
@@ -51,7 +50,7 @@ def butter_bandpass_filt(indata, lowcut, highcut, fs, order):
     return outdata
 
 
-def crop_time_and_label(raw, time, ch_names=PHYS_CHANNELS):
+def crop_time_and_label(raw, time, ch_names=PHYS.CHANNELS):
     tdelta = eeg_config.TMAX - eeg_config.TMIN
     if (time - tdelta) < 0:
         raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
@@ -62,7 +61,7 @@ def crop_time_and_label(raw, time, ch_names=PHYS_CHANNELS):
     return data, times, raw1.annotations
 
 
-def get_data_from_raw(raw, ch_names=PHYS_CHANNELS):
+def get_data_from_raw(raw, ch_names=PHYS.CHANNELS):
     # raw1 = raw.copy()
     raw.pick_channels(ch_names)
     data, times = raw[:, :]
@@ -114,10 +113,10 @@ normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).resh
 # omit_bl: Omit Baseline Runs (Rest Trials)
 def get_runs_of_n_classes(n_classes, omit_bl=False):
     n_runs = []
-    for task in n_classes_tasks[n_classes]:
+    for task in PHYS.n_classes_tasks[n_classes]:
         if omit_bl & (task == 0):
             continue
-        n_runs.extend(runs[task])
+        n_runs.extend(PHYS.runs[task])
     return n_runs
 
 
@@ -129,7 +128,7 @@ trials_per_class_for_3_runs = 21
 
 def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
     if not equal_trials:
-        return trials_for_classes_per_subject_avail[n_class]
+        return PHYS.trials_for_classes_per_subject_avail[n_class]
     n_class_runs = [run for run in get_runs_of_n_classes(n_class, True) if run not in ignored_runs]
     r = len(n_class_runs)
     # 4class uses Task 4 only for T1 events
@@ -148,8 +147,8 @@ def get_equal_trials_per_class(data, labels, classes, trials):
             np.random.seed(39)
             np.random.shuffle(cl_idxs)
         cl_idxs = cl_idxs[:trials]
-        if (cl == 0) & (not PHYS_CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (PHYS_CONFIG.REST_TRIALS_LESS > 0):
-            cl_idxs = cl_idxs[:-PHYS_CONFIG.REST_TRIALS_LESS]
+        if (cl == 0) & (not PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (PHYS.CONFIG.REST_TRIALS_LESS > 0):
+            cl_idxs = cl_idxs[:-PHYS.CONFIG.REST_TRIALS_LESS]
         trials_idxs = np.concatenate((trials_idxs, cl_idxs))
     trials_idxs = np.sort(trials_idxs)
     return data[trials_idxs], labels[trials_idxs]

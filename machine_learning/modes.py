@@ -22,9 +22,8 @@ from sklearn.model_selection import GroupKFold
 from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, TEST_OVERFITTING, GPU_WARMUPS, \
     trained_model_name, VALIDATION_SUBJECTS, eeg_config
 from data.datasets.datasets import DATASETS
-from data.datasets.phys.phys_data_loading import PHYS_ALL_SUBJECTS
+from data.datasets.phys.phys_dataset import PHYS
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
-from data.datasets.phys.phys_dataset import PHYS_CHANNELS, n_classes_live_run, PHYS_short_name
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -39,17 +38,20 @@ from util.plot import plot_training_statistics, matplot, create_plot_vspans, cre
 from config import global_config
 
 
-# Runs Training + Testing
-# Cross Validation
-# Can run 2/3/4-Class Classifications
-# Saves + Plots Accuracies + Epoch Losses in ./results/{DateTime/name}/training
-# save_model: Saves trained model with highest accuracy in results folder
-# mi_ds: Used Dataset as String
-# only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
-# return n_class Accuracies + Overfittings
 def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_classes=N_CLASSES,
-                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS_CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS_short_name, only_fold=None):
+                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
+                equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS.short_name, only_fold=None):
+    """
+    Runs Training + Testing
+    Cross Validation
+    Can run 2/3/4-Class Classifications
+    Saves + Plots Accuracies + Epoch Losses in ./results/{DateTime/name}/training
+
+    :param save_model: Saves trained model with highest accuracy in results folder
+    :param mi_ds: sed Dataset as String
+    :param only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
+    :return: n_class Accuracies + n_class Overfittings
+    """
     dataset = DATASETS[mi_ds]
     if folds is None:
         folds = dataset.folds
@@ -176,9 +178,13 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
     return n_class_accuracy, n_class_overfitting_diff
 
 
-# Test pretrained model (Best Fold)
-# Determines Accuracy on Best-Fold's Test Set
 def testing(n_class, model_path, device, ch_names):
+    """
+    Test pretrained model (Best Fold)
+    Determines Accuracy on Best-Fold's Test Set
+    :param model_path: Path to trained_model.pt File (Folder)
+    :return: Accuracy on Test Set
+    """
     n_class_results = load_npz(get_results_file(model_path, n_class))
     ds_short_name = n_class_results['mi_ds'].item()
     dataset = DATASETS[ds_short_name]
@@ -219,11 +225,15 @@ def testing(n_class, model_path, device, ch_names):
     return test_accuracy
 
 
-# Runs Subject-specific Training on pretrained model (model_path)
-# Supposed to be used before live_sim mode is executed
-# Saves further trained model
 def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=[3],
-                device=torch.device("cpu"), tag=None, ch_names=PHYS_CHANNELS):
+                device=torch.device("cpu"), tag=None, ch_names=PHYS.CHANNELS):
+    """
+    Runs Subject-specific Training on pretrained model (model_path)
+    Supposed to be used before live_sim mode is executed
+    Saves further trained model
+    :param model_path: Path to trained_model.pt File (/training Folder of training_cv())
+    :param subject: Subject to train specifically
+    """
     n_test_runs = 1
     config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, n_test_runs=n_test_runs)
@@ -266,14 +276,22 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
-# Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
-# with Physionet Dataset
-# Returns Batch Latency + Time per EEG Trial inference
-# saves results in model_path/benchmark
 def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
-                 warm_ups=GPU_WARMUPS,
-                 subjects_cs=len(PHYS_ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
-                 ch_names=PHYS_CHANNELS, equal_trials=True, continuous=False):
+                 warm_ups=GPU_WARMUPS, subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1,
+                 fp16=False, tag=None, ch_names=PHYS.CHANNELS, equal_trials=True, continuous=False):
+    """
+    Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
+    with Physionet Dataset
+    Returns Batch Latency + Time per EEG Trial inference
+    saves results in model_path/benchmark
+    :param model_path: Path to trained_model.pt
+    :param warm_ups: Amount of GPU Warm ups before Benchmarking
+    :param subjects_cs: Subject Chunk size
+    :param tensorRT: Enable TensorRT
+    :param iters: Amount of iterations to average Performance
+    :param continuous: Benchmark on same Subject Chunk continuously
+    :return: Batch Latencies Averages + Trial Inference Times Averages
+    """
     config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
                      trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
@@ -297,7 +315,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
             class_models[n_class] = get_tensorrt_model(class_models[n_class], batch_size, chs, device, fp16)
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
-        preload_chunks = split_list_into_chunks(PHYS_ALL_SUBJECTS, subjects_cs)
+        preload_chunks = split_list_into_chunks(PHYS.ALL_SUBJECTS, subjects_cs)
         chunks = len(preload_chunks)
         accuracies = np.zeros((chunks * iters) if not continuous else (iters))
         batch_lats = np.zeros((chunks * iters) if not continuous else (iters))
@@ -345,15 +363,18 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
     return batch_lat_avgs, trial_inf_time_avgs
 
 
-# Simulates Live usage
-# Loads pretrained model of model_path
-# Loads Example Run of Subject for n_class
-# Predicts classes on every available sample
-# Plots Prediction values (in percent)
-# Stores Prediction array as .npy
-def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
-             n_classes=N_CLASSES,
-             device=torch.device("cpu"), tag=None):
+def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
+             n_classes=N_CLASSES, device=torch.device("cpu"), tag=None):
+    """
+    Simulates Live usage
+    Loads pretrained model of model_path
+    Loads Example Run of Subject for n_class
+    Predicts classes on every available sample
+    Plots Prediction values (in percent)
+    Stores Prediction array as .npy
+    :param model_path: Path to subject-specific trained_model.pt
+    :param subject: Subject to perform Live-Simulation on
+    """
     dir_results = create_results_folders(path=f"{model_path}", name=name, mode='live_sim')
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
@@ -362,7 +383,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
         load_global_conf_from_results(n_class_results)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
-        run = n_classes_live_run[n_class]
+        run = PHYS.n_classes_live_run[n_class]
         config = DotDict(subject=used_subject, device=device.type,
                          n_classes=n_classes, ch_names=ch_names, run=run)
         print(live_sim_config_str(config))
@@ -373,7 +394,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS_CHANNELS,
         model.eval()
 
         # Load Raw Subject Run for n_class
-        raw = dataset.mne_load_subject_raw(used_subject, n_classes_live_run[n_class], ch_names=ch_names)
+        raw = dataset.mne_load_subject_raw(used_subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
 

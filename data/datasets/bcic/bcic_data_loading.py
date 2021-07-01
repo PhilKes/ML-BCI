@@ -16,10 +16,9 @@ History:
 from config import global_config
 from data.MI_DataLoader import MI_DataLoader
 from data.datasets.TrialsDataset import TrialsDataset
-from data.datasets.bcic.bcic_dataset import BCIC_name, BCIC_ALL_SUBJECTS, BCIC_cv_folds, BCIC_CONFIG, BCIC_CHANNELS, \
-    BCIC_short_name
+from data.datasets.bcic.bcic_dataset import BCIC
+
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from data.datasets.phys.phys_dataset import PHYS_CHANNELS
 
 
 class BCIC_TrialsDataset(TrialsDataset):
@@ -28,7 +27,7 @@ class BCIC_TrialsDataset(TrialsDataset):
     """
 
     def __init__(self, subjects, n_classes, device, preloaded_tuple,
-                 ch_names=PHYS_CHANNELS, equal_trials=True):
+                 ch_names=BCIC.CHANNELS, equal_trials=True):
 
         super().__init__(subjects, n_classes, device, preloaded_tuple, ch_names, equal_trials)
 
@@ -69,16 +68,19 @@ class BCIC_TrialsDataset(TrialsDataset):
 
 
 class BCIC_Dataloader(MI_DataLoader):
-    name = BCIC_name
-    name_short = BCIC_short_name
-    available_subjects = BCIC_ALL_SUBJECTS
-    folds = BCIC_cv_folds
-    eeg_config = BCIC_CONFIG
-    channels = BCIC_CHANNELS
+    """
+    MI_DataLoader implementation for BCIC Dataset
+    """
+    name = BCIC.name
+    name_short = BCIC.short_name
+    available_subjects = BCIC.ALL_SUBJECTS
+    folds = BCIC.cv_folds
+    eeg_config = BCIC.CONFIG
+    channels = BCIC.CHANNELS
     ds_class = BCIC_TrialsDataset
 
     @classmethod
-    def load_subjects_data(cls, subjects, n_class, ch_names=PHYS_CHANNELS, equal_trials=True,
+    def load_subjects_data(cls, subjects, n_class, ch_names=BCIC.CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):
         subjects.sort()
 
