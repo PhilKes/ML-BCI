@@ -12,7 +12,7 @@ import torch
 from scipy import io
 from config import ROOT
 from data.datasets.phys.phys_data_loading import PHYS_DataLoader
-from util.misc import copy_attrs, to_el_list
+from util.misc import copy_attrs, to_el_list, print_counts
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -472,21 +472,30 @@ class LSMRMetadata:
         copy_attrs(self, metadata)
 
 
-
-
-
-
-
 class LSMRTrialData:
+    """
+    Metadata of a single Trial of the LSMR-21 Dataset
+    """
+    # Corresponding Task number (1='Left/Right', 2='Up/Down',3='2D')
     tasknumber: int
     runnumber: int
     trialnumber: int
+    # Presented target
+    # 1='right', 2='left', 3='up', 4='down'
     targetnumber: int
-    triallength: float
+    # Actually hit target
     targethitnumber: int
+    # Time length of feedback control period (Subject tries to hit the target -> max 6.04s)
+    triallength: float
+    # TODO Time index for the end of the feedback control portion of the trial
+    #  Length(trial) - 1000 -> means after target is hit 1 additional second is recorded?
     resultind: int
+    # Result of the trial (1=correct target hit, 2=wrong target hit, NaN=Timeout)
     result: int
+    # 1=correct target or cursor was closest to correct target
+    # 0=wrong target or cursor was closest to wrong target
     forcedresult: int
+    # 1= trial contains artifact, 0= no artifact
     artifact: int
 
     def __init__(self, trialdata):
@@ -495,21 +504,31 @@ class LSMRTrialData:
 
 
 class LSMRChanInfo:
+    """
+    Metadata of the Channel placement (Subject/Run specific!)
+    """
+    # if false, 'fiducials' and 'shape' are empty
     positionsrecorded: bool
+    # Labels of Electrode names (10-10 system)
     label: List[str]
+    # List of 'noisy' Channels (containing artifacts)
     noisechan: List[int]
+    # 3D positions of electrodes
     electrodes: np.ndarray
+    # Locations of the nasion/ preauricular points
     fiducials: np.ndarray
+    # Location of the face shape information
     shape: np.ndarray
 
     def __init__(self, chaninfo):
         super().__init__()
         copy_attrs(self, chaninfo)
         self.label = to_el_list(self.label)
+        if type(self.noisechan) == int:
+            self.noisechan = [self.noisechan]
 
 
 import pandas as pd
-
 
 ignore_metadata = False
 
@@ -517,7 +536,10 @@ ignore_metadata = False
 class LSMRSubjectRun:
     metadata: LSMRMetadata
     trialdata: List[LSMRTrialData]
+    # Actual EEG Samples Recordings (62 Channels)
     data: np.ndarray
+    # Time of every Sample in ms relative to Target Presentation
+    # e.g '-2000' means the Sample is taken 2.0 secs before Target Presentation
     time: np.ndarray
     srate: int
     chaninfo: LSMRChanInfo
@@ -550,29 +572,39 @@ class LSMRSubjectRun:
         # TODO Trials have highly varying nr. of Samples
         #    max. Samples per Trial: 11041 -> means Timeout (trialdata.result= NaN)
         #    if less than 11040 Samples, result either 0 or 1 (hit correct or wrong target)
+        #    if a target was hit the Trial is finished -> No more samples
         #    What to do if less than 11041 Samples? Fill up with last present value?
         #    use trialdata.result or forcedresult?
         max_samples = 11040
         results = np.zeros(0, dtype=np.int)
         forcedresults = np.zeros(0, dtype=np.int)
         samples = np.zeros(0, dtype=np.int)
+        artifacts = np.zeros(0, dtype=np.int)
+        tasknrs = np.zeros(0, dtype=np.int)
+        targets = np.zeros(0, dtype=np.int)
         for trial, i in enumerate(self.data):
             t = self.trialdata[trial]
             results = np.append(results, t.result)
             forcedresults = np.append(forcedresults, t.forcedresult)
             samples = np.append(samples, i.shape[1])
+            artifacts = np.append(artifacts, t.artifact)
+            tasknrs = np.append(tasknrs, t.tasknumber)
+            targets = np.append(targets, t.targetnumber)
         # print("NaN results: "+str(np.count_nonzero(np.isnan(results))))
+        print("--- Task Nrs (in blocks of 75) ---")
+        print_counts(tasknrs)
         print("--- Total Trials ---")
         print(len(results), "\n")
+        print("--- Targets---")
+        print_counts(targets)
         print("--- Result Counts ---")
-        df = pd.DataFrame(results, columns=['result'])
-        print(df['result'].value_counts(dropna=False), "\n")
+        print_counts(results)
         print("--- Forcedresult Counts ---")
-        df = pd.DataFrame(forcedresults, columns=['result'])
-        print(df['result'].value_counts(dropna=False), "\n")
+        print_counts(forcedresults)
         print("--- Samples Counts ---")
-        df = pd.DataFrame(samples, columns=['samples'])
-        print(df['samples'].value_counts(dropna=False))
+        print_counts(samples)
+        print("--- Artifacts ---")
+        print_counts(artifacts)
 
     def to_npz(self, path):
         # TODO savez or savez_compressed?
@@ -604,31 +636,32 @@ class LSMRSubjectRun:
 from config import datasets_folder
 import time
 
-lsmr = "LSMR-2021"
+from data.datasets.lsmr21.lmsr_21_dataset import LSMR_21
 
 
 def load_subject_run(subject, run):
-    x = io.loadmat(f"{datasets_folder}/{lsmr}/matlab/S{subject + 1}_Session_{run + 1}")['BCI']
+    x = io.loadmat(f"{datasets_folder}/{LSMR_21.short_name}/matlab/S{subject + 1}_Session_{run + 1}")['BCI']
     return x
 
 
-start = time.time()
-ds = LSMRSubjectRun(load_subject_run(0, 0))
-print(time.time() - start)
+if __name__ == '__main__':
+    start = time.time()
+    ds = LSMRSubjectRun(load_subject_run(0, 0))
+    print(time.time() - start)
 
-# metadata=x['metadata'][0, 0][0, 0]
-# metadata= LSMRMetadata(metadata)
-# print(metadata)
+    # metadata=x['metadata'][0, 0][0, 0]
+    # metadata= LSMRMetadata(metadata)
+    # print(metadata)
 
-path = f"{datasets_folder}/{lsmr}/numpy/S1_Session_1"
+    path = f"{datasets_folder}/{LSMR_21.short_name}/numpy/S1_Session_1"
 
-# start = time.time()
-ds.to_npz(path)
-# print(time.time() - start)
+    # start = time.time()
+    ds.to_npz(path)
+    # print(time.time() - start)
 
-start = time.time()
-LSMRSubjectRun.from_npz(path)
-print(time.time() - start)
-# data = x['TrialData'][0, 0]
-# print(data)
-print()
+    start = time.time()
+    LSMRSubjectRun.from_npz(path)
+    print(time.time() - start)
+    # data = x['TrialData'][0, 0]
+    # print(data)
+    print()

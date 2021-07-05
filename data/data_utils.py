@@ -184,7 +184,6 @@ def get_correctly_predicted_areas(n_class, sample_predictions, trials_classes, t
             last_sample = max_samples
         else:
             last_sample = trials_start_samples[idx + 1]
-        # TODO calculate area without softmax + if for n_class==2
         trials_correct_areas[idx] = np.sum(sample_predictions[trial_class, first_sample:last_sample])
         trials_areas[idx] = (last_sample - first_sample) * 100
         trials_correct_areas_relative[idx] = trials_correct_areas[idx] / trials_areas[idx]

@@ -6,6 +6,7 @@ import math
 import os
 
 import numpy as np
+import pandas as pd
 
 from config import chs_names_txt
 
@@ -163,3 +164,18 @@ def copy_attrs(obj_to, arr_from):
             data = data[0]
         label = arr_from.dtype.names[i]
         setattr(obj_to, str.lower(label), data)
+
+
+def print_counts(list):
+    """
+    Counts element occurences in list and prints as Table
+    """
+    df = pd.DataFrame(list, columns=['data'])
+    print(df['data'].value_counts(dropna=False), "\n")
+
+
+def to_idxs_of_list(elements, list):
+    """
+    Returns list of elements' indexes in list
+    """
+    return [list.index(el) for el in elements]

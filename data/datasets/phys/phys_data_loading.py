@@ -146,9 +146,6 @@ class PHYS_DataLoader(MI_DataLoader):
                                           n_class=n_classes)
         if n_classes == 2:
             labels = dec_label(labels)
-        # TODO? if REST_TRIALS_FROM_BASELINE_RUN:
-        #     np.random.seed(39)
-        #     data, labels = unified_shuffle_arr(data, labels)
         return data, labels
 
     event_dict = {'T0': 1, 'T1': 2, 'T2': 3}

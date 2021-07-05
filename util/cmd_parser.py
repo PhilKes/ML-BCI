@@ -131,16 +131,12 @@ def add_train_arguments(parser):
 
 def check_train_arguments(parser, args):
     if args.ch_motorimg is not None:
+        # TODO Implement for BCIC
         if args.ch_motorimg not in MOTORIMG_CHANNELS:
             parser.error(
                 f"Only {list_to_str(MOTORIMG_CHANNELS.keys())} channels are available for --ch_motorimg option")
             pass
         args.ch_names = MOTORIMG_CHANNELS[args.ch_motorimg]
-        # TODO if args.name is None:
-        #     start = datetime.now()
-        #     args.name = f"{datetime_to_folder_str(start)}_motor_img{args.ch_motorimg}"
-        # else:
-        #     args.name = args.name + f"_motor_img{args.ch_motorimg}"
 
 
 #    if (len(args.ch_names) < 1) | any((ch not in MNE_CHANNELS) for ch in args.ch_names):

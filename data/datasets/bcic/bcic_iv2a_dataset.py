@@ -27,6 +27,8 @@ from data.data_utils import butter_bandpass_filt
 from config import global_config
 
 # All total trials per class per n_class-Classification
+from util.misc import to_idxs_of_list
+
 BCIC_classes_trials = {
     "2class": {
         0: 572,  # Left
@@ -136,7 +138,7 @@ class BCIC_IV2a_dataset:
 
         self.fs = eeg_config.SAMPLERATE  # sampling rate: 250Hz from original paper
         self.n_trials_max = None  # Maximum possible number of trials
-        self.n_channels = len(ch_names)  # 22 EEG electrodes
+        self.channel_idxs = to_idxs_of_list(ch_names, BCIC.CHANNELS)  # 22 EEG electrodes
 
         self.tmin = eeg_config.TMIN
         self.tmax = eeg_config.TMAX
@@ -256,8 +258,7 @@ class BCIC_IV2a_dataset:
                         start = events_position[0, index]
                         stop = start + events_duration[0, index]
                         # Copy trial data into pl_data array
-                        for i in range(self.n_channels):
-                            channel = i
+                        for i, channel in enumerate(self.channel_idxs):
                             trial = raw[channel, start:stop]
                             if len(trial) != 1875:
                                 print('get_trials(): Illegal length')
@@ -265,7 +266,7 @@ class BCIC_IV2a_dataset:
                             # Copy part of channel data into pl_data
                             start_idx = int(self.tmin * self.fs)
                             for idx in range(self.n_samples):
-                                self.pl_data[subject_idx, pl_trial_ind, channel, idx] = float(trial[start_idx + idx])
+                                self.pl_data[subject_idx, pl_trial_ind, i, idx] = float(trial[start_idx + idx])
 
                         pl_trial_ind = pl_trial_ind + 1
 
@@ -292,7 +293,7 @@ class BCIC_IV2a_dataset:
     def load_subjects_data(self, training):
         self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class
 
-        self.pl_data = np.zeros((len(self.subjects), self.n_trials_max, self.n_channels, \
+        self.pl_data = np.zeros((len(self.subjects), self.n_trials_max, len(self.channel_idxs), \
                                  self.n_samples), dtype=np.float32)
         self.pl_labels = np.full((len(self.subjects), self.n_trials_max,), -1, dtype=np.int)  # Initialize
         # preloaded_labels with -1, which indicates an invalid trial
