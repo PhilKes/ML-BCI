@@ -12,6 +12,7 @@ import torch
 from scipy import io
 from config import ROOT
 from data.datasets.phys.phys_data_loading import PHYS_DataLoader
+from util.misc import copy_attrs, to_el_list
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -471,11 +472,9 @@ class LSMRMetadata:
         copy_attrs(self, metadata)
 
 
-def copy_attrs(obj_to, obj_from):
-    for i in range(len(obj_from.dtype.names)):
-        data = obj_from[i].item()
-        label = obj_from.dtype.names[i]
-        setattr(obj_to, str.lower(label), data)
+
+
+
 
 
 class LSMRTrialData:
@@ -495,9 +494,22 @@ class LSMRTrialData:
         copy_attrs(self, trialdata)
 
 
+class LSMRChanInfo:
+    positionsrecorded: bool
+    label: List[str]
+    noisechan: List[int]
+    electrodes: np.ndarray
+    fiducials: np.ndarray
+    shape: np.ndarray
+
+    def __init__(self, chaninfo):
+        super().__init__()
+        copy_attrs(self, chaninfo)
+        self.label = to_el_list(self.label)
+
+
 import pandas as pd
 
-from collections import Counter
 
 ignore_metadata = False
 
@@ -508,6 +520,7 @@ class LSMRSubjectRun:
     data: np.ndarray
     time: np.ndarray
     srate: int
+    chaninfo: LSMRChanInfo
 
     def __init__(self, matlab):
         super().__init__()
@@ -519,6 +532,8 @@ class LSMRSubjectRun:
         for trialdata in matlab['TrialData'][0, 0][0]:
             self.trialdata.append(LSMRTrialData(trialdata))
         self.data = matlab['data'][0, 0][0]
+        # for i,data in enumerate(self.data):
+        #     self.data[i] = self.data[i].astype(np.float16)
 
         # samples = 8000
         # x = np.zeros((0, 62, samples), dtype=np.object)
@@ -528,12 +543,14 @@ class LSMRSubjectRun:
         # self.data = x
         self.time = matlab['time'][0, 0][0]
         self.srate = matlab['SRATE'][0, 0].item()
+        self.chaninfo = LSMRChanInfo(matlab['chaninfo'][0, 0][0, 0])
         self.print_stats()
 
     def print_stats(self):
         # TODO Trials have highly varying nr. of Samples
         #    max. Samples per Trial: 11041 -> means Timeout (trialdata.result= NaN)
         #    if less than 11040 Samples, result either 0 or 1 (hit correct or wrong target)
+        #    What to do if less than 11041 Samples? Fill up with last present value?
         #    use trialdata.result or forcedresult?
         max_samples = 11040
         results = np.zeros(0, dtype=np.int)

@@ -129,3 +129,37 @@ def file_write(path, data):
 # Get Subdirectories of dir sorted by name
 def get_subdirs(dir):
     return sorted([path for path in os.listdir(dir) if os.path.isdir(os.path.join(dir, path))])
+
+
+def to_el_list(ndarr):
+    """
+    Converts numpy array to list
+    unpacks all inner arrays to single elements
+    if shape=1
+    :param ndarr: numpy array
+    :return: Python List
+    """
+    l = []
+    for el in ndarr:
+        if all([s == 1 for s in el.shape]):
+            l.append(el.item())
+        else:
+            l.append(el)
+    return l
+
+
+def copy_attrs(obj_to, arr_from):
+    """
+    Copies all values of arr_from to obj_to
+    Names of attribute name are given in
+    arr_from.dtype.names
+    Unpacks unnecessary inner arrays if shape=1
+    """
+    for i in range(len(arr_from.dtype.names)):
+        data = arr_from[i]
+        if all([s == 1 for s in data.shape]):
+            data = data.item()
+        elif data.shape[0] == 1:
+            data = data[0]
+        label = arr_from.dtype.names[i]
+        setattr(obj_to, str.lower(label), data)
