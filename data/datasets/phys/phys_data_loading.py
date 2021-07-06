@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from config import VERBOSE, eeg_config, datasets_folder, global_config
 from config import results_folder
-from data.MI_DataLoader import MI_DataLoader
+from data.MIDataLoader import MIDataLoader
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
     butter_bandpass_filt
@@ -33,7 +33,7 @@ from util.plot import matplot
 mne.set_log_level('WARNING')
 
 
-class PHYS_TrialsDataset(TrialsDataset):
+class PHYSTrialsDataset(TrialsDataset):
     """
      TrialsDataset class Implementation for Physionet Dataset
     """
@@ -42,7 +42,6 @@ class PHYS_TrialsDataset(TrialsDataset):
                  ch_names=PHYS.CHANNELS, equal_trials=True):
         super().__init__(subjects, n_classes, device, preloaded_tuple, ch_names, equal_trials)
 
-        self.runs = []
         self.trials_per_subject = get_trials_size(n_classes, equal_trials) \
                                   * eeg_config.TRIALS_SLICES - PHYS.CONFIG.REST_TRIALS_LESS
 
@@ -57,9 +56,9 @@ class PHYS_TrialsDataset(TrialsDataset):
             local_trial_idx]
 
 
-class PHYS_DataLoader(MI_DataLoader):
+class PHYSDataLoader(MIDataLoader):
     """
-    MI_DataLoader implementation for Physionet Dataset
+    MIDataLoader implementation for Physionet Dataset
     """
     name = PHYS.name
     name_short = PHYS.short_name
@@ -67,7 +66,7 @@ class PHYS_DataLoader(MI_DataLoader):
     folds = PHYS.cv_folds
     eeg_config = PHYS.CONFIG
     channels = PHYS.CHANNELS
-    ds_class = PHYS_TrialsDataset
+    ds_class = PHYSTrialsDataset
 
     # Returns Train/Test Loaders containing all n_class Runs of subject
     # n_test_runs specifies how many Runs are reserved for Testing
@@ -289,7 +288,7 @@ def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}
     # ch_names = ['F4', 'Oz', 'F7', 'F6']
 
     # Load Raw Subject Run for n_class
-    raw = PHYS_DataLoader.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
+    raw = PHYSDataLoader.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
     # Get Data from raw Run
     X = get_data_from_raw(raw)
 

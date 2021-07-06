@@ -38,9 +38,10 @@ class TrialsDataset(Dataset):
         self.n_classes = n_class
         self.device = device
         self.equal_trials = equal_trials
-        self.preloaded_data = preloaded_tuple[0]
-        self.preloaded_labels = preloaded_tuple[1]
         self.ch_names = ch_names
+        if preloaded_tuple is not None:
+            self.preloaded_data = preloaded_tuple[0]
+            self.preloaded_labels = preloaded_tuple[1]
 
     def __len__(self):
         """

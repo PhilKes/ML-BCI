@@ -9,7 +9,7 @@ import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
 from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, eeg_config
-from data.datasets.phys.phys_data_loading import PHYS_DataLoader
+from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from data.datasets.phys.phys_dataset import PHYS
 
 from util.dot_dict import DotDict
@@ -54,8 +54,8 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
     preloaded_data, preloaded_labels = None, None
 
     print("PRELOADING ALL DATA IN MEMORY")
-    preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
-                                                                          ch_names, equal_trials, normalize=False)
+    preloaded_data, preloaded_labels = PHYSDataLoader.load_subjects_data(available_subjects, n_class,
+                                                                         ch_names, equal_trials, normalize=False)
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -70,10 +70,10 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     batch_size = 1
     # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-    loaders = PHYS_DataLoader.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
-                                                         preloaded_data,
-                                                         preloaded_labels, batch_size, ch_names, equal_trials,
-                                                         used_subjects=used_subjects)
+    loaders = PHYSDataLoader.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+                                                        preloaded_data,
+                                                        preloaded_labels, batch_size, ch_names, equal_trials,
+                                                        used_subjects=used_subjects)
     loader_train, loader_test, loader_valid = loaders
 
     num_samples = eeg_config.SAMPLES
@@ -185,8 +185,8 @@ def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR,
 
     n_class = 2
     print("PRELOADING ALL DATA IN MEMORY")
-    preloaded_data, preloaded_labels = PHYS_DataLoader.load_subjects_data(available_subjects, n_class,
-                                                                          ch_names, equal_trials, normalize=False)
+    preloaded_data, preloaded_labels = PHYSDataLoader.load_subjects_data(available_subjects, n_class,
+                                                                         ch_names, equal_trials, normalize=False)
 
     print("  - preloaded_data.shape =", preloaded_data.shape)
     print("  - preloaded_labels.shape =", preloaded_labels.shape)

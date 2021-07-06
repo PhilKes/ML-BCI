@@ -7,21 +7,21 @@ Description:
   developed by P. Kessler.
 
 Author: Manfred Strahnen (based on the template given by Philipp Kessler
-        file: phys_data_loading.py)
+        file: lsmr21_data_loading.py)
 
 History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
 
 from config import global_config
-from data.MI_DataLoader import MI_DataLoader
+from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
 
 
-class BCIC_TrialsDataset(TrialsDataset):
+class BCICTrialsDataset(TrialsDataset):
     """
      TrialsDataset class Implementation for BCIC Dataset
     """
@@ -67,7 +67,7 @@ class BCIC_TrialsDataset(TrialsDataset):
         return self.preloaded_data[subject_idx][trial_idx], self.preloaded_labels[subject_idx][trial_idx]
 
 
-class BCIC_Dataloader(MI_DataLoader):
+class BCICDataloader(MIDataLoader):
     """
     MI_DataLoader implementation for BCIC Dataset
     """
@@ -77,7 +77,7 @@ class BCIC_Dataloader(MI_DataLoader):
     folds = BCIC.cv_folds
     eeg_config = BCIC.CONFIG
     channels = BCIC.CHANNELS
-    ds_class = BCIC_TrialsDataset
+    ds_class = BCICTrialsDataset
 
     @classmethod
     def load_subjects_data(cls, subjects, n_class, ch_names=BCIC.CHANNELS, equal_trials=True,

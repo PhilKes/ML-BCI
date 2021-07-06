@@ -8,7 +8,7 @@ import numpy as np
 from util.misc import print_subjects_ranges
 
 
-class MI_DataLoader:
+class MIDataLoader:
     """
     Abstract Superclass for any Motor Imagery Dataset Loader
     If a new Dataset is added, a class implementing all here
@@ -57,15 +57,24 @@ class MI_DataLoader:
                                                            preloaded_data[subjects_valid_idxs, :, :, :],
                                                            preloaded_labels[subjects_valid_idxs, :],
                                                            bs, ch_names, equal_trials)
-
-        loader_train = cls.create_loader_from_subjects(subjects_train, n_class, device,
-                                                       preloaded_data[subjects_train_idxs, :, :, :],
-                                                       preloaded_labels[subjects_train_idxs, :],
-                                                       bs, ch_names, equal_trials)
-        loader_test = cls.create_loader_from_subjects(subjects_test, n_class, device,
-                                                      preloaded_data[subjects_test_idxs, :, :, :],
-                                                      preloaded_labels[subjects_test_idxs, :],
-                                                      bs, ch_names, equal_trials)
+        if preloaded_data is not None:
+            loader_train = cls.create_loader_from_subjects(subjects_train, n_class, device,
+                                                           preloaded_data[subjects_train_idxs, :, :, :],
+                                                           preloaded_labels[subjects_train_idxs, :],
+                                                           bs, ch_names, equal_trials)
+            loader_test = cls.create_loader_from_subjects(subjects_test, n_class, device,
+                                                          preloaded_data[subjects_test_idxs, :, :, :],
+                                                          preloaded_labels[subjects_test_idxs, :],
+                                                          bs, ch_names, equal_trials)
+        else:
+            loader_train = cls.create_loader_from_subjects(subjects_train, n_class, device,
+                                                           preloaded_data,
+                                                           preloaded_labels,
+                                                           bs, ch_names, equal_trials)
+            loader_test = cls.create_loader_from_subjects(subjects_test, n_class, device,
+                                                          preloaded_data,
+                                                          preloaded_labels,
+                                                          bs, ch_names, equal_trials)
         return loader_train, loader_test, loader_valid
 
     # Creates DataLoader with Random Sampling from subject list

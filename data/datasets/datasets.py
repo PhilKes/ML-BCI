@@ -1,8 +1,10 @@
-from data.datasets.bcic.bcic_data_loading import BCIC_Dataloader
-from data.datasets.phys.phys_data_loading import PHYS_DataLoader
+from data.datasets.bcic.bcic_data_loading import BCICDataloader
+from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader
+from data.datasets.phys.phys_data_loading import PHYSDataLoader
 
 # Available Datasets as Dictionary (short_name: MI_DataLoader class)
 DATASETS = {
-    PHYS_DataLoader.name_short: PHYS_DataLoader,
-    BCIC_Dataloader.name_short: BCIC_Dataloader
+    PHYSDataLoader.name_short: PHYSDataLoader,
+    BCICDataloader.name_short: BCICDataloader,
+    LSMR21DataLoader.name_short: LSMR21DataLoader
 }

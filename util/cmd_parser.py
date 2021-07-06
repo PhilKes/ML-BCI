@@ -62,10 +62,10 @@ def add_common_arguments(parser):
 
     parser.add_argument('--trials_slices', type=int, default=eeg_config.TRIALS_SLICES,
                         help=f'Will slice every Trial into n x Trials (default: {eeg_config.TRIALS_SLICES})')
-    parser.add_argument('--tmin', type=float, default=eeg_config.TMIN,
-                        help=f'Start Time of every Trial Epoch (default: {eeg_config.TMIN})')
-    parser.add_argument('--tmax', type=float, default=eeg_config.TMAX,
-                        help=f'End Time of every Trial Epoch (default: {eeg_config.TMAX})')
+    parser.add_argument('--tmin', type=float, default=None,
+                        help=f'Start Time of every Trial Epoch')
+    parser.add_argument('--tmax', type=float, default=None,
+                        help=f'End Time of every Trial Epoch')
     parser.add_argument('--dataset', type=str, default=PHYS.short_name,
                         help=f'Name of the MI dataset (available: {",".join([ds for ds in DATASETS])})')
 
@@ -95,10 +95,11 @@ def check_common_arguments(parser, args):
 
     # Dataset dependent EEG config structure re-initialization
     set_eeg_config(dataset.eeg_config)
-
-    if (args.tmin > args.tmax) | (args.tmin == args.tmax):
-        parser.error(f"tmax has to be greater than tmin!")
-    set_eeg_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
+    if (args.tmin is not None) and (args.tmax is not None):
+        if(args.tmin > args.tmax) or (args.tmin == args.tmax):
+            parser.error(f"tmax has to be greater than tmin!")
+        else:
+            set_eeg_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
     if args.trials_slices < 1:
         parser.error(f"Trials slices has to be greater than 0!")
     if (eeg_config.SAMPLES % args.trials_slices != 0):
