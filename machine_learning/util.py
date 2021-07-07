@@ -3,7 +3,10 @@ from typing import Any, Dict, List
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch  # noqa
+from torch.utils.data import BatchSampler, Sampler, SequentialSampler
+
 from config import eeg_config, TEST_OVERFITTING
+from data.datasets import TrialsDataset
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
 from datetime import datetime, timedelta
@@ -169,3 +172,35 @@ def preferred_device(preferred):
     else:
         dev = "cpu"
     return torch.device(dev)
+
+
+class SubjectTrialsRandomSampler(SequentialSampler):
+    """
+    Samples subject-wise Trials in Random Order
+    Shuffles Trials of every Subject individually so that all Trials
+    of a Subject only have to be loaded once per Epoch
+    """
+    subjects: int
+    trials: np.ndarray
+
+    def __init__(self, ds: TrialsDataset):
+        """
+        Initializes the Sampler for the given TrialsDataset
+        :param ds: TrialsDataset containing List of Subjects and Trial Per Subject
+        """
+        self.subjects = len(ds.subjects)
+        self.trials = np.arange(self.subjects * ds.trials_per_subject)
+        super().__init__(self.trials)
+
+    def __iter__(self):
+        """
+        Splits all Trials into Trials of each Subject
+        Shuffles the Subjects' Trial Lists individually
+        :return: yields List of Subjects' Trials
+        """
+        trials = np.split(self.trials, self.subjects)
+        np.random.seed(42)
+        for subject_trials in trials:
+            np.random.shuffle(subject_trials)
+            for trial in subject_trials:
+                yield trial

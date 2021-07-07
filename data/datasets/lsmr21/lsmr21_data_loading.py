@@ -17,6 +17,7 @@ from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.configs_results import get_global_config_str
+from machine_learning.util import SubjectTrialsRandomSampler
 from util.misc import print_numpy_counts, print_counts, copy_attrs, to_el_list, to_idxs_of_list
 
 
@@ -39,6 +40,11 @@ class LSMR21TrialsDataset(TrialsDataset):
         # determine required subject for trial
         subject_idx = int(trial / self.trials_per_subject)
 
+        #print(f"S{subject_idx+1} T{local_trial_idx} global T{trial}")
+        # TODO RandomSampler switches between subjects all the time
+        #  -> e.g. Subject 1 is loaded, Datasets only wants 1 Trial of that Subject
+        #  -> immediately needs to load another subject -> very inefficient
+        #   introduced util.SubjectTrialsRandomSampler
         # Load subject in buffer if not already
         if self.loaded_subject != subject_idx:
             self.loaded_subject_data, self.loaded_subject_labels = self.load_subject(subject_idx)
@@ -49,17 +55,24 @@ class LSMR21TrialsDataset(TrialsDataset):
     def load_subject(self, subject_idx, runs=LSMR21.runs):
         """
         Load all Trials of all Runs of Subject
-        :return: subject_data, subject_labels for all Subject's Trials
+        :return: subject_data Numpy Array, subject_labels Numpy Array for all Subject's Trials
         """
         subject_data = np.zeros((0, len(self.ch_names), eeg_config.SAMPLES), dtype=np.float32)
         subject_labels = np.zeros((0), dtype=np.int)
         for run in runs:
+            print(f"Loading Subject {subject_idx + 1} Run {run}")
+            # TODO Load via Matlab/Numpy
+            # Load Subject Run from Matlab
             sr = LSMRSubjectRun(subject_idx + 1, LSMR21DataLoader.load_subject_run(subject_idx + 1, run))
-            data = sr.get_data(eeg_config.TMAX, to_idxs_of_list(self.ch_names, LSMR21.CHANNELS))
-            # trials_idxs = sr.get_trials_with_min_mi_time(eeg_config.TMAX)
-            subject_data = np.concatenate(
-                (subject_data, data))
-            subject_labels = np.concatenate((subject_labels, sr.get_labels(eeg_config.TMAX)))
+            # Load Subject Run from Numpy
+            # sr = LSMRSubjectRun.from_npz(subject_idx + 1, run)
+            # Get Trials idxs of correct n_class and minimum Sample size
+            trials_idxs = sr.get_trials(self.n_class, eeg_config.TMAX,
+                                        ignore_target=4 if self.n_class == 3 else None)
+            data = sr.get_data(trials_idxs=trials_idxs, ch_idxs=to_idxs_of_list(self.ch_names, LSMR21.CHANNELS))
+            subject_data = np.concatenate((subject_data, data))
+            subject_labels = np.concatenate((subject_labels, sr.get_labels(trials_idxs=trials_idxs) - 1))
+        #print_counts(subject_labels)
         return subject_data, subject_labels
 
 
@@ -74,6 +87,7 @@ class LSMR21DataLoader(MIDataLoader):
     eeg_config = LSMR21.CONFIG
     channels = LSMR21.CHANNELS
     ds_class = LSMR21TrialsDataset
+    sampler = SubjectTrialsRandomSampler
 
     @classmethod
     def load_subjects_data(cls, subjects, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
@@ -237,32 +251,42 @@ class LSMRSubjectRun:
         self.time = matlab['time'][0, 0][0]
         self.srate = matlab['SRATE'][0, 0].item()
         self.chaninfo = LSMRChanInfo(matlab['chaninfo'][0, 0][0, 0])
-        self.print_stats()
-        self.print_trials_with_min_mi_time([eeg_config.TMAX])
+        # self.print_stats()
+        # self.print_trials_with_min_mi_time([eeg_config.TMAX])
 
-    def get_trials_of_tasks(self, tasks):
-        # TODO
-        return [i for i in range(len(self.trialdata)) if self.trialdata[i].tasknumber in tasks]
+    def get_trials_of_tasks(self, tasks: List[int], ignore_target=None):
+        """
+        Get Trial idxs corresponding to given Tasks
+        :param ignore_target: Omit Trials with specified targetnumber, e.g. 4 = 'Down' (Task 2/3)
+        :return: List of Trial idxs
+        """
+        return [i for i, td in enumerate(self.trialdata) if
+                (td.tasknumber in tasks) and (td.targetnumber != ignore_target)]
 
-    def get_labels(self, mi_tmin=eeg_config.TMAX):
+    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=eeg_config.TMAX):
         """
         Return int Labels of all Trials as numpy array
         :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
+        :param trials_idxs: Force to return only specified trials
         """
-        trials = self.get_trials_with_min_mi_time(mi_tmin)
-        return np.asarray([trial.targetnumber for trial in  [self.trialdata[i] for i in trials]], dtype=np.int)
+        trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
+        return np.asarray([trial.targetnumber for trial in [self.trialdata[i] for i in trials]], dtype=np.int)
 
-    def get_data(self, mi_tmin=eeg_config.TMAX, ch_idxs=range(len(LSMR21.CHANNELS))):
+    def get_data(self, trials_idxs: List[int] = None, mi_tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))):
         """
         Return float Data of all Trials as numpy array
         :param ch_idxs: Channel Idxs to be used
         :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
+        :param trials_idxs: Force to return only specified trials
         """
-        trials = self.get_trials_with_min_mi_time(mi_tmin)
+        if mi_tmin is None:
+            mi_tmin = eeg_config.TMAX
+        trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
         min_sample = math.floor(eeg_config.TMIN * eeg_config.SAMPLERATE)
         max_sample = math.floor(self.srate * (mi_tmin))
+        # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
         for d in self.data[trials]:
             trial_data = d[ch_idxs, min_sample: max_sample]
@@ -284,23 +308,29 @@ class LSMRSubjectRun:
     #    """
     #     return np.asarray([trial for trial in self.trialdata if trial.tasknumber in tasks], dtype=np.int)
 
-    def get_trials_with_min_mi_time(self, t):
+    def get_trials(self, n_class=4, tmin=eeg_config.TMIN, ignore_target=None):
         """
-        Get Trials which have a minimum amount of Samples for t-seconds of Feedback Control period (Motorimagery Cue)
+        Get Trials indexes which have a minimum amount of Samples
+        for t-seconds of Feedback Control period (Motorimagery Cue)
         :param t: Minimum MI Cue Time (after 2s blank screen + 2s target presentation)
         :return: List of Trials indexes
         """
-
-        return [i for i, d in enumerate(self.data) if d.shape[1] >= t * self.srate]
+        # TODO Which Trials for 3class?
+        #  3class: Left/Right/Up?
+        # Get Trial idxs of n_class Trials (correct Tasks)
+        trials = self.get_trials_of_tasks(LSMR21.n_classes_tasks[n_class], ignore_target=ignore_target)
+        # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
+        return [i for i in trials if self.data[i].shape[1] >= tmin * self.srate]
 
     def print_trials_with_min_mi_time(self, mi_tmins=[4, 5, 6, 7, 8, 9, 10, 11]):
         """
         Print Table  with Trials with min. MI Cue Time
         """
         s_t = []
-        print(f"-- Subject {self.subject} Trials with at least n seconds of MI Cue Period --")
+        print(f"-- Subject {self.subject} Run {self.trialdata[0].runnumber} "
+              f"Trials with at least n seconds of MI Cue Period --")
         for mi_tmin in mi_tmins:
-            s_t.append(len(self.get_trials_with_min_mi_time(mi_tmin)))
+            s_t.append(len(self.get_trials(tmin=mi_tmin)))
         df = pd.DataFrame([s_t], columns=mi_tmins)
         print(df)
 
@@ -319,10 +349,11 @@ class LSMRSubjectRun:
                  )
 
     @staticmethod
-    def from_npz(path):
+    def from_npz(subject, run):
+        path = f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{run}"
         npz = np.load(f"{path}.npz", allow_pickle=True)
         if all(attr in npz.files for attr in ['data', 'time', 'trialdata']):
-            ds = LSMRSubjectRun(None)
+            ds = LSMRSubjectRun(subject, None)
             ds.data = npz['data']
             ds.time = npz['time']
             ds.trialdata = npz['trialdata'].tolist()

@@ -38,11 +38,11 @@ class PHYSTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for Physionet Dataset
     """
 
-    def __init__(self, subjects, n_classes, device, preloaded_tuple,
+    def __init__(self, subjects, n_class, device, preloaded_tuple,
                  ch_names=PHYS.CHANNELS, equal_trials=True):
-        super().__init__(subjects, n_classes, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
 
-        self.trials_per_subject = get_trials_size(n_classes, equal_trials) \
+        self.trials_per_subject = get_trials_size(n_class, equal_trials) \
                                   * eeg_config.TRIALS_SLICES - PHYS.CONFIG.REST_TRIALS_LESS
 
     def load_trial(self, trial):
@@ -128,22 +128,22 @@ class PHYSDataLoader(MIDataLoader):
         # print(collections.Counter(preloaded_labels))
         return preloaded_data, preloaded_labels
 
-    # Loads corresponding tasks for n_classes Classification
+    # Loads corresponding tasks for n_class Classification
     @classmethod
-    def load_n_classes_tasks(cls, subject, n_classes, ch_names=PHYS.CHANNELS, equal_trials=True,
+    def load_n_classes_tasks(cls, subject, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
                              trials_per_run_class=PHYS.TRIALS_PER_SUBJECT_RUN,
                              ignored_runs=[]):
-        tasks = PHYS.n_classes_tasks[n_classes].copy()
+        tasks = PHYS.n_classes_tasks[n_class].copy()
         if (not PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
             tasks.remove(0)
         data, labels = cls.load_task_runs(subject, tasks,
-                                          exclude_bothfists=(n_classes == 4),
-                                          exclude_rests=(n_classes == 2),
+                                          exclude_bothfists=(n_class == 4),
+                                          exclude_rests=(n_class == 2),
                                           ch_names=ch_names, ignored_runs=ignored_runs,
                                           equal_trials=equal_trials,
                                           trials_per_run_class=trials_per_run_class,
-                                          n_class=n_classes)
-        if n_classes == 2:
+                                          n_class=n_class)
+        if n_class == 2:
             labels = dec_label(labels)
         return data, labels
 

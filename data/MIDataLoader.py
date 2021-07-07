@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable
 
 from torch.utils.data import RandomSampler, DataLoader
 
@@ -21,7 +21,9 @@ class MIDataLoader:
     folds: int
     channels: List[int]
     eeg_config: Dict
-    ds_class: Any
+    ds_class: Callable
+    # Sample the trials in random order (see MIDataLoader.create_loader_from_subjects)
+    sampler: Callable = RandomSampler
 
     # Returns Loaders of Training + Test Datasets from index splits
     # for n_class classification
@@ -88,8 +90,7 @@ class MIDataLoader:
         trials_ds = cls.ds_class(subjects, n_class, device,
                                  preloaded_tuple=(preloaded_data, preloaded_labels),
                                  ch_names=ch_names, equal_trials=equal_trials)
-        # Sample the trials in random order
-        sampler = RandomSampler(trials_ds)
+        sampler = None if cls.sampler is None else cls.sampler(trials_ds)
         return DataLoader(trials_ds, bs, sampler=sampler, pin_memory=False)
 
     @classmethod

@@ -26,10 +26,10 @@ class BCICTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for BCIC Dataset
     """
 
-    def __init__(self, subjects, n_classes, device, preloaded_tuple,
+    def __init__(self, subjects, n_class, device, preloaded_tuple,
                  ch_names=BCIC.CHANNELS, equal_trials=True):
 
-        super().__init__(subjects, n_classes, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
         self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class per subject

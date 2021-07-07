@@ -11,8 +11,8 @@ class LSMR21:
     short_name = 'LSMR21'
 
     # No excluded subjects
-    ALL_SUBJECTS = [1, 2]  # 62 Subjects
-    runs = [1]
+    ALL_SUBJECTS = [1, 2, 7, 26]  # 62 Subjects
+    runs = [1,11]
     trials_per_subject = 115
     cv_folds = 2
 
@@ -31,10 +31,10 @@ class LSMR21:
                 'P6', 'P8', 'PO7', 'PO5', 'PO3', 'POZ', 'PO4', 'PO6', 'PO8', 'CB1', 'O1', 'OZ', 'O2', 'CB2']
     # Time Interval per EEG Trial (T=4: start of MI Cue)
     # Time: 2s blank Screen + 2s Target Presentation + 0-6s Feedback Control + 1s additional = max. 11s
-    # TMAX = 7s (6s Feedback Control (MI Cue) + 1s additional)
+    # TMAX = 7s (0-6s Feedback Control (MI Cue) + 1s additional)
     CONFIG = DotDict(
         TMIN=0.0,
-        TMAX=7.0,
+        TMAX=2.0,
         SAMPLERATE=1000,
         CUE_OFFSET=4.0
     )

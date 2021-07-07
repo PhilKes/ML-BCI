@@ -35,7 +35,7 @@ class TrialsDataset(Dataset):
             subjects: list of subjects
         """
         self.subjects = subjects
-        self.n_classes = n_class
+        self.n_class = n_class
         self.device = device
         self.equal_trials = equal_trials
         self.ch_names = ch_names

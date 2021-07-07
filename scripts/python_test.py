@@ -10,16 +10,17 @@ import numpy as np
 
 import torch
 from scipy import io
+from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
+
 from config import ROOT
-from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun
+from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
+from machine_learning.util import SubjectTrialsRandomSampler
 from util.misc import copy_attrs, to_el_list, print_counts
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
 print(F"Current Device:\t{torch.cuda.get_device_name(0)}\t(Device {torch.cuda.current_device()})")
-
-
 
 mne.set_log_level('WARNING')
 
@@ -91,22 +92,29 @@ def check_bad_data(subjects, n_classes):
     print("Min", min, "Max", max)
 
 
-
-from config import datasets_folder
 import time
-
+from config import datasets_folder
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 
 
-
-
-
-import pandas as pd
-
+def yield_stuff(subjects, trials_per_subject):
+    trials = np.arange(subjects * trials_per_subject)
+    trials = np.split(trials, subjects)
+    np.random.seed(42)
+    for subject_trials in trials:
+        np.random.shuffle(subject_trials)
+        for trial in subject_trials:
+            yield trial
 if __name__ == '__main__':
-    start = time.time()
-    s1 = LSMRSubjectRun(1, load_subject_run(0, 0))
-    s46 = LSMRSubjectRun(46, load_subject_run(45, 10))
+    # start = time.time()
+    # subjects = [1, 1, 46, 46]
+    #
+    # runs = [1, 11, 1, 11]
+    # for i, subject in enumerate(subjects):
+    #     s = LSMRSubjectRun(1, LSMR21DataLoader.load_subject_run(subject, runs[i]))
+    #     # s.to_npz(f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{runs[i]}")
+    #     s.print_trials_with_min_mi_time()
+
     # print(time.time() - start)
     #
     # # metadata=x['metadata'][0, 0][0, 0]
@@ -124,5 +132,9 @@ if __name__ == '__main__':
     # print(time.time() - start)
     # data = x['TrialData'][0, 0]
     # print(data)
-    s1.print_trials_with_min_mi_time()
-    s46.print_trials_with_min_mi_time()
+
+    subjects = 2
+    trials_per_subject = 10
+    print(list(SubjectTrialsRandomSampler(subjects, trials_per_subject)))
+
+    #print(list(yield_stuff(subjects,trials_per_subject)))
