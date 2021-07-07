@@ -1,15 +1,15 @@
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 import numpy as np
-from sklearn.metrics import confusion_matrix
 import torch  # noqa
-from torch.utils.data import BatchSampler, Sampler, SequentialSampler
+from sklearn.metrics import confusion_matrix
+from torch.utils.data import SequentialSampler
 
 from config import eeg_config, TEST_OVERFITTING
 from data.datasets import TrialsDataset
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
-from datetime import datetime, timedelta
 from util.misc import get_class_avgs
 
 

@@ -3,6 +3,7 @@ IGNORE
 Python script for miscellaneous testing of libraries
 """
 import math
+import os
 from typing import List
 
 import mne
@@ -10,6 +11,7 @@ import numpy as np
 
 import torch
 from scipy import io
+from sympy import pretty_print
 from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
 
 from config import ROOT
@@ -105,15 +107,48 @@ def yield_stuff(subjects, trials_per_subject):
         np.random.shuffle(subject_trials)
         for trial in subject_trials:
             yield trial
+
+
+def matlab_to_numpy(subjects, runs):
+    """
+    Convert Matlab LSMR Subject Run Files to numpy files
+    """
+    for i, subject in enumerate(subjects):
+        for run in runs:
+            npz_path = f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{run}.npz"
+            if os.path.isfile(npz_path):
+                continue
+            s = LSMRSubjectRun(subject, LSMR21DataLoader.load_subject_run(subject, run))
+            s.to_npz(npz_path)
+
+
+import pandas as pd
+from util.misc import print_pretty_table
+
+
+def print_trials_per_tmin(subjects, runs, mi_tmins=np.arange(4, 11, 1)):
+    """
+    Prints Table of Trials per Subject Run with minimum Sample Size (Tmin)
+    :param mi_tmins: List of Tmins the Trials have to have
+    """
+    subject_trials = []
+    row_labels = []
+    for i, subject in enumerate(subjects):
+        for run in runs:
+            s = LSMR21DataLoader.load_subject_run(subject, run)
+            subject_trials.append(s.get_trials_tmin())
+            row_labels.append(f"S{subject:03d} R{run:02d}")
+    df = pd.DataFrame(subject_trials, columns=[f"{tmin:.2f}s" for tmin in mi_tmins], index=row_labels)
+    print(f"--- Available Trials of Subject {subjects} of Runs {runs} ---")
+    print_pretty_table(df)
+
+
 if __name__ == '__main__':
     # start = time.time()
-    # subjects = [1, 1, 46, 46]
+    subjects = [1,26, 46]
     #
-    # runs = [1, 11, 1, 11]
-    # for i, subject in enumerate(subjects):
-    #     s = LSMRSubjectRun(1, LSMR21DataLoader.load_subject_run(subject, runs[i]))
-    #     # s.to_npz(f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{runs[i]}")
-    #     s.print_trials_with_min_mi_time()
+    runs = [1, 11]
+    print_trials_per_tmin(subjects, runs)
 
     # print(time.time() - start)
     #
@@ -133,8 +168,18 @@ if __name__ == '__main__':
     # data = x['TrialData'][0, 0]
     # print(data)
 
-    subjects = 2
-    trials_per_subject = 10
-    print(list(SubjectTrialsRandomSampler(subjects, trials_per_subject)))
-
-    #print(list(yield_stuff(subjects,trials_per_subject)))
+    # subjects = 2
+    # trials_per_subject = 10
+    # print(list(SubjectTrialsRandomSampler(subjects, trials_per_subject)))
+    # print(list(yield_stuff(subjects,trials_per_subject)))
+    # data = np.asarray(
+    #     [
+    #         [
+    #             [0, 1, 2], [3, 4, 5]
+    #         ],
+    #         [
+    #             [6, 7, 8], [9, 10, 11]
+    #         ],
+    #     ])
+    # data = np.resize(data, (data.shape[0], data.shape[1], 2))
+    # data = np.vstack(data[:, :, :]).astype(np.float)

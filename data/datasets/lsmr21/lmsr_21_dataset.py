@@ -12,7 +12,7 @@ class LSMR21:
 
     # No excluded subjects
     ALL_SUBJECTS = [1, 2, 7, 26]  # 62 Subjects
-    runs = [1,11]
+    runs = [1, 11]
     trials_per_subject = 115
     cv_folds = 2
 
@@ -41,4 +41,4 @@ class LSMR21:
 
     # Mapping of n_class Classification to correct Tasks
     # 1: Left/Right, 2: Up/Down, 3: 2D (Left/Right/Up/Down)
-    n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2]}
+    n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}

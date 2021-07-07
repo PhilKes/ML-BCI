@@ -9,6 +9,7 @@ from config import results_folder, training_results_folder, training_ss_results_
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
+from util.misc import print_pretty_table
 
 default_options = ['-train']
 train_ss_options = ['-train_ss', '--model']
@@ -181,7 +182,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
         with open(os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'),
                   'w') as outfile:
             df.to_string(outfile)
-        print(df)
+        print_pretty_table(df)
     return results_list
 
 

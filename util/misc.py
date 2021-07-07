@@ -6,7 +6,9 @@ import math
 import os
 
 import numpy as np
+import pandas
 import pandas as pd
+from tabulate import tabulate
 
 from config import chs_names_txt
 
@@ -171,7 +173,8 @@ def print_counts(list):
     Counts element occurences in list and prints as Table
     """
     df = pd.DataFrame(list, columns=['data'])
-    print(df['data'].value_counts(dropna=False), "\n")
+    print_pretty_table(df['data'].value_counts(dropna=False))
+    print("\n")
 
 
 def to_idxs_of_list(elements, list):
@@ -179,3 +182,10 @@ def to_idxs_of_list(elements, list):
     Returns list of elements' indexes in list
     """
     return [list.index(el) for el in elements]
+
+
+def print_pretty_table(dataframe: pandas.DataFrame):
+    """
+    Prints pretty formatted Table (DataFrame) in the Console
+    """
+    print(tabulate(dataframe, headers='keys', tablefmt='fancy_grid'))
