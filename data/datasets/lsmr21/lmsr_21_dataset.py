@@ -35,10 +35,14 @@ class LSMR21:
     CONFIG = DotDict(
         TMIN=0.0,
         TMAX=2.0,
-        SAMPLERATE=1000,
+        #SAMPLERATE=1000,
+        # TODO KEEP IN SYNC WITH NUMPY DOWNSAMPLING
+        SAMPLERATE=250,
         CUE_OFFSET=4.0
     )
 
     # Mapping of n_class Classification to correct Tasks
     # 1: Left/Right, 2: Up/Down, 3: 2D (Left/Right/Up/Down)
     n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}
+
+    n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}

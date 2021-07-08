@@ -15,7 +15,7 @@ from sympy import pretty_print
 from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
 
 from config import ROOT
-from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader
+from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader, LSMRNumpyRun
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from machine_learning.util import SubjectTrialsRandomSampler
 from util.misc import copy_attrs, to_el_list, print_counts
@@ -145,10 +145,10 @@ def print_trials_per_tmin(subjects, runs, mi_tmins=np.arange(4, 11, 1)):
 
 if __name__ == '__main__':
     # start = time.time()
-    subjects = [1,26, 46]
+    subjects = [1, 26, 46]
     #
     runs = [1, 11]
-    print_trials_per_tmin(subjects, runs)
+    # print_trials_per_tmin(subjects, runs)
 
     # print(time.time() - start)
     #
@@ -181,5 +181,9 @@ if __name__ == '__main__':
     #             [6, 7, 8], [9, 10, 11]
     #         ],
     #     ])
+    # print(data[:,:,::3])
     # data = np.resize(data, (data.shape[0], data.shape[1], 2))
     # data = np.vstack(data[:, :, :]).astype(np.float)
+
+    r = LSMRNumpyRun.from_npz(np.load("/opt/datasets/LSMR21/numpy/S1_Session_1.npz",allow_pickle=True))
+    print()

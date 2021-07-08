@@ -8,6 +8,7 @@ import os
 import numpy as np
 import pandas
 import pandas as pd
+from scipy import io
 from tabulate import tabulate
 
 from config import chs_names_txt
@@ -189,3 +190,7 @@ def print_pretty_table(dataframe: pandas.DataFrame):
     Prints pretty formatted Table (DataFrame) in the Console
     """
     print(tabulate(dataframe, headers='keys', tablefmt='fancy_grid'))
+
+
+def load_matlab(filename):
+    return io.loadmat(filename)['BCI']
