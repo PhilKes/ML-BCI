@@ -186,4 +186,5 @@ if __name__ == '__main__':
     # data = np.vstack(data[:, :, :]).astype(np.float)
 
     r = LSMRNumpyRun.from_npz(np.load("/opt/datasets/LSMR21/numpy/S1_Session_1.npz",allow_pickle=True))
+    r.print_trials_with_min_mi_time()
     print()

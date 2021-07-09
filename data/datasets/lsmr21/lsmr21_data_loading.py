@@ -69,7 +69,7 @@ class LSMRNumpyRun:
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
         min_sample = math.floor(eeg_config.TMIN * eeg_config.SAMPLERATE)
-        max_sample = math.floor(self.srate * (mi_tmin))
+        max_sample = math.floor(eeg_config.SAMPLERATE * (mi_tmin))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
         elapsed = 0.0
@@ -84,33 +84,17 @@ class LSMRNumpyRun:
         print("Slicing Time: ", f"{time.time() - start:.2f}")
         return data
 
-    # def get_labels(self, tasks):
-    #     """
-    #     Return int Labels of all Trials as numpy array
-    #     :param tasks: Task numbers of trials to get
-    #     """
-    #     return np.asarray([trial.targetnumber for trial in self.trialdata if trial.tasknumber in tasks], dtype=np.int)
-    #
-    # def get_data(self, tasks):
-    #     """
-    #     Return float Data of all Trials as numpy array
-    #     :param tasks: Task numbers of trials to get
-    #    """
-    #     return np.asarray([trial for trial in self.trialdata if trial.tasknumber in tasks], dtype=np.int)
-
     def get_trials(self, n_class=4, tmin=eeg_config.TMIN):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
-        :param t: Minimum MI Cue Time (after 2s blank screen + 2s target presentation)
+        :param tmin: Minimum MI Cue Time (after 2s blank screen + 2s target presentation)
         :return: List of Trials indexes
         """
-        # TODO Which Trials for 3class?
-        #  3class: Left/Right/Up?
         # Get Trial idxs of n_class Trials (correct Tasks)
         trials = self.get_n_class_trials(n_class)
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
-        return [i for i in trials if self.data[i].shape[1] >= tmin * LSMR21.CONFIG.SAMPLERATE]
+        return [i for i in trials if self.data[i].shape[1] >= tmin * eeg_config.SAMPLERATE]
 
     def get_trials_tmin(self, mi_tmins=np.arange(4, 11, 1)):
         s_t = []
@@ -122,7 +106,7 @@ class LSMRNumpyRun:
         """
         Print Table  with Trials with min. MI Cue Time
         """
-        print(f"-- Subject {self.subject} Run {self.run} "
+        print(f"-- Subject {self.subject} --"
               f"Trials with at least n seconds of MI Cue Period --")
         df = pd.DataFrame([self.get_trials_tmin(mi_tmins)], columns=mi_tmins)
         print_pretty_table(df)
@@ -173,8 +157,7 @@ class LSMR21TrialsDataset(TrialsDataset):
 
             sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run)
             # Get Trials idxs of correct n_class and minimum Sample size
-            trials_idxs = sr.get_trials(self.n_class, eeg_config.TMAX,
-                                        ignore_target=4 if self.n_class == 3 else None)
+            trials_idxs = sr.get_trials(self.n_class, eeg_config.TMAX)
             data = sr.get_data(trials_idxs=trials_idxs, ch_idxs=to_idxs_of_list(self.ch_names, LSMR21.CHANNELS))
             subject_data = np.concatenate((subject_data, data))
             subject_labels = np.concatenate((subject_labels, sr.get_labels(trials_idxs=trials_idxs) - 1))
@@ -182,6 +165,7 @@ class LSMR21TrialsDataset(TrialsDataset):
             print(f"Loading + Slicing Time {subject_idx + 1}: {elapsed:.2f}")
 
         # print_counts(subject_labels)
+        # TODO Compare Matlab vs Numpy -> subject_data shape should have same amount of Trials
         return subject_data, subject_labels
 
 
@@ -204,7 +188,7 @@ class LSMR21DataLoader(MIDataLoader):
         return None, None
 
     @classmethod
-    def load_subject_run(cls, subject, run, from_matlab=False) -> LSMRNumpyRun:
+    def load_subject_run(cls, subject, run, from_matlab=True):
         # TODO numpy/matlab?
         if from_matlab:
             x = load_matlab(f"{datasets_folder}/{LSMR21.short_name}/matlab/S{subject}_Session_{run}")
@@ -223,4 +207,3 @@ class LSMR21DataLoader(MIDataLoader):
                              fmax=global_config.FREQ_FILTER_LOWPASS):
         # TODO
         raise NotImplementedError('This method is not implemented!')
-

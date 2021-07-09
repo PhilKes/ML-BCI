@@ -35,9 +35,9 @@ class LSMR21:
     CONFIG = DotDict(
         TMIN=0.0,
         TMAX=2.0,
-        #SAMPLERATE=1000,
+        SAMPLERATE=1000,
         # TODO KEEP IN SYNC WITH NUMPY DOWNSAMPLING
-        SAMPLERATE=250,
+        #SAMPLERATE=250,
         CUE_OFFSET=4.0
     )
 
