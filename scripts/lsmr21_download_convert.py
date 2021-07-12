@@ -29,14 +29,15 @@ def subject_run_to_numpy(sr: LSMRSubjectRun, path, ds_factor=4):
     :param ds_factor: downsampling Factor (1000Hz original Samplerate)
     """
     data = sr.data
-    # trial_info = (label, trial_category, artifact, triallength)
-    trial_info = np.zeros((data.shape[0], 4))
+    # trial_info = (label, tasknr, trial_category, artifact, triallength)
+    trial_info = np.zeros((data.shape[0], 5))
     for i in range(data.shape[0]):
         samples = int(data[i].shape[-1] // ds_factor)
         data[i] = signal.resample(data[i], samples, axis=1)
         trialdata = sr.trialdata[i]
         trial_info[i] = np.asarray(
-            [trialdata.targetnumber, get_trial_category(trialdata), trialdata.artifact, trialdata.triallength],
+            [trialdata.targetnumber, trialdata.tasknumber, get_trial_category(trialdata),
+             trialdata.artifact, trialdata.triallength],
             dtype=np.float16)
     np.savez(
         path,
@@ -67,7 +68,7 @@ if __name__ == '__main__':
                         help=f"Path to Folder containing Matlab Dataset files")
     parser.add_argument('--dest_path', type=str, default=None,
                         help=f"Path to Folder for the converted numpy files "
-                        f"(default: subdir 'numpy' in parentdir of --origin_path)")
+                             f"(default: subdir 'numpy' in parentdir of --origin_path)")
     parser.add_argument('-download',
                         help="If present, downloads all Matlab Files of the Dataset from Figshare.com into"
                              " --origin_path before converting to numpy",
@@ -101,6 +102,8 @@ if __name__ == '__main__':
         misc.makedir(args.dest_path)
     # Get Matlab Files in origin_path
     matlab_files = sorted([f for f in os.listdir(args.origin_path) if f.endswith('.mat')])
+    print(f"Converting all {len(matlab_files)} .mat Files from '{args.origin_path}'"
+          f" to minimal .npz Files in '{args.dest_path}'")
     for file in tqdm(matlab_files):
         # Load Matlab Data of 1 Subject Run
         matlab_data = misc.load_matlab(os.path.join(args.origin_path, file))

@@ -20,7 +20,7 @@ from util.misc import to_idxs_of_list, print_pretty_table, load_matlab
 
 class LSMRNumpyRun:
     data: np.ndarray
-    # per Trial: (label, trial_category, artifact, triallength)
+    # per Trial: (label,tasknr, trial_category, artifact, triallength)
     trial_info: np.ndarray
     subject: int
 
@@ -39,12 +39,13 @@ class LSMRNumpyRun:
 
     def get_n_class_trials(self, n_class: int):
         """
-        Get Trial idxs corresponding to  n_class Classifcation
+        Get Trial idxs corresponding to n_class Classifcation
         :return: List of Trial idxs
         """
-        # trial_info[0]= label (targetnumber)
+        # Get all trials with correct tasknr
+        # trial_info[1]= tasknr
         return [i for i, td in enumerate(self.trial_info) if
-                (td[0] in LSMR21.n_classes_targets[n_class])]
+                (td[1] in LSMR21.n_classes_tasks[n_class])]
 
     def get_labels(self, trials_idxs: List[int] = None, mi_tmin=eeg_config.TMAX):
         """
@@ -84,7 +85,7 @@ class LSMRNumpyRun:
         print("Slicing Time: ", f"{time.time() - start:.2f}")
         return data
 
-    def get_trials(self, n_class=4, tmin=eeg_config.TMIN):
+    def get_trials(self, n_class=4, tmin=eeg_config.TMIN, artifact=0, trial_category=0):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
@@ -93,6 +94,8 @@ class LSMRNumpyRun:
         """
         # Get Trial idxs of n_class Trials (correct Tasks)
         trials = self.get_n_class_trials(n_class)
+        print("n-class Trials: ", len(trials))
+        # TODO Filter out with artifact + trial_category
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
         return [i for i in trials if self.data[i].shape[1] >= tmin * eeg_config.SAMPLERATE]
 
@@ -166,6 +169,7 @@ class LSMR21TrialsDataset(TrialsDataset):
 
         # print_counts(subject_labels)
         # TODO Compare Matlab vs Numpy -> subject_data shape should have same amount of Trials
+        print(subject_data.shape)
         return subject_data, subject_labels
 
 
@@ -188,7 +192,7 @@ class LSMR21DataLoader(MIDataLoader):
         return None, None
 
     @classmethod
-    def load_subject_run(cls, subject, run, from_matlab=True):
+    def load_subject_run(cls, subject, run, from_matlab=False):
         # TODO numpy/matlab?
         if from_matlab:
             x = load_matlab(f"{datasets_folder}/{LSMR21.short_name}/matlab/S{subject}_Session_{run}")

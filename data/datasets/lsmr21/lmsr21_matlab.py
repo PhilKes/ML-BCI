@@ -198,6 +198,7 @@ class LSMRSubjectRun:
         #  3class: Left/Right/Up?
         # Get Trial idxs of n_class Trials (correct Tasks)
         trials = self.get_trials_of_tasks(LSMR21.n_classes_tasks[n_class], ignore_target=ignore_target)
+        print("n-class Trials: ",len(trials))
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
         return [i for i in trials if self.data[i].shape[1] >= tmin * self.srate]
 
