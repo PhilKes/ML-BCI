@@ -105,11 +105,14 @@ if __name__ == '__main__':
     print(f"Converting all {len(matlab_files)} .mat Files from '{args.origin_path}'"
           f" to minimal .npz Files in '{args.dest_path}'")
     for file in tqdm(matlab_files):
+        mat_file_name, mat_file_ext = os.path.splitext(file)
+        npz_file=os.path.join(args.dest_path, f"{mat_file_name}.npz")
+        if os.path.exists(npz_file):
+            continue
         # Load Matlab Data of 1 Subject Run
         matlab_data = misc.load_matlab(os.path.join(args.origin_path, file))
         # Get Subject Nr. from Filename
         subject = int(re.findall(r'S(.+)_Session', file)[0])
         sr = LSMRSubjectRun(subject, matlab_data)
-        file_name, file_ext = os.path.splitext(file)
         # Convert Subject Run to necessary numpy data and store in .npz file
-        subject_run_to_numpy(sr, os.path.join(args.dest_path, file_name), ds_factor=args.ds_factor)
+        subject_run_to_numpy(sr, npz_file, ds_factor=args.ds_factor)
