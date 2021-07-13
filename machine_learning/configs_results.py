@@ -112,7 +112,7 @@ Elapsed Time: {elapsed}
 Accuracies of Folds:
 {folds_str}
 Avg. acc: {avg_acc:.2f}
-Avg. Overfitting difference: {avg_of:.2f}'
+Avg. Overfitting difference: {avg_of:.2f}
 Trials per class:
 {trials_str}
 Avg. Class Accuracies:

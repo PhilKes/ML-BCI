@@ -173,9 +173,16 @@ def print_counts(list):
     """
     Counts element occurences in list and prints as Table
     """
-    df = pd.DataFrame(list, columns=['data'])
-    print_pretty_table(df['data'].value_counts(dropna=False))
+    print_pretty_table(counts_of_list(list))
     print("\n")
+
+
+def counts_of_list(list):
+    """
+    Returns a list of element occurences in list
+    """
+    df = pd.DataFrame(list, columns=['data'])
+    return df['data'].value_counts(dropna=False)
 
 
 def to_idxs_of_list(elements, list):

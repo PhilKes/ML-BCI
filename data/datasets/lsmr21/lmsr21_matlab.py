@@ -44,8 +44,7 @@ class LSMRTrialData:
     targethitnumber: int
     # Time length of feedback control period (Subject tries to hit the target -> max 6.04s)
     triallength: float
-    # TODO Time index for the end of the feedback control portion of the trial
-    #  Length(trial) - 1000 -> means after target is hit 1 additional second is recorded?
+    # Time index for the end of the feedback control portion of the trial
     resultind: int
     # Result of the trial (1=correct target hit, 2=wrong target hit, NaN=Timeout)
     result: int

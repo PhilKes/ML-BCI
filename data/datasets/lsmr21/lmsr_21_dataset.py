@@ -15,7 +15,7 @@ class LSMR21:
     runs = [i for i in range(11)]
     # Number of Trials per class in 1 Subject Run
     trials_per_class_per_sr = 75
-    cv_folds = 2
+    cv_folds = 5
 
     # # No excluded subjects
     # ALL_SUBJECTS = [i for i in range(1,62) if i not in []]  # 62 Subjects

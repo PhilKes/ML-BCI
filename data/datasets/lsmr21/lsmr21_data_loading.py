@@ -15,7 +15,7 @@ from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_amounts
-from util.misc import to_idxs_of_list, print_pretty_table, load_matlab
+from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list
 from tqdm import tqdm
 
 class LSMRNumpyRun:
@@ -127,7 +127,7 @@ class LSMR21TrialsDataset(TrialsDataset):
         # 11 Runs, 62 Subjects, 75 Trials per Class
         self.n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
         self.trials_per_subject = get_valid_trials_amounts(self.preloaded_labels, self.n_subject_trials_max)
-        print()
+        self.print_stats()
 
 
     def load_trial(self, trial):
@@ -144,6 +144,35 @@ class LSMR21TrialsDataset(TrialsDataset):
                 trial = trial - self.trials_per_subject[subject_idx]
         return self.preloaded_data[subject_idx][trial_idx], self.preloaded_labels[subject_idx][trial_idx]
 
+    def print_stats(self):
+        """
+        Prints Amount of Trials per Subject, per Class, Totals
+        as Table
+        """
+        trials_per_subject_per_class=[]
+        # Get Trials per Subject per Class
+        for s_idx,subject in enumerate(self.subjects):
+            counts_per_class=counts_of_list(self.preloaded_labels[s_idx]).tolist()
+            # Disregard invalid Trials (where label=-1, last index of counts_of_list)
+            counts_per_class= counts_per_class[:-1]
+            trials_per_subject_per_class.append(counts_per_class)
+            # Calculate total amount of trials per Subject
+            trials_per_subject_per_class[s_idx].append(sum(trials_per_subject_per_class[s_idx]))
+        # Get Total Amounts per Class as last Row
+        totals_per_class=[]
+        for n_class in range(self.n_class):
+            # Get all Trials of n_class
+            #s=trials_per_subject_per_class[:,n_class]
+            s=[s_cl[n_class] for s_cl in trials_per_subject_per_class]
+            totals_per_class.append(sum(s))
+        # Add Total Amount of Trials in last Row
+        totals_per_class.append(sum(totals_per_class))
+        trials_per_subject_per_class.append(totals_per_class)
+
+        df = pd.DataFrame(trials_per_subject_per_class,
+                          columns=[n_class for n_class in range(self.n_class)]+['Total'],
+                          index=[f"S{subject}" for subject in self.subjects]+['Total'])
+        print_pretty_table(df)
 
 
 class LSMR21DataLoader(MIDataLoader):
