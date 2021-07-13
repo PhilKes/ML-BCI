@@ -43,7 +43,7 @@ def calc_psds():
     equal_trials = True
     ch_names = BCIC.CHANNELS
 
-    ds_r = BCIC_IV2a_dataset(subjects=subjects, n_classes=n_classes, ch_names=ch_names)
+    ds_r = BCIC_IV2a_dataset(subjects=subjects, n_class=n_classes, ch_names=ch_names)
     ds_r.load_subjects_data(training)
     ds_r.print_stats()
 

@@ -19,6 +19,7 @@ from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
+from machine_learning.util import get_valid_trials_amounts
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -32,15 +33,11 @@ class BCICTrialsDataset(TrialsDataset):
         super().__init__(subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
-        self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class per subject
+        self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
 
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
-        self.trials_per_subject = [0] * len(self.subjects)
-        for subject_idx in range(len(self.subjects)):
-            for trial in range(self.n_trials_max):
-                if self.preloaded_labels[subject_idx, trial] != -1:
-                    self.trials_per_subject[subject_idx] = self.trials_per_subject[subject_idx] + 1
+        self.trials_per_subject =get_valid_trials_amounts(self.preloaded_labels,self.n_trials_max)
 
         # Only for testing !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         #        for subject_idx in range(len(self.subjects)):
@@ -85,7 +82,7 @@ class BCICDataloader(MIDataLoader):
         subjects.sort()
 
         training = 1  # load BCIC training data set
-        ds_w = BCIC_IV2a_dataset(subjects=subjects, n_classes=n_class, ch_names=ch_names)
+        ds_w = BCIC_IV2a_dataset(subjects=subjects, n_class=n_class, ch_names=ch_names)
         preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
         ds_w.print_stats()
 

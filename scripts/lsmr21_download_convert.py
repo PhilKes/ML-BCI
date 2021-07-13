@@ -69,16 +69,17 @@ if __name__ == '__main__':
     parser.add_argument('--dest_path', type=str, default=None,
                         help=f"Path to Folder for the converted numpy files "
                              f"(default: subdir 'numpy' in parentdir of --origin_path)")
-    parser.add_argument('-download',
+    parser.add_argument('-download',action='store_true', required=False,
                         help="If present, downloads all Matlab Files of the Dataset from Figshare.com into"
-                             " --origin_path before converting to numpy",
-                        action='store_true', required=False)
+                             " --origin_path before converting to numpy")
     args = parser.parse_args()
     if args.download & (args.origin_path is None):
         parser.error("You need to specify a destination path for the Matlab Files (--origin_path)!")
 
     # Download all Matlab Files of Dataset from Figshare
     if args.download:
+        if not os.path.exists(args.origin_path):
+            misc.makedir(args.origin_path)
         print(f"Downloading all {LSMR21.short_name} Matlab Files from Figshare.com into '{args.origin_path}'")
         with urllib.request.urlopen("https://api.figshare.com/v2/articles/13123148/files") as url:
             files_list = json.loads(url.read().decode())

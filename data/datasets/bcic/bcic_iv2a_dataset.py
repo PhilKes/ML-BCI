@@ -116,7 +116,7 @@ class BCIC_IV2a_dataset:
       Initializes the used data structures
     '''
 
-    def __init__(self, subjects=[1], n_classes=4, path=f'{datasets_folder}/BCICompetition_IV-2a/',
+    def __init__(self, subjects=[1], n_class=4, path=f'{datasets_folder}/BCICompetition_IV-2a/',
                  ch_names=BCIC.CHANNELS):
         self.path = path
         self.orgfiles_path = path + "Numpy_files/"  # Location of original subject-specific data files
@@ -130,10 +130,10 @@ class BCIC_IV2a_dataset:
             sys.exit(0)
 
         # Legal n_classes values are 2, 3 and 4
-        if n_classes >= 2 and n_classes <= 4:
-            self.n_classes = n_classes
+        if n_class >= 2 and n_class <= 4:
+            self.n_class = n_class
         else:
-            print("Error in BCIC_IV2a_dataset constructor: Illegal parameter n_classes: ", n_classes)
+            print("Error in BCIC_IV2a_dataset constructor: Illegal parameter n_class: ", n_class)
             sys.exit(0)
 
         self.fs = eeg_config.SAMPLERATE  # sampling rate: 250Hz from original paper
@@ -235,9 +235,9 @@ class BCIC_IV2a_dataset:
                     type_e = events_type[0, index + 1]
                     class_e = self.mi_types[type_e]
 
-                    if (self.n_classes == 2 and (type_e >= 769 and type_e <= 770)) or \
-                            (self.n_classes == 3 and (type_e >= 769 and type_e <= 771)) or \
-                            (self.n_classes == 4 and (type_e >= 769 and type_e <= 772)):
+                    if (self.n_class == 2 and (type_e >= 769 and type_e <= 770)) or \
+                            (self.n_class == 3 and (type_e >= 769 and type_e <= 771)) or \
+                            (self.n_class == 4 and (type_e >= 769 and type_e <= 772)):
 
                         # Store the trial specific label with following class encoding:
                         # MI action   | BCIC_IV2a code | class label
@@ -286,12 +286,12 @@ class BCIC_IV2a_dataset:
     Parameters:
       training: = 1 --> load training data   (*T.npz file)
                 = 0 --> load evaluation data (*E.nps file)
-      (The subjects and n_classes for which data should be loaded have already been
+      (The subjects and n_class for which data should be loaded have already been
       specified when dataset object has been created.)
     '''
 
     def load_subjects_data(self, training):
-        self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class
+        self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class
 
         self.pl_data = np.zeros((len(self.subjects), self.n_trials_max, len(self.channel_idxs), \
                                  self.n_samples), dtype=np.float32)
@@ -325,7 +325,7 @@ class BCIC_IV2a_dataset:
     def save_pl_dataLabels(self, fname):
         print("- save_pl_dataLabels: Store preprocessed data in file: ", (self.pl_path + fname))
 
-        np.savez(self.pl_path + fname, subjects=self.subjects, n_classes=self.n_classes, \
+        np.savez(self.pl_path + fname, subjects=self.subjects, n_classes=self.n_class, \
                  pl_data=self.pl_data, pl_labels=self.pl_labels)
         print("  - Data (subjects, n_classes, pl_data, pl_labels) saved in file: ", (self.pl_path + fname))
 
@@ -345,11 +345,11 @@ class BCIC_IV2a_dataset:
         # Read data from files:
         with np.load(self.pl_path + fname) as data:
             self.subjects = data['subjects']
-            self.n_classes = data['n_classes']
+            self.n_class = data['n_classes']
             self.pl_data = data['pl_data']
             self.pl_labels = data['pl_labels']
 
-        self.n_trials_max = 6 * 12 * self.n_classes  # 6 runs with 12 trials per class
+        self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class
 
         return self.pl_data, self.pl_labels
 
@@ -368,8 +368,8 @@ class BCIC_IV2a_dataset:
     def calc_psds(self):
         print("- calc_psds: Calculate power spectral densities")
 
-        if (self.n_classes != 4):
-            print("Sorry, but this method only works if n_classes = 4")
+        if (self.n_class != 4):
+            print("Sorry, but this method only works if n_class = 4")
             return
 
         print("  - Number of available subjects:", len(self.subjects))
@@ -565,7 +565,7 @@ if __name__ == '__main__':
     training = 1
 
     print(' Generate pl_data and pl_labels and store them in files')
-    ds_w = BCIC_IV2a_dataset(subjects=subjects, n_classes=n_classes)
+    ds_w = BCIC_IV2a_dataset(subjects=subjects, n_class=n_classes)
     preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
     ds_w.print_stats()
     ds_w.save_pl_dataLabels(fname="test1.npz")

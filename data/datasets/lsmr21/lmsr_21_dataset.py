@@ -11,9 +11,10 @@ class LSMR21:
     short_name = 'LSMR21'
 
     # No excluded subjects
-    ALL_SUBJECTS = [1, 2, 7, 26]  # 62 Subjects
-    runs = [1, 11]
-    trials_per_subject = 115
+    ALL_SUBJECTS = [i for i in range(62)]  # 62 Subjects
+    runs = [i for i in range(11)]
+    # Number of Trials per class in 1 Subject Run
+    trials_per_class_per_sr = 75
     cv_folds = 2
 
     # # No excluded subjects
