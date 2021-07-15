@@ -14,9 +14,10 @@ from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
-from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_amounts
+from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_per_subject
 from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list
 from tqdm import tqdm
+
 
 class LSMRNumpyRun:
     # shape: (trials, channels, samples)
@@ -83,7 +84,7 @@ class LSMRNumpyRun:
             trial_data = d[ch_idxs, min_sample: max_sample]
             data = np.concatenate(
                 (data, np.reshape(trial_data, (1, trial_data.shape[0], trial_data.shape[1]))))
-        #print("Slicing Time: ", f"{time.time() - start:.2f}")
+        # print("Slicing Time: ", f"{time.time() - start:.2f}")
         return data
 
     def get_trials(self, n_class=4, tmin=eeg_config.TMIN, artifact=0, trial_category=0):
@@ -95,7 +96,7 @@ class LSMRNumpyRun:
         """
         # Get Trial idxs of n_class Trials (correct Tasks)
         trials = self.get_n_class_trials(n_class)
-        #print("n-class Trials: ", len(trials))
+        # print("n-class Trials: ", len(trials))
         # TODO Filter out with artifact + trial_category
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
         return [i for i in trials if self.data[i].shape[1] >= tmin * eeg_config.SAMPLERATE]
@@ -121,57 +122,45 @@ class LSMR21TrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for LSMR21 Dataset
     """
 
-    def __init__(self, subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
                  ch_names=LSMR21.CHANNELS, equal_trials=True):
-        super().__init__(subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
-        # 11 Runs, 62 Subjects, 75 Trials per Class
-        self.n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
-        self.trials_per_subject = get_valid_trials_amounts(self.preloaded_labels, self.n_subject_trials_max)
+        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        # 11 Runs, 62 Subjects, 75 Trials per Class per Subject
+        self.n_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
+        # List containing amount of valid Trials per Subject (invalid Trials = -1)
+        self.trials_per_subject = get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
+                                                               self.used_subjects, self.n_trials_max)
+
         self.print_stats()
-
-
-    def load_trial(self, trial):
-        # calculate subject id 'subject_idx' and subject specific trial id 'trial_idx'
-        # from parameter trial
-        subject_idx = None
-        trial_idx = None
-        for subject in self.subjects:
-            subject_idx = self.subjects.index(subject)
-            if trial < self.trials_per_subject[subject_idx]:
-                trial_idx = trial
-                break  # exit for loop
-            else:
-                trial = trial - self.trials_per_subject[subject_idx]
-        return self.preloaded_data[subject_idx][trial_idx], self.preloaded_labels[subject_idx][trial_idx]
 
     def print_stats(self):
         """
         Prints Amount of Trials per Subject, per Class, Totals
         as Table
         """
-        trials_per_subject_per_class=[]
+        trials_per_subject_per_class = []
         # Get Trials per Subject per Class
-        for s_idx,subject in enumerate(self.subjects):
-            counts_per_class=counts_of_list(self.preloaded_labels[s_idx]).tolist()
+        for s_idx, subject in enumerate(self.subjects):
+            counts_per_class = counts_of_list(self.preloaded_labels[s_idx]).tolist()
             # Disregard invalid Trials (where label=-1, last index of counts_of_list)
-            counts_per_class= counts_per_class[:-1]
+            counts_per_class = counts_per_class[:-1]
             trials_per_subject_per_class.append(counts_per_class)
             # Calculate total amount of trials per Subject
             trials_per_subject_per_class[s_idx].append(sum(trials_per_subject_per_class[s_idx]))
         # Get Total Amounts per Class as last Row
-        totals_per_class=[]
+        totals_per_class = []
         for n_class in range(self.n_class):
             # Get all Trials of n_class
-            #s=trials_per_subject_per_class[:,n_class]
-            s=[s_cl[n_class] for s_cl in trials_per_subject_per_class]
+            # s=trials_per_subject_per_class[:,n_class]
+            s = [s_cl[n_class] for s_cl in trials_per_subject_per_class]
             totals_per_class.append(sum(s))
         # Add Total Amount of Trials in last Row
         totals_per_class.append(sum(totals_per_class))
         trials_per_subject_per_class.append(totals_per_class)
 
         df = pd.DataFrame(trials_per_subject_per_class,
-                          columns=[n_class for n_class in range(self.n_class)]+['Total'],
-                          index=[f"S{subject}" for subject in self.subjects]+['Total'])
+                          columns=[n_class for n_class in range(self.n_class)] + ['Total'],
+                          index=[f"S{subject}" for subject in self.subjects] + ['Total'])
         print_pretty_table(df)
 
 
@@ -186,48 +175,50 @@ class LSMR21DataLoader(MIDataLoader):
     eeg_config = LSMR21.CONFIG
     channels = LSMR21.CHANNELS
     ds_class = LSMR21TrialsDataset
-    #sampler = SubjectTrialsRandomSampler
+
+    # sampler = SubjectTrialsRandomSampler
 
     @classmethod
     def load_subjects_data(cls, subjects, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):
         # 11 Runs, 62 Subjects, 75 Trials per Class
         n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
-        subjects_data = np.zeros((len(subjects),n_subject_trials_max, len(ch_names), eeg_config.SAMPLES), dtype=np.float32)
-        subjects_labels = np.zeros((len(subjects),n_subject_trials_max), dtype=np.int)
-        for i,subject in enumerate(tqdm(subjects)):
-            s_data,s_labels=cls.load_subject(subject,n_class,ch_names,n_subject_trials_max)
-            subjects_data[i]=s_data
-            subjects_labels[i]=s_labels
+        subjects_data = np.zeros((len(subjects), n_subject_trials_max, len(ch_names), eeg_config.SAMPLES),
+                                 dtype=np.float32)
+        subjects_labels = np.zeros((len(subjects), n_subject_trials_max), dtype=np.int)
+        for i, subject in enumerate(tqdm(subjects)):
+            s_data, s_labels = cls.load_subject(subject, n_class, ch_names, n_subject_trials_max)
+            subjects_data[i] = s_data
+            subjects_labels[i] = s_labels
         return subjects_data, subjects_labels
 
     @classmethod
-    def load_subject(cls, subject_idx,n_class,ch_names,n_trials_max, runs=LSMR21.runs):
+    def load_subject(cls, subject_idx, n_class, ch_names, n_trials_max, runs=LSMR21.runs):
         """
         Load all Trials of all Runs of Subject
         :return: subject_data Numpy Array, subject_labels Numpy Array for all Subject's Trials
         """
-        subject_data = np.full((n_trials_max, len(ch_names), eeg_config.SAMPLES),-1, dtype=np.float32)
-        subject_labels = np.full((n_trials_max), -1,dtype=np.int)
-        t_idx=0
+        subject_data = np.full((n_trials_max, len(ch_names), eeg_config.SAMPLES), -1, dtype=np.float32)
+        subject_labels = np.full((n_trials_max), -1, dtype=np.int)
+        t_idx = 0
         # Load Trials of every available Subject Run
         for run in runs:
             if VERBOSE:
                 print("\n", f"Loading Subject {subject_idx + 1} Run {run}")
             start = time.time()
             try:
-                sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run+1)
+                sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
             except FileNotFoundError as e:
                 if VERBOSE:
-                    print(f"Skipped missing Subject {subject_idx+1} Run {run+1}")
+                    print(f"Skipped missing Subject {subject_idx + 1} Run {run + 1}")
                 continue
             # Get Trials idxs of correct n_class and minimum Sample size
             trials_idxs = sr.get_trials(n_class, eeg_config.TMAX)
             data = sr.get_data(trials_idxs=trials_idxs, ch_idxs=to_idxs_of_list(ch_names, LSMR21.CHANNELS))
-            max_data_trial=t_idx+data.shape[0]
-            subject_data[t_idx:max_data_trial]=data
-            subject_labels[t_idx:max_data_trial]=sr.get_labels(trials_idxs=trials_idxs) - 1
-            t_idx+= data.shape[0]
+            max_data_trial = t_idx + data.shape[0]
+            subject_data[t_idx:max_data_trial] = data
+            subject_labels[t_idx:max_data_trial] = sr.get_labels(trials_idxs=trials_idxs) - 1
+            t_idx += data.shape[0]
             elapsed = (time.time() - start)
             if VERBOSE:
                 print(f"Loading + Slicing Time {subject_idx + 1}: {elapsed:.2f}")

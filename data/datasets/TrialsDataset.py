@@ -16,7 +16,10 @@ class TrialsDataset(Dataset):
       required for creating a pytorch dataloader.
       Methods __len__ and __get_item__ must be implemented.
     """
+    # Local Subjects (only subjects of this Dataset)
     subjects: List[int]
+    # All subjects that are used for the entire Training process, not only in this Dataset
+    used_subjects: List[int]
     n_class: int
     device: Any
     equal_trials: bool
@@ -27,21 +30,22 @@ class TrialsDataset(Dataset):
     # Either a number or a list of numbers
     trials_per_subject: Any
 
-    def __init__(self, subjects: List[int], n_class: int, device, preloaded_tuple: Tuple[np.ndarray],
+    def __init__(self, subjects: List[int], used_subjects: List[int], n_class: int, device,
+                 preloaded_tuple: Tuple[np.ndarray],
                  ch_names=[], equal_trials=True):
         """
         Method: constructor
-        Parameters:
-            subjects: list of subjects
+        :param subjects: list of subjects
+        :param preloaded_tuple: (preloaded_data,preloaded_labels) of entire used Dataset
         """
         self.subjects = subjects
+        self.used_subjects = used_subjects
         self.n_class = n_class
         self.device = device
         self.equal_trials = equal_trials
         self.ch_names = ch_names
-        if preloaded_tuple is not None:
-            self.preloaded_data = preloaded_tuple[0]
-            self.preloaded_labels = preloaded_tuple[1]
+        self.preloaded_data = preloaded_tuple[0]
+        self.preloaded_labels = preloaded_tuple[1]
 
     def __len__(self):
         """
@@ -58,12 +62,50 @@ class TrialsDataset(Dataset):
             return ds_len
         return len(self.subjects) * self.trials_per_subject
 
-    def load_trial(self, trial):
+    def load_trial(self, trial) -> (np.ndarray, int):
         """
         Determines corresponding Subject of trial and loads subject's data+labels
         :return: trial data (X) and trial label (y)
         """
-        raise NotImplementedError('This method is not implemented!')
+        # Calculate local_subject_idx + trial_idx from trial parameter
+        # if Trials per Subject are not equal (e.g. BCIC, LSMR21)
+        if isinstance(self.trials_per_subject, list):
+            local_subject_idx = None
+            trial_idx = None
+            for s_idx, subject in enumerate(self.subjects):
+                # Does trial come after all trials of all subjects until s_idx?
+                s = sum(self.trials_per_subject[:s_idx + 1])
+                if trial < s:
+                    # Found correct subject
+                    local_subject_idx = s_idx
+                    # Trial index as subject-local
+                    if s_idx > 0:
+                        trials_before = sum(self.trials_per_subject[:s_idx])
+                        trial_idx = trial - trials_before
+                    else:
+                        trial_idx = trial
+                    break
+        else:
+            # Trials per subject are equal (e.g. PHYS)
+            trial_idx = trial % self.trials_per_subject
+            # determine required subject for trial
+            local_subject_idx = int(trial / self.trials_per_subject)
+        return self.get_global_trial(local_subject_idx, trial_idx)
+
+    def get_global_trial(self, local_subject_idx, trial_idx) -> (np.ndarray, np.ndarray):
+        """
+        Returns specified Trial from preloaded_data
+        converts local Subject index inside the TrialsDataset into index of self.used_subjects
+        :param local_subject_idx: Subject index locally in the TrialsDataset
+        :param trial_idx: Index of Trial of the Subject
+        :return: (Trial data array, Trial labels array)
+        """
+        global_subject_idx = self.used_subjects.index(self.subjects[local_subject_idx])
+        data, label = self.preloaded_data[global_subject_idx][trial_idx], self.preloaded_labels[global_subject_idx][
+            trial_idx]
+        if label == -1:
+            print(f"Invalid label: S {global_subject_idx} T {trial_idx}")
+        return data, label
 
     def __getitem__(self, trial):
         """

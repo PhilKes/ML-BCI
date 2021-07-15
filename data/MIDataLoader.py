@@ -21,6 +21,7 @@ class MIDataLoader:
     folds: int
     channels: List[int]
     eeg_config: Dict
+    # Constructor of Dataset specific TrialsDataset subclass
     ds_class: Callable
     # Sample the trials in random order (see MIDataLoader.create_loader_from_subjects)
     sampler: Callable = RandomSampler
@@ -55,39 +56,33 @@ class MIDataLoader:
         loader_valid = None
         if len(validation_subjects) > 0:
             subjects_valid_idxs = [used_subjects.index(i) for i in validation_subjects]
-            loader_valid = cls.create_loader_from_subjects(validation_subjects, n_class, device,
-                                                           preloaded_data[subjects_valid_idxs, :, :, :],
-                                                           preloaded_labels[subjects_valid_idxs, :],
-                                                           bs, ch_names, equal_trials)
-        if preloaded_data is not None:
-            loader_train = cls.create_loader_from_subjects(subjects_train, n_class, device,
-                                                           preloaded_data[subjects_train_idxs, :, :, :],
-                                                           preloaded_labels[subjects_train_idxs, :],
-                                                           bs, ch_names, equal_trials)
-            loader_test = cls.create_loader_from_subjects(subjects_test, n_class, device,
-                                                          preloaded_data[subjects_test_idxs, :, :, :],
-                                                          preloaded_labels[subjects_test_idxs, :],
-                                                          bs, ch_names, equal_trials)
-        else:
-            loader_train = cls.create_loader_from_subjects(subjects_train, n_class, device,
+            loader_valid = cls.create_loader_from_subjects(validation_subjects, used_subjects, n_class, device,
                                                            preloaded_data,
                                                            preloaded_labels,
                                                            bs, ch_names, equal_trials)
-            loader_test = cls.create_loader_from_subjects(subjects_test, n_class, device,
-                                                          preloaded_data,
-                                                          preloaded_labels,
-                                                          bs, ch_names, equal_trials)
+        # TODO Numpy fancy slicing (indexing with list of subject_idxs)
+        #  creates copy of array -> much higher memory usage every fold
+        # s_t=preloaded_data[subjects_train_idxs]
+        # print("s_t is View of preloaded_data: ",s_t.base is preloaded_data)
+        loader_train = cls.create_loader_from_subjects(subjects_train, used_subjects, n_class, device,
+                                                       preloaded_data,
+                                                       preloaded_labels,
+                                                       bs, ch_names, equal_trials)
+        loader_test = cls.create_loader_from_subjects(subjects_test, used_subjects, n_class, device,
+                                                      preloaded_data,
+                                                      preloaded_labels,
+                                                      bs, ch_names, equal_trials)
         return loader_train, loader_test, loader_valid
 
     # Creates DataLoader with Random Sampling from subject list
     @classmethod
-    def create_loader_from_subjects(cls, subjects, n_class, device, preloaded_data, preloaded_labels,
-                                    bs=BATCH_SIZE, ch_names=[], equal_trials=True):
+    def create_loader_from_subjects(cls, subjects, used_subjects, n_class, device, preloaded_data, preloaded_labels,
+                                    bs=BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
         """
-               Create Loaders for given subjects
-               :return: Loader
-               """
-        trials_ds = cls.ds_class(subjects, n_class, device,
+        Create Loaders for given subjects
+        :return: Loader
+        """
+        trials_ds = cls.ds_class(subjects, used_subjects, n_class, device,
                                  preloaded_tuple=(preloaded_data, preloaded_labels),
                                  ch_names=ch_names, equal_trials=equal_trials)
         sampler = None if cls.sampler is None else cls.sampler(trials_ds)

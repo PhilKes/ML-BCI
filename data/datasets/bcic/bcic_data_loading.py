@@ -19,7 +19,7 @@ from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from machine_learning.util import get_valid_trials_amounts
+from machine_learning.util import get_valid_trials_per_subject
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -27,41 +27,23 @@ class BCICTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for BCIC Dataset
     """
 
-    def __init__(self, subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
                  ch_names=BCIC.CHANNELS, equal_trials=True):
-
-        super().__init__(subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
         self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
 
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
-        self.trials_per_subject =get_valid_trials_amounts(self.preloaded_labels,self.n_trials_max)
+        self.trials_per_subject = get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
+                                                               self.used_subjects, self.n_trials_max)
 
         # Only for testing !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         #        for subject_idx in range(len(self.subjects)):
         #            self.trials_per_subject[subject_idx] = self.n_trials_max
 
         print("trials_per_subject: ", self.trials_per_subject)
-
-    def load_trial(self, trial):
-        # calculate subject id 'subject_idx' and subject specific trial id 'trial_idx'
-        # from parameter trial
-        subject_idx = None
-        trial_idx = None
-        trial_start = trial
-        for subject in self.subjects:
-            subject_idx = self.subjects.index(subject)
-            if trial < self.trials_per_subject[subject_idx]:
-                trial_idx = trial
-                break  # exit for loop
-            else:
-                trial = trial - self.trials_per_subject[subject_idx]
-
-        # print("trial , subject_idx, trial_idx: %d, %d, %d" % (trial_start, subject_idx, trial_idx))
-
-        return self.preloaded_data[subject_idx][trial_idx], self.preloaded_labels[subject_idx][trial_idx]
 
 
 class BCICDataloader(MIDataLoader):

@@ -123,9 +123,8 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
             loaders = dataset.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
-                                                         preloaded_data,
-                                                         preloaded_labels, batch_size, ch_names, equal_trials,
-                                                         used_subjects=used_subjects)
+                                                         preloaded_data, preloaded_labels, batch_size, ch_names,
+                                                         equal_trials, used_subjects=used_subjects)
             loader_train, loader_test, loader_valid = loaders
 
             model = get_model(n_class, len(ch_names), device)
@@ -150,6 +149,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
             if TEST_OVERFITTING:
                 print("## Testing on Training Dataset ##")
                 run_data.accuracies_overfitting[fold], _, __ = do_test(model, loader_train)
+
             # If not using early stopping, determine which fold has the highest accuracy
             if (not early_stop) & (test_accuracy > np.max(run_data.fold_accuracies)):
                 best_n_class_models[n_class] = model.state_dict().copy()

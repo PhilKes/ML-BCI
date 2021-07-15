@@ -205,15 +205,21 @@ class SubjectTrialsRandomSampler(SequentialSampler):
             for trial in subject_trials:
                 yield trial
 
-def get_valid_trials_amounts(labels,n_trials_max):
+
+def get_valid_trials_per_subject(labels: np.ndarray, subjects: List[int], used_subjects: List[int],
+                                 n_trials_max: int) -> List[int]:
     """
     Get number of valid trials per subject (skip Trials with label=-1)
     :param n_trials_max: Amount of Maximum trials per subject
     :param labels: ndarray shape(subjects,Trial Labels)
+    :param subjects: Subjects to calculate valid Trials for
+    :param used_subjects: All subjects in preloaded_labels
+    :return List of valid Trials per subject
     """
-    trials_per_subject = [0] * labels.shape[0]
-    for subject_idx in range(labels.shape[0]):
+    trials_per_subject = [0] * len(subjects)
+    for s_idx, subject in enumerate(subjects):
+        global_subject_idx = used_subjects.index(subject)
         for trial in range(n_trials_max):
-            if labels[subject_idx, trial] != -1:
-                trials_per_subject[subject_idx] = trials_per_subject[subject_idx] + 1
+            if labels[global_subject_idx, trial] != -1:
+                trials_per_subject[s_idx] = trials_per_subject[s_idx] + 1
     return trials_per_subject

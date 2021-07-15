@@ -38,22 +38,13 @@ class PHYSTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for Physionet Dataset
     """
 
-    def __init__(self, subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
                  ch_names=PHYS.CHANNELS, equal_trials=True):
-        super().__init__(subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
 
         self.trials_per_subject = get_trials_size(n_class, equal_trials) \
                                   * eeg_config.TRIALS_SLICES - PHYS.CONFIG.REST_TRIALS_LESS
 
-    def load_trial(self, trial):
-        local_trial_idx = trial % self.trials_per_subject
-
-        # determine required subject for trial
-        subject_idx = int(trial / self.trials_per_subject)
-
-        # Immediately return from preloaded data
-        return self.preloaded_data[subject_idx][local_trial_idx], self.preloaded_labels[subject_idx][
-            local_trial_idx]
 
 
 class PHYSDataLoader(MIDataLoader):
