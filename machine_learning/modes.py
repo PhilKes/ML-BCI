@@ -20,7 +20,7 @@ import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
 from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, TEST_OVERFITTING, GPU_WARMUPS, \
-    trained_model_name, VALIDATION_SUBJECTS, eeg_config
+    trained_model_name, VALIDATION_SUBJECTS, eeg_config, SYSTEM_SAMPLE_RATE, set_eeg_samplerate
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_dataset import PHYS
 from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
@@ -31,7 +31,7 @@ from machine_learning.configs_results import training_config_str, create_results
     live_sim_result_str
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
-    ML_Run_Data
+    ML_Run_Data, resample
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
@@ -107,7 +107,10 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         print("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials, normalize=False)
-
+        # Resample EEG Data to global System Sample Rate if necessary
+        if dataset.eeg_config.SAMPLERATE != SYSTEM_SAMPLE_RATE:
+            preloaded_data = resample(preloaded_data, dataset.eeg_config.SAMPLERATE, SYSTEM_SAMPLE_RATE)
+            set_eeg_samplerate(SYSTEM_SAMPLE_RATE)
         print(f"######### {n_class}Class-Classification")
         cv_split = cv.split(X=used_subjects, groups=groups)
         run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)

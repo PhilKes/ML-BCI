@@ -7,6 +7,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from config import eeg_config, datasets_folder, global_config, VERBOSE
 from data.MIDataLoader import MIDataLoader
@@ -14,9 +15,8 @@ from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
-from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_per_subject
+from machine_learning.util import get_valid_trials_per_subject
 from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list
-from tqdm import tqdm
 
 
 class LSMRNumpyRun:
@@ -175,7 +175,6 @@ class LSMR21DataLoader(MIDataLoader):
     eeg_config = LSMR21.CONFIG
     channels = LSMR21.CHANNELS
     ds_class = LSMR21TrialsDataset
-
     # sampler = SubjectTrialsRandomSampler
 
     @classmethod

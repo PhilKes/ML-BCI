@@ -41,9 +41,9 @@ class LSMR21:
         SAMPLERATE=250,
         CUE_OFFSET=4.0
     )
-
+    ORIGINAL_SAMPLERATE = 1000
     # Mapping of n_class Classification to correct Tasks
     # 1: Left/Right, 2: Up/Down, 3: 2D (Left/Right/Up/Down)
     n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}
 
-    #n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}
+    # n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}

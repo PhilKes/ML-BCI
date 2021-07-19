@@ -36,6 +36,7 @@ class TrialsDataset(Dataset):
         """
         Method: constructor
         :param subjects: list of subjects
+        :param used_subjects: All subjects whose data are included in preloaded_tuple
         :param preloaded_tuple: (preloaded_data,preloaded_labels) of entire used Dataset
         """
         self.subjects = subjects
@@ -94,7 +95,7 @@ class TrialsDataset(Dataset):
 
     def get_global_trial(self, local_subject_idx, trial_idx) -> (np.ndarray, np.ndarray):
         """
-        Returns specified Trial from preloaded_data
+        Returns specified Trial from preloaded_data (contains the entire Dataset)
         converts local Subject index inside the TrialsDataset into index of self.used_subjects
         :param local_subject_idx: Subject index locally in the TrialsDataset
         :param trial_idx: Index of Trial of the Subject
@@ -104,7 +105,7 @@ class TrialsDataset(Dataset):
         data, label = self.preloaded_data[global_subject_idx][trial_idx], self.preloaded_labels[global_subject_idx][
             trial_idx]
         if label == -1:
-            print(f"Invalid label: S {global_subject_idx} T {trial_idx}")
+            raise Exception(f"Invalid label found: Subject Idx {global_subject_idx} Trial Idx {trial_idx}")
         return data, label
 
     def __getitem__(self, trial):
@@ -114,7 +115,7 @@ class TrialsDataset(Dataset):
         """
         X, y = self.load_trial(trial)
         # Shape of 1 Batch (list of multiple __getitem__() calls):
-        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Timepoints (641)]
+        # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Samples]
         X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y

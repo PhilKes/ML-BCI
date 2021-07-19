@@ -62,11 +62,10 @@ class MIDataLoader:
                                                            bs, ch_names, equal_trials)
         # TODO Numpy fancy slicing (indexing with list of subject_idxs)
         #  creates copy of array -> much higher memory usage every fold
-        # s_t=preloaded_data[subjects_train_idxs]
+        s_t = preloaded_data[subjects_train_idxs]
         # print("s_t is View of preloaded_data: ",s_t.base is preloaded_data)
         loader_train = cls.create_loader_from_subjects(subjects_train, used_subjects, n_class, device,
-                                                       preloaded_data,
-                                                       preloaded_labels,
+                                                       preloaded_data, preloaded_labels,
                                                        bs, ch_names, equal_trials)
         loader_test = cls.create_loader_from_subjects(subjects_test, used_subjects, n_class, device,
                                                       preloaded_data,

@@ -50,6 +50,7 @@ JETSON_CPU_MAX_BS = 15
 
 eegnet_config = DotDict(pool_size=4)
 
+SYSTEM_SAMPLE_RATE = 300
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 # Trials Slicing (divide every Trial in equally long Slices)
 eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,
@@ -60,13 +61,18 @@ eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,
                      SAMPLES=int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE))
 
 
-def set_eeg_config(cfg):
+def set_eeg_config(cfg: DotDict):
     eeg_config.TMIN = cfg.TMIN + cfg.CUE_OFFSET
     eeg_config.TMAX = cfg.TMAX + cfg.CUE_OFFSET
     eeg_config.TRIALS_SLICES = 1
     eeg_config.CUE_OFFSET = cfg.CUE_OFFSET
     eeg_config.SAMPLERATE = cfg.SAMPLERATE
     eeg_config.SAMPLES = int((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
+
+
+def set_eeg_samplerate(sr):
+    eeg_config.SAMPLERATE = sr
+    eeg_config.SAMPLES = int((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE)
 
 
 def set_eeg_trials_slices(slices):

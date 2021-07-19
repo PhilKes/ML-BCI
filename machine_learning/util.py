@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
+import mne
 import numpy as np
 import torch  # noqa
 from sklearn.metrics import confusion_matrix
@@ -223,3 +224,26 @@ def get_valid_trials_per_subject(labels: np.ndarray, subjects: List[int], used_s
             if labels[global_subject_idx, trial] != -1:
                 trials_per_subject[s_idx] = trials_per_subject[s_idx] + 1
     return trials_per_subject
+
+
+def resample(data: np.ndarray, or_samplerate: float, dest_samplerate: float):
+    """
+    Resample EEG Data from original Samplerate to destionation Samplerate
+    :param data: EEG Data as numpy.ndarray
+    :return: data resampled to dest_samplerate
+    """
+    print(f"Resampling EEG Data from {or_samplerate}Hz to {dest_samplerate}Hz Samplerate")
+    # E.g. Original LSMR21 Dataset has Trials of different Sample size so the dtype of the ndarray is 'object'
+    # -> have to resample each Trial Data array individually
+    if data.dtype == object:
+        for trial_idx in range(data.shape[0]):
+            data[trial_idx] = mne.filter.resample(data[trial_idx].astype(np.float64), window='boxcar',
+                                                  up=dest_samplerate, down=or_samplerate)
+            data[trial_idx] = data[trial_idx].astype(np.float32)
+    else:
+        # If all Trials have same Sample Size only 1 resample call is needed
+        data = mne.filter.resample(data.astype(np.float64), window='boxcar',
+                                   up=dest_samplerate, down=or_samplerate)
+        data = data.astype(np.float32)
+    # TODO mne.filter.resample needs np.float64 -> reconvert to float32 or keep float64(means 2x file size)
+    return data
