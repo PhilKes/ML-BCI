@@ -92,11 +92,12 @@ def check_common_arguments(parser, args):
     # Adjust global parameters which depend on the selected dataset
     if (args.ch_names == None) & (args.ch_motorimg == None):
         args.ch_names = dataset.channels
-
+    if ((args.tmin != None) and (args.tmax == None)) or ((args.tmin == None) and (args.tmax != None)):
+        parser.error("You have to either set the 'tmax' AND 'tmin' options or none of the two options")
     # Dataset dependent EEG config structure re-initialization
     set_eeg_config(dataset.eeg_config)
     if (args.tmin is not None) and (args.tmax is not None):
-        if(args.tmin > args.tmax) or (args.tmin == args.tmax):
+        if (args.tmin > args.tmax) or (args.tmin == args.tmax):
             parser.error(f"tmax has to be greater than tmin!")
         else:
             set_eeg_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
