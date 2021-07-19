@@ -50,7 +50,11 @@ JETSON_CPU_MAX_BS = 15
 
 eegnet_config = DotDict(pool_size=4)
 
-SYSTEM_SAMPLE_RATE = 300
+# Global System Sample Rate
+# after preloading any Dataset the EEG Data gets resampled
+# to this Samplerate (see training_cv() in machine_learning/modes.py)
+SYSTEM_SAMPLE_RATE = 250
+
 # Time Interval per EEG Trial (T=0: start of MI Cue)
 # Trials Slicing (divide every Trial in equally long Slices)
 eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,

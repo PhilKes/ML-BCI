@@ -19,7 +19,7 @@ from config import datasets_folder, SYSTEM_SAMPLE_RATE
 from data.datasets.lsmr21.lmsr21_matlab import LSMRTrialData
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun
-from machine_learning.util import resample
+from machine_learning.util import resample_eeg_data
 from util import misc
 
 
@@ -36,7 +36,7 @@ def subject_run_to_numpy(sr: LSMRSubjectRun, path, ds_factor=None):
     # Resample trial data either with ds_factor if present
     # or to global System Samplerate if ds_factor=None
     up_factor = SYSTEM_SAMPLE_RATE if ds_factor is None else (LSMR21.ORIGINAL_SAMPLERATE / ds_factor)
-    data = resample(data, LSMR21.ORIGINAL_SAMPLERATE, up_factor)
+    data = resample_eeg_data(data, LSMR21.ORIGINAL_SAMPLERATE, up_factor)
     for trial_idx in range(data.shape[0]):
         # data[trial_idx] = mne.filter.resample(data[trial_idx].astype(np.float64), window='boxcar',
         #                                       up=up_factor, down=LSMR21.ORIGINAL_SAMPLERATE)

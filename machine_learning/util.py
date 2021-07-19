@@ -226,24 +226,35 @@ def get_valid_trials_per_subject(labels: np.ndarray, subjects: List[int], used_s
     return trials_per_subject
 
 
-def resample(data: np.ndarray, or_samplerate: float, dest_samplerate: float):
+def resample_eeg_data(data: np.ndarray, or_samplerate: float, dest_samplerate: float, per_subject=False):
     """
-    Resample EEG Data from original Samplerate to destionation Samplerate
-    :param data: EEG Data as numpy.ndarray
+    Resamples EEG Data from original Samplerate to destination Samplerate
+    :param data: EEG Data as numpy.ndarray, shape: (Subjects (optional), Trials, Channels, Samples)
+    :param per_subject: Resample per Subject instead of resampling the whole data array at once
+    (data.dtype has to be 'np.float' with shape (Subjects, Trials, Channels, Samples)), used for
+    large datasets because resampling uses a lot of memory
     :return: data resampled to dest_samplerate
     """
     print(f"Resampling EEG Data from {or_samplerate}Hz to {dest_samplerate}Hz Samplerate")
     # E.g. Original LSMR21 Dataset has Trials of different Sample size so the dtype of the ndarray is 'object'
     # -> have to resample each Trial Data array individually
-    if data.dtype == object:
+    if (data.dtype == object) or per_subject:
+        # Need to intialize new ndarray with new Samplesize (last dim of data)
+        if per_subject:
+            new_shape = (data.shape[0], data.shape[1], data.shape[2],
+                         int(data.shape[3] * (dest_samplerate / or_samplerate)))
+            res_data = np.zeros(new_shape, dtype=np.float32)
+        else:
+            res_data = data
         for trial_idx in range(data.shape[0]):
-            data[trial_idx] = mne.filter.resample(data[trial_idx].astype(np.float64), window='boxcar',
-                                                  up=dest_samplerate, down=or_samplerate)
-            data[trial_idx] = data[trial_idx].astype(np.float32)
+            res_data[trial_idx] = mne.filter.resample(data[trial_idx].astype(np.float64), window='boxcar',
+                                                      up=dest_samplerate, down=or_samplerate)
+            # TODO mne.filter.resample needs np.float64 -> reconvert to float32 or keep float64(means 2x file size)
+            res_data[trial_idx] = res_data[trial_idx].astype(np.float32)
+        return res_data
     else:
         # If all Trials have same Sample Size only 1 resample call is needed
         data = mne.filter.resample(data.astype(np.float64), window='boxcar',
                                    up=dest_samplerate, down=or_samplerate)
         data = data.astype(np.float32)
-    # TODO mne.filter.resample needs np.float64 -> reconvert to float32 or keep float64(means 2x file size)
-    return data
+        return data
