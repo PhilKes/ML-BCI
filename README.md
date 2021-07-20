@@ -1,4 +1,6 @@
 # ML-BCI
+## Machine Learning based Brain-Computer Interface
+
 * EEGNet Implementation in PyTorch
 * Training, Testing, Benchmarking on [PhysioNet Dataset](https://physionet.org/content/eegmmidb/1.0.0/) and [BCIC IV 2a](http://www.bbci.de/competition/iv/#dataset2a)
 * Proposed Implementation for use on NVIDIA Jetson Nano
