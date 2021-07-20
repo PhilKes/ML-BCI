@@ -5,8 +5,9 @@ from datetime import datetime
 import numpy
 import pandas as pd
 
-from config import results_folder, training_results_folder, training_ss_results_folder
+from config import results_folder, training_results_folder, training_ss_results_folder, set_eeg_artifacts_trial_category
 from data.datasets.bcic.bcic_dataset import BCIC
+from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
 from util.misc import print_pretty_table
@@ -104,19 +105,47 @@ confs = {
     #     'params': [['--excluded', '42']],
     #     'names': ['excl_42']
     # },
-    'PHYS': {
+    # 'PHYS': {
+    #     'params': [
+    #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '2'],
+    #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '4']
+    #     ],
+    #     'names': ['phys_all_2s', 'phys_all_4s']
+    # },
+    # 'BCIC': {
+    #     'params': [
+    #         ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '2'],
+    #         ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '4']
+    #     ],
+    #     'names': ['bcic_all_2s', 'bcic_all_4s']
+    # },
+    'LSMR21': {
         'params': [
-            ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '2'],
-            ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '4']
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
+            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3.5'],
+            ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
+            ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '2'],
+            ['--dataset', LSMR21.short_name],
         ],
-        'names': ['phys_all_2s', 'phys_all_4s']
-    },
-    'BCIC': {
-        'params': [
-            ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '2'],
-            ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '4']
+        'names': ['art_0', 'trial_cat_1', 'trial_cat_2', 'default_tmax_2_art_1_trial_cat_0', 'tmax_3', 'tmax_3.5',
+                  'tmin_-1_tmax_1', 'tmin_-1_tmax_2', 'runs_7'],
+        'init': [
+            lambda: set_eeg_artifacts_trial_category(artifacts=0, trial_category=0),
+            lambda: set_eeg_artifacts_trial_category(artifacts=1, trial_category=1),
+            lambda: set_eeg_artifacts_trial_category(artifacts=1, trial_category=2),
+            lambda: set_eeg_artifacts_trial_category(artifacts=1, trial_category=0),
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: LSMR21.set_runs([7]),
+
         ],
-        'names': ['bcic_all_2s', 'bcic_all_4s']
+        'after': lambda: set_eeg_artifacts_trial_category(artifacts=0, trial_category=0)
     },
 }
 

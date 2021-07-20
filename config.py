@@ -62,7 +62,13 @@ eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,
                      CUE_OFFSET=PHYS.CONFIG.CUE_OFFSET,
                      TRIALS_SLICES=1,
                      SAMPLERATE=PHYS.CONFIG.SAMPLERATE,
-                     SAMPLES=int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE))
+                     SAMPLES=int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE),
+                     # 0 = disallow Trials with Artifacts, 1 = use all Trials
+                     ARTIFACTS=1,
+                     # 0 = use all Trials
+                     # 1 = use only Trials with forcedresult = 1
+                     # 2 = use only Trials with results = 1
+                     TRIAL_CATEGORY=0)
 
 
 def set_eeg_config(cfg: DotDict):
@@ -72,6 +78,12 @@ def set_eeg_config(cfg: DotDict):
     eeg_config.CUE_OFFSET = cfg.CUE_OFFSET
     eeg_config.SAMPLERATE = cfg.SAMPLERATE
     eeg_config.SAMPLES = int((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
+
+
+def set_eeg_artifacts_trial_category(artifacts: int = eeg_config.ARTIFACTS,
+                                     trial_category: int = eeg_config.TRIAL_CATEGORY):
+    eeg_config.ARTIFACTS = artifacts
+    eeg_config.TRIAL_CATEGORY = trial_category
 
 
 def set_eeg_samplerate(sr):

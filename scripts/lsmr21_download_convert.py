@@ -59,9 +59,9 @@ def get_trial_category(trialdata: LSMRTrialData) -> int:
     Categorize Trials by result/forcedresult
     """
     if trialdata.result == 1:
-        return 1
-    if trialdata.forcedresult == 1:
         return 2
+    if trialdata.forcedresult == 1:
+        return 1
     return 0
 
 

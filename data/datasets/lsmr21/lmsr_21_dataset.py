@@ -47,3 +47,6 @@ class LSMR21:
     n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}
 
     # n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}
+
+    def set_runs(self, runs):
+        self.runs = runs

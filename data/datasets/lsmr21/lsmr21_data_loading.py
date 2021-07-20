@@ -59,7 +59,7 @@ class LSMRNumpyRun:
         # trial_info[0]= label (targetnumber)
         return np.asarray([trial[0] for trial in [self.trial_info[i] for i in trials]], dtype=np.int)
 
-    def get_data(self, trials_idxs: List[int] = None, mi_tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))):
+    def get_data(self, trials_idxs: List[int] = None, mi_tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))) -> np.ndarray:
         """
         Return float Data of all Trials as numpy array
         :param ch_idxs: Channel Idxs to be used
@@ -87,7 +87,8 @@ class LSMRNumpyRun:
         # print("Slicing Time: ", f"{time.time() - start:.2f}")
         return data
 
-    def get_trials(self, n_class=4, tmin=eeg_config.TMIN, artifact=0, trial_category=0):
+    def get_trials(self, n_class=4, tmin=eeg_config.TMIN, artifact=eeg_config.ARTIFACTS,
+                   trial_category=eeg_config.TRIAL_CATEGORY):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
@@ -95,11 +96,16 @@ class LSMRNumpyRun:
         :return: List of Trials indexes
         """
         # Get Trial idxs of n_class Trials (correct Tasks)
-        trials = self.get_n_class_trials(n_class)
+        n_class_trials_idxs = self.get_n_class_trials(n_class)
         # print("n-class Trials: ", len(trials))
-        # TODO Filter out with artifact + trial_category
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
-        return [i for i in trials if self.data[i].shape[1] >= tmin * eeg_config.SAMPLERATE]
+        trials_idxs = [i for i in n_class_trials_idxs if self.data[i].shape[1] >= tmin * eeg_config.SAMPLERATE]
+        # Filter out by trial_category (trialdata.result/forcedresult field)
+        trials_idxs = [i for i in trials_idxs if self.trial_info[i, 2] >= trial_category]
+        # Filter out by artifacts present or not if artifact = 0
+        if (artifact is not None) and (artifact != 1):
+            trials_idxs = [i for i in trials_idxs if self.trial_info[i, 3] == artifact]
+        return trials_idxs
 
     def get_trials_tmin(self, mi_tmins=np.arange(4, 11, 1)):
         s_t = []
@@ -175,6 +181,7 @@ class LSMR21DataLoader(MIDataLoader):
     eeg_config = LSMR21.CONFIG
     channels = LSMR21.CHANNELS
     ds_class = LSMR21TrialsDataset
+
     # sampler = SubjectTrialsRandomSampler
 
     @classmethod
@@ -192,11 +199,19 @@ class LSMR21DataLoader(MIDataLoader):
         return subjects_data, subjects_labels
 
     @classmethod
-    def load_subject(cls, subject_idx, n_class, ch_names, n_trials_max, runs=LSMR21.runs):
+    def load_subject(cls, subject_idx, n_class, ch_names, n_trials_max, runs=None, artifact=-1,
+                     trial_category=-1):
         """
         Load all Trials of all Runs of Subject
         :return: subject_data Numpy Array, subject_labels Numpy Array for all Subject's Trials
         """
+        # if artifact/trial_category = -1 use default values from config.py
+        if artifact == -1:
+            artifact = eeg_config.ARTIFACTS
+        if trial_category == -1:
+            trial_category = eeg_config.TRIAL_CATEGORY
+        if runs is None:
+            runs = LSMR21.runs
         subject_data = np.full((n_trials_max, len(ch_names), eeg_config.SAMPLES), -1, dtype=np.float32)
         subject_labels = np.full((n_trials_max), -1, dtype=np.int)
         t_idx = 0
@@ -212,7 +227,7 @@ class LSMR21DataLoader(MIDataLoader):
                     print(f"Skipped missing Subject {subject_idx + 1} Run {run + 1}")
                 continue
             # Get Trials idxs of correct n_class and minimum Sample size
-            trials_idxs = sr.get_trials(n_class, eeg_config.TMAX)
+            trials_idxs = sr.get_trials(n_class, eeg_config.TMAX, artifact=artifact, trial_category=trial_category)
             data = sr.get_data(trials_idxs=trials_idxs, ch_idxs=to_idxs_of_list(ch_names, LSMR21.CHANNELS))
             max_data_trial = t_idx + data.shape[0]
             subject_data[t_idx:max_data_trial] = data
@@ -224,8 +239,8 @@ class LSMR21DataLoader(MIDataLoader):
         return subject_data, subject_labels
 
     @classmethod
-    def load_subject_run(cls, subject, run, from_matlab=False):
-        # TODO numpy/matlab?
+    def load_subject_run(cls, subject, run, from_matlab=False) -> LSMRNumpyRun:
+        # TODO Remove matlab
         if from_matlab:
             x = load_matlab(f"{datasets_folder}/{LSMR21.short_name}/matlab/S{subject}_Session_{run}")
             return LSMRSubjectRun(subject, x)

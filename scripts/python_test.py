@@ -14,10 +14,10 @@ from scipy import io
 from sympy import pretty_print
 from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
 
-from config import ROOT
+from config import ROOT, set_eeg_artifacts_trial_category
 from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader, LSMRNumpyRun
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
-from machine_learning.util import SubjectTrialsRandomSampler
+from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_per_subject
 from util.misc import copy_attrs, to_el_list, print_counts
 
 print(F"Torch version:\t{torch.__version__}")
@@ -185,6 +185,18 @@ if __name__ == '__main__':
     # data = np.resize(data, (data.shape[0], data.shape[1], 2))
     # data = np.vstack(data[:, :, :]).astype(np.float)
 
-    r = LSMRNumpyRun.from_npz(np.load("/opt/datasets/LSMR21/numpy/S1_Session_1.npz",allow_pickle=True))
-    r.print_trials_with_min_mi_time()
-    print()
+    # r = LSMRNumpyRun.from_npz(np.load("/opt/datasets/LSMR21/numpy/S1_Session_1.npz",allow_pickle=True))
+    # r.print_trials_with_min_mi_time()
+    def load_sub():
+        x, y = LSMR21DataLoader.load_subject(0, 2, LSMR21.CHANNELS, n_trials_max=2000)
+        y = np.expand_dims(y, 0)
+        trials = get_valid_trials_per_subject(y, [0], [0], 2000)
+        print(trials)
+
+
+    LSMR21.runs = [7]
+    for i in range(2):
+        for j in range(3):
+            print(f"artifacts= {i} + Trial Cat. {j}")
+            set_eeg_artifacts_trial_category(i, j)
+            load_sub()
