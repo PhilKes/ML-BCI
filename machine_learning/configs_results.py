@@ -11,7 +11,7 @@ from sklearn.metrics import recall_score, precision_score
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, \
-    training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices
+    training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices, SYSTEM_SAMPLE_RATE
 from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write
 
 
@@ -218,6 +218,7 @@ def get_global_config_str():
     return f"""EEG Epoch interval: [{eeg_config.TMIN - eeg_config.CUE_OFFSET};{eeg_config.TMAX - eeg_config.CUE_OFFSET}]s
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
+System Sample Rate: {SYSTEM_SAMPLE_RATE}Hz
 Trials Slices:{eeg_config.TRIALS_SLICES}"""
 
 
