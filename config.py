@@ -140,7 +140,7 @@ chs_names_txt = "ch_names.txt"
 # Folder where MNE downloads Physionet Dataset to
 # on initial Run MNE needs to download the Dataset
 
-datasets_folder = '/opt/datasets'
+datasets_folder = 'D:/OpenBCI_Trials/'
 
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:
