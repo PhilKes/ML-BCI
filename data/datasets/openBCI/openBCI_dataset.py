@@ -11,10 +11,12 @@ from util.dot_dict import DotDict
 
 class OpenBCI:
     name = 'OpenBCI Dataset'
-    short_name = 'openBCI'
+    short_name = 'OpenBCI'
+
+    trials_per_subject = 47
 
     # No excluded subjects
-    ALL_SUBJECTS = [1]#[i for i in range(1, 10) if i not in []]  # 9 subjects
+    ALL_SUBJECTS = [1, 2]#[i for i in range(1, 10) if i not in []]  # 9 subjects
 
     # Available 22 EEG Channels from BCIC Dataset
     # TODO Channelnamen nach 10-10 system

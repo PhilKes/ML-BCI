@@ -13,14 +13,16 @@ History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
 
-from config import global_config
+from config import global_config, datasets_folder, eeg_config
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
+import numpy as np
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
 from data.datasets.openBCI.openBCI_dataset import OpenBCI
 from machine_learning.util import get_valid_trials_per_subject
+from util.misc import to_idxs_of_list
 
 
 class OpenBCITrialsDataset(TrialsDataset):
@@ -33,12 +35,12 @@ class OpenBCITrialsDataset(TrialsDataset):
         super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
-        self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
+        # self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
 
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
-        self.trials_per_subject = get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
-                                                               self.used_subjects, self.n_trials_max)
+        self.trials_per_subject = OpenBCI.trials_per_subject #get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
+                                     #                           self.used_subjects, self.n_trials_max)
 
         # Only for testing !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         #        for subject_idx in range(len(self.subjects)):
@@ -67,12 +69,26 @@ class OpenBCIDataLoader(MIDataLoader):
     def load_subjects_data(cls, subjects, n_class, ch_names=OpenBCI.CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):
         subjects.sort()
+        samples = int((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE)
 
-        # training = 1  # load BCIC training data set
-        # ds_w = BCIC_IV2a_dataset(subjects=subjects, n_class=n_class, ch_names=ch_names)
-        # preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
-        # ds_w.print_stats()
-
+        preloaded_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), samples))
+        preloaded_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
+        for subject in subjects:
+            if subject == 1:
+                data = np.load(f'{datasets_folder}/OpenBCI/Trial_2_22_07_21_processed_data.npz')
+            elif subject == 2:
+                data = np.load(f'{datasets_folder}/OpenBCI/Trial_3_22_07_21_processed_data.npz')
+            channels = data["channels"]
+            # labels = data["labels"]
+            labels_start = data["labels_start"]
+            # Trial indexes for labels 2  or 3
+            trial_idxes = [idx for idx, trial in enumerate(labels_start) if trial[1] == 2 or trial[1] == 3]
+            # create preloaded_data array
+            channel_idxes = to_idxs_of_list(ch_names, OpenBCI.CHANNELS)
+            for idx, trial_idx in enumerate(trial_idxes):
+                preloaded_data[0, idx] = channels[channel_idxes, labels_start[trial_idx][0]:(labels_start[trial_idx][0]+samples)]
+                # Todo replace 2 when higher 2 class
+                preloaded_labels[0, idx] = labels_start[trial_idx][1]-2
         return preloaded_data, preloaded_labels
 
     @classmethod
