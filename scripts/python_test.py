@@ -14,7 +14,7 @@ from scipy import io
 from sympy import pretty_print
 from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
 
-from config import ROOT, set_eeg_artifacts_trial_category
+from config import ROOT, set_eeg_artifacts_trial_category, set_eeg_config
 from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader, LSMRNumpyRun
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_per_subject
@@ -193,10 +193,10 @@ if __name__ == '__main__':
         trials = get_valid_trials_per_subject(y, [0], [0], 2000)
         print(trials)
 
-
-    LSMR21.runs = [7]
-    for i in range(2):
-        for j in range(3):
-            print(f"artifacts= {i} + Trial Cat. {j}")
-            set_eeg_artifacts_trial_category(i, j)
-            load_sub()
+    # set_eeg_config(LSMR21.CONFIG)
+    # LSMR21.set_runs([1,7])
+    # for i in range(2):
+    #     for j in range(3):
+    #         print(f"artifacts= {i} + Trial Cat. {j}")
+    #         set_eeg_artifacts_trial_category(i, j)
+    #         load_sub()

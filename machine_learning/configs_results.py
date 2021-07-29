@@ -219,7 +219,9 @@ def get_global_config_str():
 Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
 Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
 System Sample Rate: {SYSTEM_SAMPLE_RATE}Hz
-Trials Slices:{eeg_config.TRIALS_SLICES}"""
+Included Trials with Artifacts: {'Yes' if eeg_config.ARTIFACTS == 1 else 'No'}
+Trial Category: {eeg_config.TRIAL_CATEGORY}
+Trials Slices: {eeg_config.TRIALS_SLICES}"""
 
 
 def get_default_config_str(config):

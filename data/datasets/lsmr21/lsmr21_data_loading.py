@@ -228,7 +228,8 @@ class LSMR21DataLoader(MIDataLoader):
                 continue
             # Get Trials idxs of correct n_class and minimum Sample size
             trials_idxs = sr.get_trials(n_class, eeg_config.TMAX, artifact=artifact, trial_category=trial_category)
-            data = sr.get_data(trials_idxs=trials_idxs, ch_idxs=to_idxs_of_list(ch_names, LSMR21.CHANNELS))
+            data = sr.get_data(trials_idxs=trials_idxs,
+                               ch_idxs=to_idxs_of_list([ch.upper() for ch in ch_names], LSMR21.CHANNELS))
             max_data_trial = t_idx + data.shape[0]
             subject_data[t_idx:max_data_trial] = data
             subject_labels[t_idx:max_data_trial] = sr.get_labels(trials_idxs=trials_idxs) - 1

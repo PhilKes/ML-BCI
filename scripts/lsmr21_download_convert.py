@@ -112,7 +112,7 @@ if __name__ == '__main__':
     # Get Matlab Files in origin_path
     matlab_files = sorted([f for f in os.listdir(args.origin_path) if f.endswith('.mat')])
     print(f"Converting all {len(matlab_files)} .mat Files from '{args.origin_path}'"
-          f" to minimal .npz Files in '{args.dest_path}'")
+          f" to minimal .npz Files in '{args.dest_path}' with Resampling to {SYSTEM_SAMPLE_RATE}Hz Samplerate")
     for file in tqdm(matlab_files):
         mat_file_name, mat_file_ext = os.path.splitext(file)
         npz_file = os.path.join(args.dest_path, f"{mat_file_name}.npz")

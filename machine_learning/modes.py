@@ -110,6 +110,7 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
                                                                       ch_names, equal_trials, normalize=False)
         # Resample EEG Data to global System Sample Rate if necessary
         if dataset.eeg_config.SAMPLERATE != SYSTEM_SAMPLE_RATE:
+            print(f"Resampling EEG Data from {dataset.eeg_config.SAMPLERATE}Hz to {SYSTEM_SAMPLE_RATE}Hz Samplerate")
             preloaded_data = resample_eeg_data(preloaded_data, dataset.eeg_config.SAMPLERATE, SYSTEM_SAMPLE_RATE,
                                                per_subject=(mi_ds == LSMR21.short_name))
             set_eeg_samplerate(SYSTEM_SAMPLE_RATE)

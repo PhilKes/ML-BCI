@@ -235,7 +235,6 @@ def resample_eeg_data(data: np.ndarray, or_samplerate: float, dest_samplerate: f
     large datasets because resampling uses a lot of memory
     :return: data resampled to dest_samplerate
     """
-    print(f"Resampling EEG Data from {or_samplerate}Hz to {dest_samplerate}Hz Samplerate")
     # E.g. Original LSMR21 Dataset has Trials of different Sample size so the dtype of the ndarray is 'object'
     # -> have to resample each Trial Data array individually
     if (data.dtype == object) or per_subject:

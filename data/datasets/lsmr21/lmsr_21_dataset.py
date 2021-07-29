@@ -2,6 +2,7 @@
 File containing all relevant Properties of the
 LSMR-21 dataset
 """
+from typing import List
 
 from util.dot_dict import DotDict
 
@@ -47,6 +48,6 @@ class LSMR21:
     n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}
 
     # n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}
-
-    def set_runs(self, runs):
-        self.runs = runs
+    @classmethod
+    def set_runs(cls, runs: List[int]):
+        cls.runs = runs

@@ -5,7 +5,8 @@ from datetime import datetime
 import numpy
 import pandas as pd
 
-from config import results_folder, training_results_folder, training_ss_results_folder, set_eeg_artifacts_trial_category
+from config import results_folder, training_results_folder, training_ss_results_folder, \
+    set_eeg_artifacts_trial_category, set_poolsize, set_eeg_cue_offset
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
@@ -13,17 +14,6 @@ from main import single_run
 from util.misc import print_pretty_table
 
 default_options = ['-train']
-train_ss_options = ['-train_ss', '--model']
-live_sim_options = ['-live_sim', '--model']
-start = datetime.now()
-
-folder = "defaults_2s_and_4s"
-default_n_classes = ['2']
-
-train_ss = False
-live_sim = False
-
-# All Configurations to execute Training with
 confs = {
     # 'defaults': {
     #     'params': [[]],
@@ -119,35 +109,53 @@ confs = {
     #     ],
     #     'names': ['bcic_all_2s', 'bcic_all_4s']
     # },
-    'LSMR21': {
+    'LSMR21_params2': {
         'params': [
+            # ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16'],
+            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
-            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3.5'],
-            ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
-            ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '2'],
             ['--dataset', LSMR21.short_name],
         ],
-        'names': ['art_0', 'trial_cat_1', 'trial_cat_2', 'default_tmax_2_art_1_trial_cat_0', 'tmax_3', 'tmax_3.5',
-                  'tmin_-1_tmax_1', 'tmin_-1_tmax_2', 'runs_7'],
+        'names': [
+            'ch_motorimg_16',
+            'ch_motorimg_16_openbci',
+            'pool_size_8',
+            'pool_size_4',
+            'cue_offset_2.0',
+            'cue_offset_4.0',
+            'cue_offset_0.0',
+        ],
         'init': [
-            lambda: set_eeg_artifacts_trial_category(artifacts=0, trial_category=0),
-            lambda: set_eeg_artifacts_trial_category(artifacts=1, trial_category=1),
-            lambda: set_eeg_artifacts_trial_category(artifacts=1, trial_category=2),
-            lambda: set_eeg_artifacts_trial_category(artifacts=1, trial_category=0),
             lambda: None,
             lambda: None,
-            lambda: None,
-            lambda: None,
-            lambda: LSMR21.set_runs([7]),
-
+            lambda: set_poolsize(8),
+            lambda: set_poolsize(4),
+            lambda: set_eeg_cue_offset(2.0),
+            lambda: set_eeg_cue_offset(4.0),
+            lambda: set_eeg_cue_offset(0.0),
         ],
         'after': lambda: set_eeg_artifacts_trial_category(artifacts=0, trial_category=0)
     },
 }
+train_ss_options = ['-train_ss', '--model']
+live_sim_options = ['-live_sim', '--model']
+start = datetime.now()
+
+folder = "LSMR21_parameters"
+default_n_classes = ['2']
+
+train_ss = False
+live_sim = False
+
+
+# All Configurations to execute Training with
 
 
 # Run Training for every Configuration in confs for all n_classes

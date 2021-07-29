@@ -63,6 +63,7 @@ eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,
                      TRIALS_SLICES=1,
                      SAMPLERATE=PHYS.CONFIG.SAMPLERATE,
                      SAMPLES=int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE),
+                     # FOR LSMR21:
                      # 0 = disallow Trials with Artifacts, 1 = use all Trials
                      ARTIFACTS=1,
                      # 0 = use all Trials
@@ -103,6 +104,16 @@ def set_eeg_times(tmin, tmax, cue_offset):
     eeg_config.TMAX = tmax + cue_offset
     eeg_config.CUE_OFFSET = cue_offset
     eeg_config.SAMPLES = int((tmax - tmin) * eeg_config.SAMPLERATE)
+
+
+def set_eeg_cue_offset(cue_offset):
+    eeg_config.TMIN -= eeg_config.CUE_OFFSET
+    eeg_config.TMIN += cue_offset
+    eeg_config.TMAX -= eeg_config.CUE_OFFSET
+    eeg_config.TMAX += cue_offset
+    eeg_config.CUE_OFFSET = cue_offset
+    eeg_config.SAMPLES = math.floor(
+        ((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE) / eeg_config.TRIALS_SLICES)
 
 
 def reset_eeg_times():
