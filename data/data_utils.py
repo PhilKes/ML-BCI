@@ -13,7 +13,7 @@ import pandas as pd
 from scipy.signal import butter, sosfilt
 from sklearn.preprocessing import MinMaxScaler
 
-from config import eeg_config
+from config import CONFIG
 from data.datasets.phys.phys_dataset import PHYS
 from util.misc import print_pretty_table
 
@@ -52,7 +52,7 @@ def butter_bandpass_filt(indata, lowcut, highcut, fs, order):
 
 
 def crop_time_and_label(raw, time, ch_names=PHYS.CHANNELS):
-    tdelta = eeg_config.TMAX - eeg_config.TMIN
+    tdelta = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
     if (time - tdelta) < 0:
         raise Exception(f"Cant load {tdelta}s before timepoint={time}s")
     raw1 = raw.copy()
@@ -71,9 +71,9 @@ def get_data_from_raw(raw, ch_names=PHYS.CHANNELS):
 
 def get_label_at_idx(times, annot, sample):
     now_time = times[sample]
-    if sample < eeg_config.SAMPLES:
+    if sample < CONFIG.EEG.SAMPLES:
         return None, now_time
-    middle_sample_of_window = int(sample - (eeg_config.SAMPLES / 2))
+    middle_sample_of_window = int(sample - (CONFIG.EEG.SAMPLES / 2))
     time = times[middle_sample_of_window]
     onsets = annot.onset
     # boolean_array = np.logical_and(onsets >= time, onsets <= time + tdelta)
@@ -180,7 +180,7 @@ def get_correctly_predicted_areas(n_class, sample_predictions, trials_classes, t
         first_sample = trials_start_samples[idx]
         # If 1st Trial, Prediction only starts if now_sample> eeg_config.SAMPLES
         if idx == 0:
-            first_sample += eeg_config.SAMPLES
+            first_sample += CONFIG.EEG.SAMPLES
         if idx == len(trials_classes) - 1:
             last_sample = max_samples
         else:

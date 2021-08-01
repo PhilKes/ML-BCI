@@ -12,8 +12,7 @@ Author: Manfred Strahnen (based on the template given by Philipp Kessler
 History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
-
-from config import global_config
+from config import CONFIG
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
@@ -76,7 +75,7 @@ class BCICDataloader(MIDataLoader):
         raise NotImplementedError('This method is not implemented!')
 
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=global_config.FREQ_FILTER_HIGHPASS,
-                             fmax=global_config.FREQ_FILTER_LOWPASS):
+    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
+                             fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
         # TODO
         raise NotImplementedError('This method is not implemented!')

@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Callable
 
 from torch.utils.data import RandomSampler, DataLoader
 
-from config import BATCH_SIZE, global_config
+from config import EEGConfig, CONFIG
 import numpy as np
 
 from util.misc import print_subjects_ranges
@@ -20,7 +20,7 @@ class MIDataLoader:
     available_subjects: List[int]
     folds: int
     channels: List[int]
-    eeg_config: Dict
+    eeg_config: EEGConfig
     # Constructor of Dataset specific TrialsDataset subclass
     ds_class: Callable
     # Sample the trials in random order (see MIDataLoader.create_loader_from_subjects)
@@ -32,7 +32,7 @@ class MIDataLoader:
     @classmethod
     def create_loaders_from_splits(cls, splits, validation_subjects: List[int], n_class: int, device,
                                    preloaded_data: np.ndarray = None, preloaded_labels: np.ndarray = None,
-                                   bs: int = BATCH_SIZE, ch_names: List[str] = [],
+                                   bs: int = CONFIG.MI.BATCH_SIZE, ch_names: List[str] = [],
                                    equal_trials: bool = True, used_subjects: List[int] = []):
         """
         Function: create_loaders_from_splits(...)
@@ -76,7 +76,7 @@ class MIDataLoader:
     # Creates DataLoader with Random Sampling from subject list
     @classmethod
     def create_loader_from_subjects(cls, subjects, used_subjects, n_class, device, preloaded_data, preloaded_labels,
-                                    bs=BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
+                                    bs=CONFIG.MI.BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
         """
         Create Loaders for given subjects
         :return: Loader
@@ -125,5 +125,5 @@ class MIDataLoader:
 
     @classmethod
     def mne_load_subject_raw(cls, subject: int, runs: List[int], ch_names: List[str] = [], notch: bool = False,
-                             fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
+                             fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS, fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
         raise NotImplementedError('This method is not implemented!')

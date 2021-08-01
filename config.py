@@ -4,9 +4,10 @@ Configuration File containing global default values
 import math
 import os
 import sys
+from typing import List
 
 import matplotlib.pyplot as plt
-from data.datasets.phys.phys_dataset import PHYS
+from dataclasses import dataclass
 from util.dot_dict import DotDict
 
 PLOT_TO_PDF = False
@@ -21,117 +22,139 @@ else:
 # Calculate the difference in accuracy between Testing Dataset and Training Dataset
 # if True the differences are stored in the results.txt
 TEST_OVERFITTING = True
-# Preloads all subjects data for n_classes classification Training in memory
-# for -benchmark: decrease --subjects_cs (see main.py) to decrease memory usage when benchmarking
-global_config = DotDict(FREQ_FILTER_HIGHPASS=None,
-                        FREQ_FILTER_LOWPASS=None,
-                        USE_NOTCH_FILTER=False)
-
-# Training Settings
-EPOCHS = 100
-SPLITS = PHYS.cv_folds
-VALIDATION_SUBJECTS = 0
-N_CLASSES = [2]
-
-# Learning Rate Settings
-LR = DotDict(
-    start=0.01,
-    milestones=[20, 50],
-    gamma=0.1
-)
-
-BATCH_SIZE = 16
-
-# Benchmark Settings
-SUBJECTS_CS = 10
-GPU_WARMUPS = 20
-# Jetson Nano cant handle bigger Batch Sizes when device='cpu'
-JETSON_CPU_MAX_BS = 15
-
-eegnet_config = DotDict(pool_size=4)
-
-# Global System Sample Rate
-# after preloading any Dataset the EEG Data gets resampled
-# to this Samplerate (see training_cv() in machine_learning/modes.py)
-SYSTEM_SAMPLE_RATE = 250
-
-# Time Interval per EEG Trial (T=0: start of MI Cue)
-# Trials Slicing (divide every Trial in equally long Slices)
-eeg_config = DotDict(TMIN=PHYS.CONFIG.TMIN,
-                     TMAX=PHYS.CONFIG.TMAX,
-                     CUE_OFFSET=PHYS.CONFIG.CUE_OFFSET,
-                     TRIALS_SLICES=1,
-                     SAMPLERATE=PHYS.CONFIG.SAMPLERATE,
-                     SAMPLES=int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE),
-                     # FOR LSMR21:
-                     # 0 = disallow Trials with Artifacts, 1 = use all Trials
-                     ARTIFACTS=1,
-                     # 0 = use all Trials
-                     # 1 = use only Trials with forcedresult = 1
-                     # 2 = use only Trials with results = 1
-                     TRIAL_CATEGORY=0)
 
 
-def set_eeg_config(cfg: DotDict):
-    eeg_config.TMIN = cfg.TMIN + cfg.CUE_OFFSET
-    eeg_config.TMAX = cfg.TMAX + cfg.CUE_OFFSET
-    eeg_config.TRIALS_SLICES = 1
-    eeg_config.CUE_OFFSET = cfg.CUE_OFFSET
-    eeg_config.SAMPLERATE = cfg.SAMPLERATE
-    eeg_config.SAMPLES = int((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
+class MIConfig(object):
+    """
+    Object containing all relevant Machine Learning Training Parameters
+    """
+    # Training Settings
+    EPOCHS: int = 100
+    SPLITS: int = 5
+    VALIDATION_SUBJECTS: int = 0
+    N_CLASSES: List[int] = [2]
+
+    # Learning Rate Settings
+    LR: DotDict = DotDict(
+        start=0.01,
+        milestones=[20, 50],
+        gamma=0.1
+    )
+
+    BATCH_SIZE: int = 16
+
+    # Benchmark Settings
+    SUBJECTS_CS: int = 10
+    GPU_WARMUPS: int = 20
+    # Jetson Nano cant handle bigger Batch Sizes when device='cpu'
+    JETSON_CPU_MAX_BS: int = 15
 
 
-def set_eeg_artifacts_trial_category(artifacts: int = eeg_config.ARTIFACTS,
-                                     trial_category: int = eeg_config.TRIAL_CATEGORY):
-    eeg_config.ARTIFACTS = artifacts
-    eeg_config.TRIAL_CATEGORY = trial_category
+@dataclass
+class FilterConfig(object):
+    """
+    Object containing all relevant Filter Parameters to be used
+    """
+    FREQ_FILTER_HIGHPASS: float = None
+    FREQ_FILTER_LOWPASS: float = None
+    USE_NOTCH_FILTER: bool = False
+
+    def set_filters(self, fmin=None, fmax=None, notch=False):
+        self.FREQ_FILTER_HIGHPASS = fmin
+        self.FREQ_FILTER_LOWPASS = fmax
+        self.USE_NOTCH_FILTER = notch
 
 
-def set_eeg_samplerate(sr):
-    eeg_config.SAMPLERATE = sr
-    eeg_config.SAMPLES = int((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE)
+@dataclass
+class ANNConfig(object):
+    """
+    Object containing all additional configuration Parameters for the used Artificial Neural Network
+    """
+    # Pool Size of EEGNet
+    POOL_SIZE: int = 4
 
 
-def set_eeg_trials_slices(slices):
-    # eeg_config.TMIN = 0
-    # eeg_config.TMAX = 4
-    eeg_config.TRIALS_SLICES = slices
-    eeg_config.SAMPLES = math.floor(((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE) / slices)
+@dataclass
+class EEGConfig(object):
+    """
+    Object containing all configuration Variables for loading the selected EEG Dataset
+    """
+    # Time Interval per EEG Trial (T=0: start of MI Cue)
+    # Trials Slicing (divide every Trial in equally long Slices)
+    TMIN: float = None
+    TMAX: float = None
+    CUE_OFFSET: float = None
+    TRIALS_SLICES: int = 1
+    SAMPLERATE: float = None
+    SAMPLES: int = None
+    # FOR LSMR21:
+    # 0 = disallow Trials with Artifacts, 1 = use all Trials
+    ARTIFACTS: int = 1
+    # 0 = use all Trials
+    # 1 = use only Trials with forcedresult = 1
+    # 2 = use only Trials with results = 1
+    TRIAL_CATEGORY: int = 0
+
+    # ONLY USED FOR 'PHYS' DATASET
+    REST_TRIALS_FROM_BASELINE_RUN: bool = True
+    REST_TRIALS_LESS: int = 0
+
+    def set_cue_offset(self, cue_offset):
+        self.TMIN -= self.CUE_OFFSET
+        self.TMIN += cue_offset
+        self.TMAX -= self.CUE_OFFSET
+        self.TMAX += cue_offset
+        self.CUE_OFFSET = cue_offset
+        self.SAMPLES = math.floor(
+            ((self.TMAX - self.TMIN) * self.SAMPLERATE) / self.TRIALS_SLICES)
+
+    def set_trials_slices(self, slices):
+        # eeg_config.TMIN = 0
+        # eeg_config.TMAX = 4
+        self.TRIALS_SLICES = slices
+        self.SAMPLES = math.floor(((self.TMAX - self.TMIN) * self.SAMPLERATE) / slices)
+
+    def set_times(self, tmin, tmax, cue_offset):
+        self.TMIN = tmin + cue_offset
+        self.TMAX = tmax + cue_offset
+        self.CUE_OFFSET = cue_offset
+        self.SAMPLES = int((tmax - tmin) * self.SAMPLERATE)
+
+    def set_samplerate(self, sr):
+        self.SAMPLERATE = sr
+        self.SAMPLES = int((self.TMAX - self.TMIN) * self.SAMPLERATE)
+
+    def set_config(self, cfg):
+        self.TMIN = cfg.TMIN + cfg.CUE_OFFSET
+        self.TMAX = cfg.TMAX + cfg.CUE_OFFSET
+        self.TRIALS_SLICES = 1
+        self.CUE_OFFSET = cfg.CUE_OFFSET
+        self.SAMPLERATE = cfg.SAMPLERATE
+        self.SAMPLES = int((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
+
+    def set_artifacts_trial_category(self, artifacts: int = None, trial_category: int = None):
+        if artifacts is not None:
+            self.ARTIFACTS = artifacts
+        if trial_category is not None:
+            self.TRIAL_CATEGORY = trial_category
 
 
-def set_eeg_times(tmin, tmax, cue_offset):
-    eeg_config.TMIN = tmin + cue_offset
-    eeg_config.TMAX = tmax + cue_offset
-    eeg_config.CUE_OFFSET = cue_offset
-    eeg_config.SAMPLES = int((tmax - tmin) * eeg_config.SAMPLERATE)
+class Config(object):
+    """
+    Singleton Object for all relevant global Config Variables
+    """
+    # Global System Sample Rate
+    # after preloading any Dataset the EEG Data gets resampled
+    # to this Samplerate (see training_cv() in machine_learning/modes.py)
+    SYSTEM_SAMPLE_RATE: int = 250
+
+    EEG: EEGConfig = EEGConfig()
+    NET: ANNConfig = ANNConfig()
+    FILTER: FilterConfig = FilterConfig()
+    MI: MIConfig = MIConfig()
 
 
-def set_eeg_cue_offset(cue_offset):
-    eeg_config.TMIN -= eeg_config.CUE_OFFSET
-    eeg_config.TMIN += cue_offset
-    eeg_config.TMAX -= eeg_config.CUE_OFFSET
-    eeg_config.TMAX += cue_offset
-    eeg_config.CUE_OFFSET = cue_offset
-    eeg_config.SAMPLES = math.floor(
-        ((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE) / eeg_config.TRIALS_SLICES)
-
-
-def reset_eeg_times():
-    eeg_config.TMIN = PHYS.CONFIG.TMIN
-    eeg_config.TMAX = PHYS.CONFIG.TMAX
-    eeg_config.SAMPLERATE = PHYS.CONFIG.SAMPLERATE
-    eeg_config.SAMPLES = int((PHYS.CONFIG.TMAX - PHYS.CONFIG.TMIN) * PHYS.CONFIG.SAMPLERATE)
-
-
-def set_poolsize(size):
-    eegnet_config.pool_size = size
-
-
-def set_bandpassfilter(fmin=None, fmax=None, notch=False):
-    global_config.FREQ_FILTER_HIGHPASS = fmin
-    global_config.FREQ_FILTER_LOWPASS = fmax
-    global_config.USE_NOTCH_FILTER = notch
-
+CONFIG = Config()
 
 # Project's root path
 ROOT = os.path.dirname(os.path.abspath(__file__))

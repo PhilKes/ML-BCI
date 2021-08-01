@@ -19,8 +19,7 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, TEST_OVERFITTING, GPU_WARMUPS, \
-    trained_model_name, VALIDATION_SUBJECTS, eeg_config, SYSTEM_SAMPLE_RATE, set_eeg_samplerate
+from config import TEST_OVERFITTING, trained_model_name, CONFIG
 from data.datasets.datasets import DATASETS
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
@@ -36,10 +35,10 @@ from machine_learning.util import get_class_accuracies, get_trials_per_class, ge
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
-from config import global_config
 
 
-def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_classes=N_CLASSES,
+def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, folds=None, lr=CONFIG.MI.LR,
+                n_classes=CONFIG.MI.N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
                 equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS.short_name, only_fold=None):
     """
@@ -82,11 +81,11 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
     # Currently if early_stop=true:
     # Validation Set = Test Set
     # 0 validation subjects, train() evaluates valid_loss on loader_test
-    if early_stop & (VALIDATION_SUBJECTS > 0):
+    if early_stop & (CONFIG.MI.VALIDATION_SUBJECTS > 0):
         # 76 Subjects (~72%) for Train + 19 (~18%) for Test (get split in 5 different Splits)
-        used_subjects = available_subjects[:(len(available_subjects) - VALIDATION_SUBJECTS)]
+        used_subjects = available_subjects[:(len(available_subjects) - CONFIG.MI.VALIDATION_SUBJECTS)]
         # 10 (~10%) Subjects for Validation (always the same)
-        validation_subjects = available_subjects[(len(available_subjects) - VALIDATION_SUBJECTS):]
+        validation_subjects = available_subjects[(len(available_subjects) - CONFIG.MI.VALIDATION_SUBJECTS):]
         print(f"Validation Subjects: [{validation_subjects[0]}-{validation_subjects[-1]}]")
 
     # Group labels (subjects in same group need same group label)
@@ -109,11 +108,13 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials, normalize=False)
         # Resample EEG Data to global System Sample Rate if necessary
-        if dataset.eeg_config.SAMPLERATE != SYSTEM_SAMPLE_RATE:
-            print(f"Resampling EEG Data from {dataset.eeg_config.SAMPLERATE}Hz to {SYSTEM_SAMPLE_RATE}Hz Samplerate")
-            preloaded_data = resample_eeg_data(preloaded_data, dataset.eeg_config.SAMPLERATE, SYSTEM_SAMPLE_RATE,
+        if dataset.eeg_config.SAMPLERATE != CONFIG.MI.SYSTEM_SAMPLE_RATE:
+            print(
+                f"Resampling EEG Data from {dataset.eeg_config.SAMPLERATE}Hz to {CONFIG.MI.SYSTEM_SAMPLE_RATE}Hz Samplerate")
+            preloaded_data = resample_eeg_data(preloaded_data, dataset.eeg_config.SAMPLERATE,
+                                               CONFIG.MI.SYSTEM_SAMPLE_RATE,
                                                per_subject=(mi_ds == LSMR21.short_name))
-            set_eeg_samplerate(SYSTEM_SAMPLE_RATE)
+            CONFIG.EEG.set_samplerate(CONFIG.SYSTEM_SAMPLE_RATE)
         print(f"######### {n_class}Class-Classification")
         cv_split = cv.split(X=used_subjects, groups=groups)
         run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
@@ -200,7 +201,7 @@ def testing(n_class, model_path, device, ch_names):
 
     print(f"Testing '{model_path}' {n_class}-classification of Best Fold ({best_fold + 1})")
     print(f"TMIN: {n_class_results['tmin']}, TMAX: {n_class_results['tmax']}"
-          f" FMIN: {global_config.FREQ_FILTER_HIGHPASS},  FMAX: {global_config.FREQ_FILTER_LOWPASS}")
+          f" FMIN: {CONFIG.FILTER.FREQ_FILTER_HIGHPASS},  FMAX: {CONFIG.FILTER.FREQ_FILTER_LOWPASS}")
 
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(dataset.available_subjects), dataset.folds)
@@ -225,14 +226,14 @@ def testing(n_class, model_path, device, ch_names):
     # Test with Best-Fold Test set subjects
     loader_test = dataset.create_loader_from_subjects(subjects_test, n_class, device,
                                                       preloaded_data, preloaded_labels,
-                                                      BATCH_SIZE, dataset.channels)
+                                                      CONFIG.MI.BATCH_SIZE, dataset.channels)
     test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
     print(f"Test Accuracy: {test_accuracy}")
     return test_accuracy
 
 
-def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=[3],
-                device=torch.device("cpu"), tag=None, ch_names=PHYS.CHANNELS):
+def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE,
+                lr=CONFIG.MI.LR, n_classes=[3], device=torch.device("cpu"), tag=None, ch_names=PHYS.CHANNELS):
     """
     Runs Subject-specific Training on pretrained model (model_path)
     Supposed to be used before live_sim mode is executed
@@ -282,8 +283,8 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
-def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
-                 warm_ups=GPU_WARMUPS, subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1,
+def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
+                 warm_ups=CONFIG.MI.GPU_WARMUPS, subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1,
                  fp16=False, tag=None, ch_names=PHYS.CHANNELS, equal_trials=True, continuous=False):
     """
     Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
@@ -370,7 +371,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 
 
 def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
-             n_classes=N_CLASSES, device=torch.device("cpu"), tag=None):
+             n_classes=CONFIG.MI.N_CLASSES, device=torch.device("cpu"), tag=None):
     """
     Simulates Live usage
     Loads pretrained model of model_path
@@ -405,7 +406,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
         X = get_data_from_raw(raw)
 
         max_sample = raw.n_times
-        slices = eeg_config.TRIALS_SLICES
+        slices = CONFIG.EEG.TRIALS_SLICES
         # times = raw.times[:max_sample]
         trials_start_times = raw.annotations.onset
         trials_classes = map_trial_labels_to_classes(raw.annotations.description)
@@ -420,7 +421,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
 
         # Highlight Trials and mark the trained on positions of each Trial
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
-        tdelta = eeg_config.TMAX - eeg_config.TMIN
+        tdelta = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
         vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
 
         # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,

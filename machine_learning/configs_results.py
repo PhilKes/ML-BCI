@@ -10,8 +10,8 @@ import torch  # noqa
 from sklearn.metrics import recall_score, precision_score
 
 from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
-    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, \
-    training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices, SYSTEM_SAMPLE_RATE
+    trained_model_name, chs_names_txt, results_folder, live_sim_results_folder, \
+    training_ss_results_folder, CONFIG
 from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write
 
 
@@ -64,8 +64,8 @@ def save_training_numpy_data(run_data, save_path, n_class,
     np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=run_data.fold_accuracies,
              train_losses=run_data.epoch_losses_train, class_accs=run_data.class_accuracies,
              test_losses=run_data.epoch_losses_test, best_fold=run_data.best_fold,
-             tmin=eeg_config.TMIN - eeg_config.CUE_OFFSET, tmax=eeg_config.TMAX - eeg_config.CUE_OFFSET,
-             slices=eeg_config.TRIALS_SLICES,
+             tmin=CONFIG.EEG.TMIN - CONFIG.EEG.CUE_OFFSET, tmax=CONFIG.EEG.TMAX - CONFIG.EEG.CUE_OFFSET,
+             slices=CONFIG.EEG.TRIALS_SLICES,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
     if run_data.best_fold_act_labels is not None:
         np.savez(f"{save_path}/{n_class}class_training_actual_predicted.npz",
@@ -76,10 +76,10 @@ def training_result_str(run_data, only_fold=None, early_stop=True):
     folds_str = ""
     for fold in range(len(run_data.fold_accuracies)):
         folds_str += f'\tFold {fold + 1 + (only_fold if only_fold is not None else 0)}' \
-            f' {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'
+                     f' {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'
         if TEST_OVERFITTING:
             folds_str += f"\t\tOverfitting (Test-Training): " \
-                f"{run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
+                         f"{run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
 
     trials_str = ""
     for cl, trs in enumerate(run_data.class_trials):
@@ -92,7 +92,7 @@ def training_result_str(run_data, only_fold=None, early_stop=True):
         best_epochs_str += "Best Validation Loss Epochs of Folds:\n"
         for fold in range(run_data.best_valid_epochs.shape[0]):
             best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == run_data.best_fold else ""}: ' \
-                f'{run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
+                               f'{run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
 
     return train_result_str.format(
         elapsed=run_data.elapsed,
@@ -215,13 +215,13 @@ Run: {config.run}
 
 
 def get_global_config_str():
-    return f"""EEG Epoch interval: [{eeg_config.TMIN - eeg_config.CUE_OFFSET};{eeg_config.TMAX - eeg_config.CUE_OFFSET}]s
-Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
-Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
-System Sample Rate: {SYSTEM_SAMPLE_RATE}Hz
-Included Trials with Artifacts: {'Yes' if eeg_config.ARTIFACTS == 1 else 'No'}
-Trial Category: {eeg_config.TRIAL_CATEGORY}
-Trials Slices: {eeg_config.TRIALS_SLICES}"""
+    return f"""EEG Epoch interval: [{CONFIG.EEG.TMIN - CONFIG.EEG.CUE_OFFSET};{CONFIG.EEG.TMAX - CONFIG.EEG.CUE_OFFSET}]s
+Bandpass Filter: [{CONFIG.FILTER.FREQ_FILTER_HIGHPASS};{CONFIG.FILTER.FREQ_FILTER_LOWPASS}]Hz
+Notch Filter (60Hz): {CONFIG.FILTER.USE_NOTCH_FILTER}
+System Sample Rate: {CONFIG.SYSTEM_SAMPLE_RATE}Hz
+Included Trials with Artifacts: {'Yes' if CONFIG.EEG.ARTIFACTS == 1 else 'No'}
+Trial Category: {CONFIG.EEG.TRIAL_CATEGORY}
+Trials Slices: {CONFIG.EEG.TRIALS_SLICES}"""
 
 
 def get_default_config_str(config):
@@ -251,11 +251,11 @@ def load_npz(npz):
 # Load TMIN, TMAX, TRIALS_SLICES from .npz result file
 def load_global_conf_from_results(results):
     if ('tmin' in results) & ('tmax' in results):
-        set_eeg_times(results['tmin'], results['tmax'])
+        CONFIG.EEG.set_times(results['tmin'], results['tmax'])
     else:
         raise ValueError(f'There is no "tmin" or "tmax" in {results}')
     if 'slices' in results:
-        set_eeg_trials_slices(results['slices'])
+        CONFIG.EEG.set_trials_slices(results['slices'])
     else:
         raise ValueError(f'There is no "slices" in {results}')
 

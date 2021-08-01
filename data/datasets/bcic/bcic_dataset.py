@@ -5,7 +5,7 @@ BCI competition IV 2a dataset
 History:
   2021-05-10: Getting started - ms
 """
-
+from config import EEGConfig
 from util.dot_dict import DotDict
 
 
@@ -24,7 +24,7 @@ class BCIC:
         'c22']
     cv_folds = 9
     # Time Interval per EEG Trial (T=2: start of MI Cue)
-    CONFIG = DotDict(
+    CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,
         TMAX=2.0,
         SAMPLERATE=250,

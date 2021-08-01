@@ -5,12 +5,12 @@ import numpy as np
 import torch as t
 import torch.nn.functional as F  # noqa
 
-from config import eegnet_config
-
-
 # Original Source:
 # Tibor Schneider
 # https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
+from config import CONFIG
+
+
 class EEGNet(t.nn.Module):
     """
     EEGNet
@@ -60,7 +60,7 @@ class EEGNet(t.nn.Module):
         self.p_dropout, self.reg_rate, self.activation = (p_dropout, reg_rate, activation)
         self.constrain_w, self.dropout_type = (constrain_w, dropout_type)
 
-        pool_size = eegnet_config.pool_size
+        pool_size = CONFIG.NET.pool_size
         # Number of input neurons to the final fully connected layer
         n_features = (T // pool_size) // 8
 

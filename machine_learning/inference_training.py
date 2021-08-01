@@ -12,8 +12,7 @@ from sklearn.metrics import accuracy_score
 from torch import nn  # noqa
 from tqdm import tqdm
 
-from config import LR, eeg_config
-
+from config import CONFIG
 from machine_learning.configs_results import benchmark_single_result_str
 from machine_learning.util import get_class_accuracies
 
@@ -33,8 +32,9 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("c
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LR.start)
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=LR.milestones, gamma=LR.gamma)
+    optimizer = optim.Adam(model.parameters(), lr=CONFIG.MI.LR.start)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=CONFIG.MI.LR.milestones,
+                                                  gamma=CONFIG.MI.LR.gamma)
     print("###### Training started")
     loss_values_train, loss_values_valid = np.full((epochs), fill_value=np.inf), np.full((epochs), fill_value=np.inf)
     best_epoch = 0
@@ -186,10 +186,10 @@ def do_predict_on_samples(model, n_class, samples_data, max_sample, device=torch
 
     pbar = tqdm(range(max_sample), file=sys.stdout)
     for now_sample in pbar:
-        if now_sample < eeg_config.SAMPLES:
+        if now_sample < CONFIG.EEG.SAMPLES:
             continue
         # label, now_time = get_label_at_idx(times, raw.annotations, now_sample)
-        time_window_samples = samples_data[:, (now_sample - eeg_config.SAMPLES):now_sample]
+        time_window_samples = samples_data[:, (now_sample - CONFIG.EEG.SAMPLES):now_sample]
         sample_predictions[now_sample] = do_predict_single(model, time_window_samples, device)
     return sample_predictions
 

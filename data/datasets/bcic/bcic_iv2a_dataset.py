@@ -21,10 +21,9 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from scipy import signal
-from config import eeg_config, datasets_folder
+from config import datasets_folder, CONFIG
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.data_utils import butter_bandpass_filt
-from config import global_config
 
 # All total trials per class per n_class-Classification
 from util.misc import to_idxs_of_list
@@ -136,12 +135,12 @@ class BCIC_IV2a_dataset:
             print("Error in BCIC_IV2a_dataset constructor: Illegal parameter n_class: ", n_class)
             sys.exit(0)
 
-        self.fs = eeg_config.SAMPLERATE  # sampling rate: 250Hz from original paper
+        self.fs = CONFIG.EEG.SAMPLERATE  # sampling rate: 250Hz from original paper
         self.n_trials_max = None  # Maximum possible number of trials
         self.channel_idxs = to_idxs_of_list(ch_names, BCIC.CHANNELS)  # 22 EEG electrodes
 
-        self.tmin = eeg_config.TMIN
-        self.tmax = eeg_config.TMAX
+        self.tmin = CONFIG.EEG.TMIN
+        self.tmax = CONFIG.EEG.TMAX
         self.n_samples = int((self.tmax - self.tmin) * self.fs)
         print("BCIC_IV2a_dataset: fs, tmin, tmax, n_samples= ", self.fs, self.tmin, self.tmax, self.n_samples)
 
@@ -213,10 +212,10 @@ class BCIC_IV2a_dataset:
         artifacts = data['artifacts'].T
 
         # optional butterworth bandpass filtering
-        if global_config.FREQ_FILTER_HIGHPASS != None or global_config.FREQ_FILTER_LOWPASS != None:
-            raw = butter_bandpass_filt(raw, lowcut=global_config.FREQ_FILTER_HIGHPASS, \
-                                       highcut=global_config.FREQ_FILTER_LOWPASS, \
-                                       fs=eeg_config.SAMPLERATE, order=7)
+        if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
+            raw = butter_bandpass_filt(raw, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS, \
+                                       highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS, \
+                                       fs=CONFIG.FILTER.SAMPLERATE, order=7)
 
         startrial_code = 768
         starttrial_events = events_type == startrial_code

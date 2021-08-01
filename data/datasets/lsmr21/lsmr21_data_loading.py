@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from config import eeg_config, datasets_folder, global_config, VERBOSE
+from config import datasets_folder, VERBOSE, CONFIG
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
@@ -49,7 +49,7 @@ class LSMRNumpyRun:
         return [i for i, td in enumerate(self.trial_info) if
                 (td[1] in LSMR21.n_classes_tasks[n_class])]
 
-    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=eeg_config.TMAX):
+    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=CONFIG.EEG.TMAX):
         """
         Return int Labels of all Trials as numpy array
         :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
@@ -67,12 +67,12 @@ class LSMRNumpyRun:
         :param trials_idxs: Force to return only specified trials
         """
         if mi_tmin is None:
-            mi_tmin = eeg_config.TMAX
+            mi_tmin = CONFIG.EEG.TMAX
         trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
-        min_sample = math.floor(eeg_config.TMIN * eeg_config.SAMPLERATE)
-        max_sample = math.floor(eeg_config.SAMPLERATE * (mi_tmin))
+        min_sample = math.floor(CONFIG.EEG.TMIN * CONFIG.EEG.SAMPLERATE)
+        max_sample = math.floor(CONFIG.EEG.SAMPLERATE * (mi_tmin))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
         elapsed = 0.0
@@ -87,8 +87,8 @@ class LSMRNumpyRun:
         # print("Slicing Time: ", f"{time.time() - start:.2f}")
         return data
 
-    def get_trials(self, n_class=4, tmin=eeg_config.TMIN, artifact=eeg_config.ARTIFACTS,
-                   trial_category=eeg_config.TRIAL_CATEGORY):
+    def get_trials(self, n_class=4, tmin=CONFIG.EEG.TMIN, artifact=CONFIG.EEG.ARTIFACTS,
+                   trial_category=CONFIG.EEG.TRIAL_CATEGORY):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
@@ -99,7 +99,7 @@ class LSMRNumpyRun:
         n_class_trials_idxs = self.get_n_class_trials(n_class)
         # print("n-class Trials: ", len(trials))
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
-        trials_idxs = [i for i in n_class_trials_idxs if self.data[i].shape[1] >= tmin * eeg_config.SAMPLERATE]
+        trials_idxs = [i for i in n_class_trials_idxs if self.data[i].shape[1] >= tmin * CONFIG.EEG.SAMPLERATE]
         # Filter out by trial_category (trialdata.result/forcedresult field)
         trials_idxs = [i for i in trials_idxs if self.trial_info[i, 2] >= trial_category]
         # Filter out by artifacts present or not if artifact = 0
@@ -189,7 +189,7 @@ class LSMR21DataLoader(MIDataLoader):
                            normalize=False, ignored_runs=[]):
         # 11 Runs, 62 Subjects, 75 Trials per Class
         n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
-        subjects_data = np.zeros((len(subjects), n_subject_trials_max, len(ch_names), eeg_config.SAMPLES),
+        subjects_data = np.zeros((len(subjects), n_subject_trials_max, len(ch_names), CONFIG.EEG.SAMPLES),
                                  dtype=np.float32)
         subjects_labels = np.zeros((len(subjects), n_subject_trials_max), dtype=np.int)
         for i, subject in enumerate(tqdm(subjects)):
@@ -207,12 +207,12 @@ class LSMR21DataLoader(MIDataLoader):
         """
         # if artifact/trial_category = -1 use default values from config.py
         if artifact == -1:
-            artifact = eeg_config.ARTIFACTS
+            artifact = CONFIG.EEG.ARTIFACTS
         if trial_category == -1:
-            trial_category = eeg_config.TRIAL_CATEGORY
+            trial_category = CONFIG.EEG.TRIAL_CATEGORY
         if runs is None:
             runs = LSMR21.runs
-        subject_data = np.full((n_trials_max, len(ch_names), eeg_config.SAMPLES), -1, dtype=np.float32)
+        subject_data = np.full((n_trials_max, len(ch_names), CONFIG.EEG.SAMPLES), -1, dtype=np.float32)
         subject_labels = np.full((n_trials_max), -1, dtype=np.int)
         t_idx = 0
         # Load Trials of every available Subject Run
@@ -227,7 +227,7 @@ class LSMR21DataLoader(MIDataLoader):
                     print(f"Skipped missing Subject {subject_idx + 1} Run {run + 1}")
                 continue
             # Get Trials idxs of correct n_class and minimum Sample size
-            trials_idxs = sr.get_trials(n_class, eeg_config.TMAX, artifact=artifact, trial_category=trial_category)
+            trials_idxs = sr.get_trials(n_class, CONFIG.EEG.TMAX, artifact=artifact, trial_category=trial_category)
             data = sr.get_data(trials_idxs=trials_idxs,
                                ch_idxs=to_idxs_of_list([ch.upper() for ch in ch_names], LSMR21.CHANNELS))
             max_data_trial = t_idx + data.shape[0]
@@ -255,7 +255,7 @@ class LSMR21DataLoader(MIDataLoader):
         raise NotImplementedError('This method is not implemented!')
 
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=global_config.FREQ_FILTER_HIGHPASS,
-                             fmax=global_config.FREQ_FILTER_LOWPASS):
+    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
+                             fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
         # TODO
         raise NotImplementedError('This method is not implemented!')

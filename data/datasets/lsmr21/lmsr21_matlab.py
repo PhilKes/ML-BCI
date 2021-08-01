@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 
-from config import eeg_config
+from config import CONFIG
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from util.misc import print_counts, copy_attrs, to_el_list, print_pretty_table
 
@@ -135,7 +135,7 @@ class LSMRSubjectRun:
         return [i for i, td in enumerate(self.trialdata) if
                 (td.tasknumber in tasks) and (td.targetnumber != ignore_target)]
 
-    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=eeg_config.TMAX):
+    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=CONFIG.EEG.TMAX):
         """
         Return int Labels of all Trials as numpy array
         :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
@@ -152,11 +152,11 @@ class LSMRSubjectRun:
         :param trials_idxs: Force to return only specified trials
         """
         if mi_tmin is None:
-            mi_tmin = eeg_config.TMAX
+            mi_tmin = CONFIG.EEG.TMAX
         trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
-        min_sample = math.floor(eeg_config.TMIN * eeg_config.SAMPLERATE)
+        min_sample = math.floor(CONFIG.EEG.TMIN * CONFIG.EEG.SAMPLERATE)
         max_sample = math.floor(self.srate * (mi_tmin))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
@@ -186,7 +186,7 @@ class LSMRSubjectRun:
     #    """
     #     return np.asarray([trial for trial in self.trialdata if trial.tasknumber in tasks], dtype=np.int)
 
-    def get_trials(self, n_class=4, tmin=eeg_config.TMIN, ignore_target=None):
+    def get_trials(self, n_class=4, tmin=CONFIG.EEG.TMIN, ignore_target=None):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)

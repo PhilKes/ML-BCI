@@ -13,8 +13,7 @@ History:
 
 import argparse
 
-from config import EPOCHS, SUBJECTS_CS, BATCH_SIZE, MOTORIMG_CHANNELS, eeg_config, set_eeg_times, set_eeg_trials_slices, \
-    set_eeg_config
+from config import CONFIG, MOTORIMG_CHANNELS
 from data.datasets.phys.phys_dataset import PHYS
 from util.misc import list_to_str
 from data.datasets.datasets import DATASETS
@@ -53,15 +52,15 @@ def add_common_arguments(parser):
                         help='Optional Tag for results files (e.g. for different batch sizes)')
     parser.add_argument('--device', type=str, default="gpu", required=False,
                         help='Device to use, either "gpu" or "cpu"')
-    parser.add_argument('--bs', type=int, default=BATCH_SIZE,
-                        help=f'Trial Batch Size (default:{BATCH_SIZE})')
+    parser.add_argument('--bs', type=int, default=CONFIG.MI.BATCH_SIZE,
+                        help=f'Trial Batch Size (default:{CONFIG.MI.BATCH_SIZE})')
     parser.add_argument('--model', type=str, default=None,
                         help='Relative Folder path of trained model(in ./results/.../training/ folder), used for -benchmark or -train_ss or -live_sim')
     parser.add_argument('--subject', type=int, default=None,
                         help=f'Subject used for -live_sim or -train_ss')
 
-    parser.add_argument('--trials_slices', type=int, default=eeg_config.TRIALS_SLICES,
-                        help=f'Will slice every Trial into n x Trials (default: {eeg_config.TRIALS_SLICES})')
+    parser.add_argument('--trials_slices', type=int, default=CONFIG.EEG.TRIALS_SLICES,
+                        help=f'Will slice every Trial into n x Trials (default: {CONFIG.EEG.TRIALS_SLICES})')
     parser.add_argument('--tmin', type=float, default=None,
                         help=f'Start Time of every Trial Epoch')
     parser.add_argument('--tmax', type=float, default=None,
@@ -95,17 +94,17 @@ def check_common_arguments(parser, args):
     if ((args.tmin != None) and (args.tmax == None)) or ((args.tmin == None) and (args.tmax != None)):
         parser.error("You have to either set the 'tmax' AND 'tmin' options or none of the two options")
     # Dataset dependent EEG config structure re-initialization
-    set_eeg_config(dataset.eeg_config)
+    CONFIG.EEG.set_config(dataset.eeg_config)
     if (args.tmin is not None) and (args.tmax is not None):
         if (args.tmin > args.tmax) or (args.tmin == args.tmax):
             parser.error(f"tmax has to be greater than tmin!")
         else:
-            set_eeg_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
+            CONFIG.EEG.set_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
     if args.trials_slices < 1:
         parser.error(f"Trials slices has to be greater than 0!")
-    if (eeg_config.SAMPLES % args.trials_slices != 0):
-        parser.error(f"Can't divide {eeg_config.SAMPLES} Samples in {args.trials_slices} slices!")
-    set_eeg_trials_slices(args.trials_slices)
+    if (CONFIG.EEG.SAMPLES % args.trials_slices != 0):
+        parser.error(f"Can't divide {CONFIG.EEG.SAMPLES} Samples in {args.trials_slices} slices!")
+    CONFIG.EEG.set_trials_slices(args.trials_slices)
 
 
 # Train Arguments #########################
@@ -113,8 +112,8 @@ def add_train_arguments(parser):
     parser.add_argument('-train',
                         help="Runs Training with Cross Validation with Physionet Dataset",
                         action='store_true', required=False)
-    parser.add_argument('--epochs', type=int, default=EPOCHS,
-                        help=f'Number of epochs for Training (default:{EPOCHS})')
+    parser.add_argument('--epochs', type=int, default=CONFIG.MI.EPOCHS,
+                        help=f'Number of epochs for Training (default:{CONFIG.MI.EPOCHS})')
     parser.add_argument('--ch_names', nargs='+', type=str, default=None,
                         help="List of EEG Channels to use")
     parser.add_argument('--ch_motorimg', type=str, default=None,
@@ -162,8 +161,8 @@ def add_benchmark_arguments(parser):
     parser.add_argument('-benchmark',
                         help="Runs Benchmarking with Physionet Dataset with specified trained model",
                         action='store_true', required=False)
-    parser.add_argument('--subjects_cs', type=int, default=SUBJECTS_CS,
-                        help=f"Chunk size for preloading subjects in memory (only for benchmark, default:{SUBJECTS_CS}, lower for less memory usage )")
+    parser.add_argument('--subjects_cs', type=int, default=CONFIG.MI.SUBJECTS_CS,
+                        help=f"Chunk size for preloading subjects in memory (only for benchmark, default:{CONFIG.MI.SUBJECTS_CS}, lower for less memory usage )")
     parser.add_argument('--trt', action='store_true',
                         help=f"Use TensorRT to optimize trained EEGNet")
     parser.add_argument('--fp16', action='store_true',
