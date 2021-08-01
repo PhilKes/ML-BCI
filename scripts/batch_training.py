@@ -5,8 +5,7 @@ from datetime import datetime
 import numpy
 import pandas as pd
 
-from config import results_folder, training_results_folder, training_ss_results_folder, \
-    set_eeg_artifacts_trial_category, set_poolsize, set_eeg_cue_offset
+from config import results_folder, training_results_folder, training_ss_results_folder, CONFIG
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
@@ -109,7 +108,7 @@ confs = {
     #     ],
     #     'names': ['bcic_all_2s', 'bcic_all_4s']
     # },
-    'LSMR21_params2': {
+    'LSMR21_params2_refactored': {
         'params': [
             # ['--dataset', LSMR21.short_name],
             # ['--dataset', LSMR21.short_name],
@@ -135,13 +134,13 @@ confs = {
         'init': [
             lambda: None,
             lambda: None,
-            lambda: set_poolsize(8),
-            lambda: set_poolsize(4),
-            lambda: set_eeg_cue_offset(2.0),
-            lambda: set_eeg_cue_offset(4.0),
-            lambda: set_eeg_cue_offset(0.0),
+            lambda: CONFIG.NET.set_poolsize(8),
+            lambda: CONFIG.NET.set_poolsize(4),
+            lambda: CONFIG.EEG.set_cue_offset(2.0),
+            lambda: CONFIG.EEG.set_cue_offset(4.0),
+            lambda: CONFIG.EEG.set_cue_offset(0.0),
         ],
-        'after': lambda: set_eeg_artifacts_trial_category(artifacts=0, trial_category=0)
+        'after': lambda: CONFIG.EEG.set_artifacts_trial_category(artifacts=0, trial_category=0)
     },
 }
 train_ss_options = ['-train_ss', '--model']

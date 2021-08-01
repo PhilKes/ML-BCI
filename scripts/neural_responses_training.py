@@ -17,7 +17,7 @@ import numpy as np
 
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.phys.phys_dataset import PHYS
-from config import set_bandpassfilter, results_folder, FBS_NAMES, FBS
+from config import results_folder, FBS_NAMES, FBS, CONFIG
 from data.data_utils import save_accs_panda, subtract_first_config_accs
 from scripts.batch_training import run_batch_training
 from util.misc import datetime_to_folder_str
@@ -47,14 +47,14 @@ for ds_idx, ds in enumerate(ds_used):
         'params': [],
         'names': [],
         'init': [],
-        'after': lambda: set_bandpassfilter(None, None, False),
+        'after': lambda: CONFIG.FILTER.set_filters(None, None, False),
     }
 
 tmins = np.arange(0.0, time_max - time_delta + 0.01, time_step)
 time_slices = []
 
 
-def func(x): return lambda: set_bandpassfilter(*x)
+def func(x): return lambda: CONFIG.FILTER.set_filters(*x)
 
 
 for tmin in tmins:

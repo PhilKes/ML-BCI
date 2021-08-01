@@ -12,7 +12,7 @@ import argparse
 
 import numpy as np
 
-from config import set_bandpassfilter, set_eeg_times, set_eeg_config, FBS, FBS_NAMES
+from config import FBS, FBS_NAMES, CONFIG
 from data.data_utils import save_accs_panda
 from data.datasets.datasets import DATASETS
 from machine_learning.configs_results import load_npz
@@ -44,7 +44,7 @@ for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     tmin = n_class_results['tmin'].item()
     tmax = n_class_results['tmax'].item()
     ch_names = dataset.channels
-    set_eeg_config(dataset.eeg_config)
+    CONFIG.EEG.set_config(dataset.eeg_config)
     testing_folder = f"{training_folder}/testing"
     makedir(testing_folder)
 
@@ -53,8 +53,8 @@ for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     #                                                               ch_names, True, normalize=False)
     for fb_idx, (bp, fb_name) in enumerate(zip(FBS, FBS_NAMES)):
         print(f'Testing with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
-        set_eeg_times(tmin, tmax, dataset.eeg_config.CUE_OFFSET)
-        set_bandpassfilter(*bp)
+        CONFIG.EEG.set_times(tmin, tmax, dataset.eeg_config.CUE_OFFSET)
+        CONFIG.FILTER.set_filters(*bp)
         results[slice_idx, fb_idx] = testing(n_class, training_folder, device, ch_names)
 
     save_accs_panda(f"Fx-filtered_Test_accs", testing_folder, results[slice_idx], ['Accuracy in %'],

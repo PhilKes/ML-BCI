@@ -8,7 +8,7 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import BATCH_SIZE, LR, SPLITS, N_CLASSES, EPOCHS, eeg_config
+from config import CONFIG
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from data.datasets.phys.phys_dataset import PHYS
 
@@ -34,7 +34,8 @@ def psd_calc(in_data):
 
 # Calculate mean psd over all subjects, all trials/subject and channel/trial
 # based on the data given by the 'Dataloader's'
-def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
+def analyze_data(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, folds=CONFIG.MI.SPLITS, lr=CONFIG.MI.LR,
+                 n_classes=CONFIG.MI.N_CLASSES,
                  save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
                  equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
@@ -42,7 +43,7 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
-    eeg_config.TRIALS_SLICES = 1
+    CONFIG.EEG.set_trials_slices(1)
 
     start = datetime.now()
     print("- Data analysis started")
@@ -76,7 +77,7 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
                                                         used_subjects=used_subjects)
     loader_train, loader_test, loader_valid = loaders
 
-    num_samples = eeg_config.SAMPLES
+    num_samples = CONFIG.EEG.SAMPLES
     psd_all = np.zeros(int(num_samples / 2) + 1)
     psd_class0 = np.zeros(int(num_samples / 2) + 1)  # Mean psd of Left Hand trials
     psd_class1 = np.zeros(int(num_samples / 2) + 1)  # Mean psd of Right Hand trials
@@ -167,15 +168,15 @@ def analyze_data(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, 
 
 # Calculate mean psd over all subjects, all trials/subject and channel/trial
 # based on the 'preloaded' data
-def analyze_data1(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=SPLITS, lr=LR, n_classes=N_CLASSES,
-                  save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
-                  equal_trials=True, early_stop=False, excluded=[]):
+def analyze_data1(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, folds=CONFIG.MI.SPLITS,
+                  lr=CONFIG.MI.LR, n_classes=CONFIG.MI.N_CLASSES, save_model=True, device=torch.device("cpu"),
+                  name=None, tag=None, ch_names=PHYS.CHANNELS, equal_trials=True, early_stop=False, excluded=[]):
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded)
 
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
-    eeg_config.TRIALS_SLICES = 1
+    CONFIG.EEG.TRIALS_SLICES = 1
 
     start = datetime.now()
     print("- Data analysis started")
