@@ -60,7 +60,7 @@ class EEGNet(t.nn.Module):
         self.p_dropout, self.reg_rate, self.activation = (p_dropout, reg_rate, activation)
         self.constrain_w, self.dropout_type = (constrain_w, dropout_type)
 
-        pool_size = CONFIG.NET.pool_size
+        pool_size = CONFIG.NET.POOL_SIZE
         # Number of input neurons to the final fully connected layer
         n_features = (T // pool_size) // 8
 

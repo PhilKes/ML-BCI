@@ -121,6 +121,8 @@ confs = {
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
         ],
         'names': [
             'ch_motorimg_16',
@@ -130,6 +132,8 @@ confs = {
             'cue_offset_2.0',
             'cue_offset_4.0',
             'cue_offset_0.0',
+            'bp_0_32',
+            'bp_4_Inf',
         ],
         'init': [
             lambda: None,
@@ -139,6 +143,8 @@ confs = {
             lambda: CONFIG.EEG.set_cue_offset(2.0),
             lambda: CONFIG.EEG.set_cue_offset(4.0),
             lambda: CONFIG.EEG.set_cue_offset(0.0),
+            lambda: CONFIG.FILTER.set_filters(0, 32),
+            lambda: CONFIG.FILTER.set_filters(4, None),
         ],
         'after': lambda: CONFIG.EEG.set_artifacts_trial_category(artifacts=0, trial_category=0)
     },

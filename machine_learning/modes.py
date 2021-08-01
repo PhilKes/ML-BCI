@@ -108,11 +108,11 @@ def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, fo
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials, normalize=False)
         # Resample EEG Data to global System Sample Rate if necessary
-        if dataset.eeg_config.SAMPLERATE != CONFIG.MI.SYSTEM_SAMPLE_RATE:
+        if dataset.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE:
             print(
-                f"Resampling EEG Data from {dataset.eeg_config.SAMPLERATE}Hz to {CONFIG.MI.SYSTEM_SAMPLE_RATE}Hz Samplerate")
+                f"Resampling EEG Data from {dataset.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz Samplerate")
             preloaded_data = resample_eeg_data(preloaded_data, dataset.eeg_config.SAMPLERATE,
-                                               CONFIG.MI.SYSTEM_SAMPLE_RATE,
+                                               CONFIG.SYSTEM_SAMPLE_RATE,
                                                per_subject=(mi_ds == LSMR21.short_name))
             CONFIG.EEG.set_samplerate(CONFIG.SYSTEM_SAMPLE_RATE)
         print(f"######### {n_class}Class-Classification")
