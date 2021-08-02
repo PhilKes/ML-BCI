@@ -265,21 +265,23 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         loader_train, loader_test = dataset.create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs,
                                                                                 batch_size,
                                                                                 ch_names, device)
+        run_data = ML_Run_Data(1, n_class, num_epochs, None)
+        run_data.start_run()
+        train_results = do_train(model, loader_train, loader_test,
+                                 num_epochs, device)
+        epoch_losses_train, epoch_losses_test, _, __ = train_results
+        run_data.set_train_results(0, train_results)
 
-        epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
-                                                                num_epochs, device)
         test_accuracy[0], act_labels, pred_labels = do_test(model, loader_test)
-
+        run_data.set_test_results(0, test_accuracy, act_labels, pred_labels)
         elapsed = datetime.now() - start
         class_trials, class_accuracies = get_trials_per_class(n_class, act_labels), \
                                          get_class_accuracies(act_labels, pred_labels)
-
+        run_data.end_run()
         res_str = training_ss_result_str(test_accuracy[0], class_trials, class_accuracies, elapsed)
         print(res_str)
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(test_accuracy, class_accuracies,
-                                 epoch_losses_train, epoch_losses_test,
-                                 dir_results, n_class, [used_subject], None)
+        save_training_numpy_data(run_data, dir_results, n_class, [used_subject], None)
 
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
