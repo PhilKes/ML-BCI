@@ -64,6 +64,12 @@ class FilterConfig(object):
         self.FREQ_FILTER_LOWPASS = fmax
         self.USE_NOTCH_FILTER = notch
 
+    def __repr__(self):
+        return f"""
+Bandpass Filter: [{self.FREQ_FILTER_HIGHPASS};{self.FREQ_FILTER_LOWPASS}]Hz
+Notch Filter (60Hz): {self.USE_NOTCH_FILTER}
+"""
+
 
 @dataclass
 class ANNConfig(object):
@@ -72,6 +78,14 @@ class ANNConfig(object):
     """
     # Pool Size of EEGNet
     POOL_SIZE: int = 4
+
+    def set_poolsize(self, pool_size):
+        self.POOL_SIZE = pool_size
+
+    def __repr__(self):
+        return f"""
+EEGNet Pool Size: {self.POOL_SIZE}
+"""
 
 
 @dataclass
@@ -98,6 +112,15 @@ class EEGConfig(object):
     # ONLY USED FOR 'PHYS' DATASET
     REST_TRIALS_FROM_BASELINE_RUN: bool = True
     REST_TRIALS_LESS: int = 0
+
+    def __repr__(self):
+        return f"""
+EEG Epoch interval: [{self.TMIN - self.CUE_OFFSET};{self.TMAX - self.CUE_OFFSET}]s
+Cue Offset: {self.CUE_OFFSET}
+Included Trials with Artifacts: {'Yes' if self.ARTIFACTS == 1 else 'No'}
+Trial Category: {self.TRIAL_CATEGORY}
+Trials Slices: {self.TRIALS_SLICES}
+"""
 
     def set_cue_offset(self, cue_offset):
         self.TMIN -= self.CUE_OFFSET
@@ -153,10 +176,16 @@ class Config(object):
     FILTER: FilterConfig = FilterConfig()
     MI: MIConfig = MIConfig()
 
+    def __repr__(self):
+        return f"""
+System Sample Rate: {self.SYSTEM_SAMPLE_RATE}
+## EEG Config:{self.EEG}
+## Filter Config:{self.FILTER} 
+## Net Model Config:{self.NET}"""
+
 
 CONFIG = Config()
-
-# Project's root path
+# Project'sath
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.append(ROOT)

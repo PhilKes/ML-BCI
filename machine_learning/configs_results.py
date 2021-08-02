@@ -177,10 +177,10 @@ def training_config_str(config):
 Dataset split in {config.folds} Subject Groups, {config.folds - 1} for Training, {1} for Testing (Cross Validation)
 {f'Excluded Subjects:{config["excluded"]}' if len(config["excluded"]) > 0 else ""}
 Folds: {f'1 (Fold {config["only_fold"]})' if config['only_fold'] is not None else config["folds"]}
-{get_global_config_str()}
 Early Stopping: {config.early_stop}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
+{CONFIG}
 ###############\n\n"""
 
 
@@ -189,7 +189,7 @@ def training_ss_config_str(config):
 {get_default_config_str(config)}
 Subject: {config.subject}
 Runs for Testing: {config.n_test_runs}
-{get_global_config_str()}
+{CONFIG}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
 ###############\n\n"""
@@ -199,7 +199,7 @@ def benchmark_config_str(config):
     return f"""#### Config ####
 {get_default_config_str(config)}
 TensorRT optimized: {config.trt} (fp{16 if bool(config.fp16) else 32})
-{get_global_config_str()}
+{CONFIG}
 Preload subjects Chunksize: {config.subjects_cs}
 Dataset Iterations: {config.iters}
 ###############\n\n"""
@@ -208,20 +208,10 @@ Dataset Iterations: {config.iters}
 def live_sim_config_str(config, n_class=None):
     return f"""#### Config ####
 {get_default_config_str(config)}
-{get_global_config_str()}
+{CONFIG}
 Subject: {config.subject}
 Run: {config.run}
 ###############\n\n"""
-
-
-def get_global_config_str():
-    return f"""EEG Epoch interval: [{CONFIG.EEG.TMIN - CONFIG.EEG.CUE_OFFSET};{CONFIG.EEG.TMAX - CONFIG.EEG.CUE_OFFSET}]s
-Bandpass Filter: [{CONFIG.FILTER.FREQ_FILTER_HIGHPASS};{CONFIG.FILTER.FREQ_FILTER_LOWPASS}]Hz
-Notch Filter (60Hz): {CONFIG.FILTER.USE_NOTCH_FILTER}
-System Sample Rate: {CONFIG.SYSTEM_SAMPLE_RATE}Hz
-Included Trials with Artifacts: {'Yes' if CONFIG.EEG.ARTIFACTS == 1 else 'No'}
-Trial Category: {CONFIG.EEG.TRIAL_CATEGORY}
-Trials Slices: {CONFIG.EEG.TRIALS_SLICES}"""
 
 
 def get_default_config_str(config):
@@ -249,9 +239,9 @@ def load_npz(npz):
 
 
 # Load TMIN, TMAX, TRIALS_SLICES from .npz result file
-def load_global_conf_from_results(results):
+def load_global_conf_from_results(results, cue_offset):
     if ('tmin' in results) & ('tmax' in results):
-        CONFIG.EEG.set_times(results['tmin'], results['tmax'])
+        CONFIG.EEG.set_times(results['tmin'].item(), results['tmax'].item(), cue_offset)
     else:
         raise ValueError(f'There is no "tmin" or "tmax" in {results}')
     if 'slices' in results:

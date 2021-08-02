@@ -25,7 +25,6 @@ from data.data_utils import dec_label, increase_label, normalize_data, get_trial
     butter_bandpass_filt
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import PHYS
-from machine_learning.configs_results import get_global_config_str
 from util.misc import split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
 
@@ -44,7 +43,6 @@ class PHYSTrialsDataset(TrialsDataset):
 
         self.trials_per_subject = get_trials_size(n_class, equal_trials) \
                                   * CONFIG.EEG.TRIALS_SLICES - PHYS.CONFIG.REST_TRIALS_LESS
-
 
 
 class PHYSDataLoader(MIDataLoader):
@@ -83,10 +81,7 @@ class PHYSDataLoader(MIDataLoader):
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
                                                  preloaded_data.shape[3]))
         preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
-        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
-                                 torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
-        loader_data = DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
-        return loader_data
+        return cls.create_loader(preloaded_data, preloaded_labels, device, batch_size)
 
     @classmethod
     def load_subjects_data(cls, subjects, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
@@ -98,7 +93,7 @@ class PHYSDataLoader(MIDataLoader):
         if n_class > 2:
             trials -= PHYS.CONFIG.REST_TRIALS_LESS
 
-        print(get_global_config_str())
+        # print(CONFIG)
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), CONFIG.EEG.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
         print("Preload Shape", preloaded_data.shape)

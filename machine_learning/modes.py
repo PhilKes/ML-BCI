@@ -251,8 +251,9 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds']]
-        load_global_conf_from_results(n_class_results)
+        dataset = DATASETS[n_class_results['mi_ds'].item()]
+        CONFIG.EEG.set_config(dataset.eeg_config)
+        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", mode='train_ss')

@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Callable
 
-from torch.utils.data import RandomSampler, DataLoader
+import torch
+from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
 from config import EEGConfig, CONFIG
 import numpy as np
@@ -99,6 +100,12 @@ class MIDataLoader:
         :return: preloaded_data, preloaded_labels of specified subjects
         """
         raise NotImplementedError('This method is not implemented!')
+
+    @classmethod
+    def create_loader(cls, preloaded_data, preloaded_labels, device, batch_size=CONFIG.MI.BATCH_SIZE):
+        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
+                                 torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
+        return DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
 
     @classmethod
     def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
