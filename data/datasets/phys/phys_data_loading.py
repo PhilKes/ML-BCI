@@ -22,9 +22,10 @@ from config import results_folder
 from data.MIDataLoader import MIDataLoader
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
-    butter_bandpass_filt
+    butter_bandpass_filt, map_trial_labels_to_classes
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import PHYS
+from machine_learning.util import resample_eeg_data
 from util.misc import split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
 
@@ -203,6 +204,10 @@ class PHYSDataLoader(MIDataLoader):
                 contains_rest_task = (0 in tasks)
                 for n in range(task_idx if (not contains_rest_task) else task_idx - 1):
                     labels = increase_label(labels)
+            if PHYS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE:
+                data = resample_eeg_data(data, cls.eeg_config.SAMPLERATE,
+                                         CONFIG.SYSTEM_SAMPLE_RATE,
+                                         per_subject=False)
             all_data = np.concatenate((all_data, data))
             all_labels = np.concatenate((all_labels, labels))
         # all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
@@ -266,6 +271,30 @@ class PHYSDataLoader(MIDataLoader):
                                fs=CONFIG.EEG.SAMPLERATE, order=7)
             raw.load_data()
         return raw
+
+    @classmethod
+    def load_live_sim_data(cls, subject, n_class, ch_names):
+        # Load Raw Subject Run for n_class
+        raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
+        # Get Data from raw Run
+        X = get_data_from_raw(raw)
+
+        max_sample = raw.n_times
+        slices = CONFIG.EEG.TRIALS_SLICES
+        # times = raw.times[:max_sample]
+        trials_start_times = raw.annotations.onset
+        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
+
+        # Get samples of Trials Start Times
+        trials_start_samples = map_times_to_samples(raw, trials_start_times)
+
+        tdelta = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
+        trial_tdeltas = []
+        for trial_start_time in trials_start_times:
+            for i in range(1, slices + 1):
+                trial_tdeltas.append(raw.time_as_index(trial_start_time + (tdelta / slices) * i))
+
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas
 
 
 # Plots Subject Run with raw EEG Channel data

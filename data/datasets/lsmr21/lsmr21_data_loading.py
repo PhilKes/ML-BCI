@@ -174,6 +174,7 @@ class LSMR21DataLoader(MIDataLoader):
     """
     MIDataLoader implementation for LSMR21 Dataset
     """
+
     name = LSMR21.name
     name_short = LSMR21.short_name
     available_subjects = LSMR21.ALL_SUBJECTS
@@ -267,7 +268,27 @@ class LSMR21DataLoader(MIDataLoader):
         return loader_train, loader_test
 
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
-                             fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
-        # TODO
-        raise NotImplementedError('This method is not implemented!')
+    def load_live_sim_data(cls, subject, n_class, ch_names):
+        n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
+
+        # Load single Subject Run
+        run_data, run_labels = cls.load_subject(subject, n_class, ch_names, n_subject_trials_max, runs=LSMR21.runs[0])
+        # Get Data from raw Run
+        X = get_data_from_raw(raw)
+
+        max_sample = raw.n_times
+        slices = CONFIG.EEG.TRIALS_SLICES
+        # times = raw.times[:max_sample]
+        trials_start_times = raw.annotations.onset
+        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
+
+        # Get samples of Trials Start Times
+        trials_start_samples = map_times_to_samples(raw, trials_start_times)
+
+        tdelta = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
+        trial_tdeltas = []
+        for trial_start_time in trials_start_times:
+            for i in range(1, slices + 1):
+                trial_tdeltas.append(raw.time_as_index(trial_start_time + (tdelta / slices) * i))
+
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas

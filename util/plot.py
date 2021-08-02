@@ -364,11 +364,12 @@ def create_plot_vspans(vspan_start_xs, color_idx, max_x):
 
 # Generate vertical Lines (vlines) for plot
 # Of Trials where interval of Training is highlighted
-def create_vlines_from_trials_epochs(raw, vline_xs, tdelta, slices):
+def create_vlines_from_trials_epochs(trial_tdeltas, vline_xs, slices):
     vlines = []
-    for trial_start_time in vline_xs:
-        for i in range(1, slices + 1):
-            trial_tdelta_sample = raw.time_as_index(trial_start_time + (tdelta / slices) * i)
+    for idx, trial_start_time in enumerate(vline_xs):
+        s = range(1, slices + 1)
+        for i in s:
+            trial_tdelta_sample = trial_tdeltas[idx * len(s) + i - 1]
             # -1: color_idx -> see plot.py colors[]
             vlines.append((trial_tdelta_sample, -1))
     return vlines

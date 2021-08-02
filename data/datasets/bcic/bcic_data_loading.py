@@ -53,6 +53,7 @@ class BCICDataloader(MIDataLoader):
     """
     MI_DataLoader implementation for BCIC Dataset
     """
+
     name = BCIC.name
     name_short = BCIC.short_name
     available_subjects = BCIC.ALL_SUBJECTS
@@ -93,7 +94,5 @@ class BCICDataloader(MIDataLoader):
         return loader_train, loader_test
 
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
-                             fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
-        # TODO
-        raise NotImplementedError('This method is not implemented!')
+    def load_live_sim_data(cls, subject, n_class, ch_names):
+        pass

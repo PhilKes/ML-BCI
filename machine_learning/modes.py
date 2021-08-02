@@ -251,7 +251,8 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds'].item()]
+        mi_ds = n_class_results['mi_ds'].item()
+        dataset = DATASETS[mi_ds]
         CONFIG.EEG.set_config(dataset.eeg_config)
         load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
@@ -281,7 +282,7 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         res_str = training_ss_result_str(test_accuracy[0], class_trials, class_accuracies, elapsed)
         print(res_str)
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(run_data, dir_results, n_class, [used_subject], None)
+        save_training_numpy_data(run_data, dir_results, n_class, [used_subject], mi_ds)
 
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
@@ -315,7 +316,8 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds']]
-        load_global_conf_from_results(n_class_results)
+        CONFIG.EEG.set_config(dataset.eeg_config)
+        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
         class_models[n_class] = get_model(n_class, chs, device, model_path)
@@ -389,8 +391,9 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds']]
-        load_global_conf_from_results(n_class_results)
+        dataset = DATASETS[n_class_results['mi_ds'].item()]
+        CONFIG.EEG.set_config(dataset.eeg_config)
+        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         run = PHYS.n_classes_live_run[n_class]
@@ -403,19 +406,10 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
         model = get_model(n_class, len(ch_names), device, model_path)
         model.eval()
 
-        # Load Raw Subject Run for n_class
-        raw = dataset.mne_load_subject_raw(used_subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
-        # Get Data from raw Run
-        X = get_data_from_raw(raw)
+        X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas = dataset.load_live_sim_data(
+            used_subject, n_class,
+            ch_names)
 
-        max_sample = raw.n_times
-        slices = CONFIG.EEG.TRIALS_SLICES
-        # times = raw.times[:max_sample]
-        trials_start_times = raw.annotations.onset
-        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
-
-        # Get samples of Trials Start Times
-        trials_start_samples = map_times_to_samples(raw, trials_start_times)
         # if eeg_config.TRIALS_SLICES is not None:
         #     used_samples = math.floor(used_samples / eeg_config.TRIALS_SLICES)
         sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, device)
@@ -424,8 +418,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
 
         # Highlight Trials and mark the trained on positions of each Trial
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
-        tdelta = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
-        vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
+        vlines = create_vlines_from_trials_epochs(trial_tdeltas, trials_start_times, slices)
 
         # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,
         #                                                               trials_start_samples,

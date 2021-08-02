@@ -131,6 +131,5 @@ class MIDataLoader:
                                                preloaded_labels, batch_size, equal_trials=equal_trials)
 
     @classmethod
-    def mne_load_subject_raw(cls, subject: int, runs: List[int], ch_names: List[str] = [], notch: bool = False,
-                             fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS, fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
+    def load_live_sim_data(cls, subject, n_class, ch_names):
         raise NotImplementedError('This method is not implemented!')

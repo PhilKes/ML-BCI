@@ -65,7 +65,7 @@ def save_training_numpy_data(run_data, save_path, n_class,
              train_losses=run_data.epoch_losses_train, class_accs=run_data.class_accuracies,
              test_losses=run_data.epoch_losses_test, best_fold=run_data.best_fold,
              tmin=CONFIG.EEG.TMIN - CONFIG.EEG.CUE_OFFSET, tmax=CONFIG.EEG.TMAX - CONFIG.EEG.CUE_OFFSET,
-             slices=CONFIG.EEG.TRIALS_SLICES,
+             slices=CONFIG.EEG.TRIALS_SLICES, sample_rate=CONFIG.EEG.SAMPLERATE,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
     if run_data.best_fold_act_labels is not None:
         np.savez(f"{save_path}/{n_class}class_training_actual_predicted.npz",
@@ -233,13 +233,17 @@ def get_trained_model_file(model, n_class):
 
 def load_npz(npz):
     try:
-        return np.load(npz)
+        return np.load(npz, allow_pickle=True)
     except FileNotFoundError:
         raise FileNotFoundError(f'File {npz} does not exist!')
 
 
 # Load TMIN, TMAX, TRIALS_SLICES from .npz result file
 def load_global_conf_from_results(results, cue_offset):
+    if 'sample_rate' in results:
+        CONFIG.EEG.set_samplerate(results['sample_rate'].item())
+    else:
+        raise ValueError(f'There is no "sample_rate" in {results}')
     if ('tmin' in results) & ('tmax' in results):
         CONFIG.EEG.set_times(results['tmin'].item(), results['tmax'].item(), cue_offset)
     else:
