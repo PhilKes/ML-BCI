@@ -274,6 +274,19 @@ class PHYSDataLoader(MIDataLoader):
 
     @classmethod
     def load_live_sim_data(cls, subject, n_class, ch_names):
+        """
+        Load all neccessary Data for the Live Simulation Run of subject
+        :param subject:
+        :param n_class:
+        :param ch_names:
+        :return:
+        X: ndarray (channels,Samples) of single Subject Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trial_tdeltas: ndarray with Times of every Slice Timepoint in the Run
+        """
         # Load Raw Subject Run for n_class
         raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run

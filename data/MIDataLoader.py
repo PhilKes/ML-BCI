@@ -61,10 +61,6 @@ class MIDataLoader:
                                                            preloaded_data,
                                                            preloaded_labels,
                                                            bs, ch_names, equal_trials)
-        # TODO Numpy fancy slicing (indexing with list of subject_idxs)
-        #  creates copy of array -> much higher memory usage every fold
-        s_t = preloaded_data[subjects_train_idxs]
-        # print("s_t is View of preloaded_data: ",s_t.base is preloaded_data)
         loader_train = cls.create_loader_from_subjects(subjects_train, used_subjects, n_class, device,
                                                        preloaded_data, preloaded_labels,
                                                        bs, ch_names, equal_trials)
@@ -132,4 +128,14 @@ class MIDataLoader:
 
     @classmethod
     def load_live_sim_data(cls, subject, n_class, ch_names):
+        """
+        Load all necessary Data for the Live Simulation Run of subject
+        :return:
+        X: ndarray (channels,Samples) of single Subject's Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trial_tdeltas: ndarray with Times of every Slice Timepoint in the Run
+        """
         raise NotImplementedError('This method is not implemented!')
