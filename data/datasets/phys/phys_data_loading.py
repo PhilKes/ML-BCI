@@ -17,8 +17,7 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler  # noqa
 from torch.utils.data.dataset import TensorDataset  # noqa
 from tqdm import tqdm
 
-from config import VERBOSE, datasets_folder, CONFIG
-from config import results_folder
+from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, \
     get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
@@ -26,6 +25,7 @@ from data.data_utils import dec_label, increase_label, normalize_data, get_trial
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import resample_eeg_data
+from paths import datasets_folder, results_folder
 from util.misc import split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
 
@@ -97,6 +97,9 @@ class PHYSDataLoader(MIDataLoader):
         # print(CONFIG)
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), CONFIG.EEG.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
+        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
+
         print("Preload Shape", preloaded_data.shape)
         for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
             data, labels = cls.load_n_classes_tasks(subject, n_class, ch_names, equal_trials,
@@ -204,10 +207,6 @@ class PHYSDataLoader(MIDataLoader):
                 contains_rest_task = (0 in tasks)
                 for n in range(task_idx if (not contains_rest_task) else task_idx - 1):
                     labels = increase_label(labels)
-            if PHYS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE:
-                data = resample_eeg_data(data, cls.eeg_config.SAMPLERATE,
-                                         CONFIG.SYSTEM_SAMPLE_RATE,
-                                         per_subject=False)
             all_data = np.concatenate((all_data, data))
             all_labels = np.concatenate((all_labels, labels))
         # all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
@@ -238,6 +237,7 @@ class PHYSDataLoader(MIDataLoader):
         subject_data = epochs.get_data().astype('float32')
         # Labels (0-index based)
         subject_labels = epochs.events[:, -1] - 1
+        subject_data = cls.check_and_resample(subject_data)
         return subject_data, subject_labels
 
     # Loads raw Subject run with specified channels
@@ -291,6 +291,7 @@ class PHYSDataLoader(MIDataLoader):
         raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
+        X = cls.check_and_resample(X)
 
         max_sample = raw.n_times
         slices = CONFIG.EEG.TRIALS_SLICES

@@ -9,9 +9,10 @@ import numpy as np
 import torch  # noqa
 from sklearn.metrics import recall_score, precision_score
 
-from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
+from config import TEST_OVERFITTING, CONFIG
+from paths import training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, live_sim_results_folder, \
-    training_ss_results_folder, CONFIG
+    training_ss_results_folder
 from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write
 
 

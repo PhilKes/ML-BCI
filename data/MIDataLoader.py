@@ -3,9 +3,11 @@ from typing import List, Dict, Any, Callable
 import torch
 from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
-from config import EEGConfig, CONFIG
+from config import EEGConfig, CONFIG, RESAMPLE
 import numpy as np
 
+from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
+from machine_learning.util import resample_eeg_data
 from util.misc import print_subjects_ranges
 
 
@@ -96,6 +98,22 @@ class MIDataLoader:
         :return: preloaded_data, preloaded_labels of specified subjects
         """
         raise NotImplementedError('This method is not implemented!')
+
+    @classmethod
+    def check_and_resample(cls, data: np.ndarray):
+        """
+        Checks and executes resampling of given EEG Data if necessary
+        :param data: original EEG Data Array
+        :return: resampled EEG Data (Sample rate= CONFIG.SYSTEM_SAMPLE_RATE)
+        """
+        # Resample EEG Data if necessary
+        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            data = resample_eeg_data(data, cls.eeg_config.SAMPLERATE,
+                                     CONFIG.SYSTEM_SAMPLE_RATE,
+                                     per_subject=False
+                                     # per_subject=(cls.name_short == LSMR21.short_name)
+                                     )
+        return data
 
     @classmethod
     def create_loader(cls, preloaded_data, preloaded_labels, device, batch_size=CONFIG.MI.BATCH_SIZE):

@@ -2,17 +2,19 @@
 Configuration File containing global default values
 """
 import math
-import os
-import sys
+from dataclasses import dataclass
 from typing import List
 
 import matplotlib.pyplot as plt
-from dataclasses import dataclass
+
 from util.dot_dict import DotDict
+from util.misc import calc_n_samples
 
 PLOT_TO_PDF = False
 VERBOSE = False
 SHOW_PLOTS = False
+# if True EEG Data is always resampled to CONFIG.SYSTEM_SAMPLE_RATE
+RESAMPLE = True
 
 # Turn interactive plotting off
 if SHOW_PLOTS is False:
@@ -141,11 +143,11 @@ Trials Slices: {self.TRIALS_SLICES}
         self.TMIN = tmin + cue_offset
         self.TMAX = tmax + cue_offset
         self.CUE_OFFSET = cue_offset
-        self.SAMPLES = int((tmax - tmin) * self.SAMPLERATE)
+        self.SAMPLES = calc_n_samples(tmin, tmax, self.SAMPLERATE)
 
     def set_samplerate(self, sr):
         self.SAMPLERATE = sr
-        self.SAMPLES = int((self.TMAX - self.TMIN) * self.SAMPLERATE)
+        self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
     def set_config(self, cfg):
         self.TMIN = cfg.TMIN + cfg.CUE_OFFSET
@@ -153,7 +155,9 @@ Trials Slices: {self.TRIALS_SLICES}
         self.TRIALS_SLICES = 1
         self.CUE_OFFSET = cfg.CUE_OFFSET
         self.SAMPLERATE = cfg.SAMPLERATE
-        self.SAMPLES = int((cfg.TMAX - cfg.TMIN) * cfg.SAMPLERATE)
+        self.SAMPLES = calc_n_samples(cfg.TMIN, cfg.TMAX, cfg.SAMPLERATE)
+        if RESAMPLE:
+            self.set_samplerate(CONFIG.SYSTEM_SAMPLE_RATE)
 
     def set_artifacts_trial_category(self, artifacts: int = None, trial_category: int = None):
         if artifacts is not None:
@@ -185,25 +189,7 @@ System Sample Rate: {self.SYSTEM_SAMPLE_RATE}
 
 
 CONFIG = Config()
-# Project'sath
-ROOT = os.path.dirname(os.path.abspath(__file__))
 
-sys.path.append(ROOT)
-to_path = lambda x: os.path.join(ROOT, x)
-
-results_folder = to_path('results')
-training_results_folder = '/training'
-benchmark_results_folder = '/benchmark'
-live_sim_results_folder = '/live_sim'
-training_ss_results_folder = '/training_ss'
-
-trained_model_name = "trained_model.pt"
-trained_ss_model_name = "trained_ss_model.pt"
-chs_names_txt = "ch_names.txt"
-# Folder where MNE downloads Physionet Dataset to
-# on initial Run MNE needs to download the Dataset
-
-datasets_folder = '/opt/datasets'
 
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:

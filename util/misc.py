@@ -11,7 +11,7 @@ import pandas as pd
 from scipy import io
 from tabulate import tabulate
 
-from config import chs_names_txt
+from paths import chs_names_txt
 
 
 def print_subjects_ranges(train, test):
@@ -201,3 +201,7 @@ def print_pretty_table(dataframe: pandas.DataFrame):
 
 def load_matlab(filename):
     return io.loadmat(filename)['BCI']
+
+
+def calc_n_samples(tmin: float, tmax: float, samplerate: float):
+    return int((tmax - tmin) * samplerate)

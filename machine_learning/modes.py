@@ -19,7 +19,7 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import TEST_OVERFITTING, trained_model_name, CONFIG
+from config import TEST_OVERFITTING, CONFIG
 from data.datasets.datasets import DATASETS
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
@@ -32,6 +32,7 @@ from machine_learning.configs_results import training_config_str, create_results
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
     ML_Run_Data, resample_eeg_data
+from paths import trained_model_name
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
@@ -107,14 +108,6 @@ def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, fo
         print("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials, normalize=False)
-        # Resample EEG Data to global System Sample Rate if necessary
-        if dataset.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE:
-            print(
-                f"Resampling EEG Data from {dataset.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz Samplerate")
-            preloaded_data = resample_eeg_data(preloaded_data, dataset.eeg_config.SAMPLERATE,
-                                               CONFIG.SYSTEM_SAMPLE_RATE,
-                                               per_subject=(mi_ds == LSMR21.short_name))
-            CONFIG.EEG.set_samplerate(CONFIG.SYSTEM_SAMPLE_RATE)
         print(f"######### {n_class}Class-Classification")
         cv_split = cv.split(X=used_subjects, groups=groups)
         run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)

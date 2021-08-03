@@ -21,12 +21,13 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from scipy import signal
-from config import datasets_folder, CONFIG
+from config import CONFIG
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.data_utils import butter_bandpass_filt
 
 # All total trials per class per n_class-Classification
-from util.misc import to_idxs_of_list
+from paths import datasets_folder
+from util.misc import to_idxs_of_list, calc_n_samples
 
 BCIC_classes_trials = {
     "2class": {
@@ -135,13 +136,14 @@ class BCIC_IV2a_dataset:
             print("Error in BCIC_IV2a_dataset constructor: Illegal parameter n_class: ", n_class)
             sys.exit(0)
 
-        self.fs = CONFIG.EEG.SAMPLERATE  # sampling rate: 250Hz from original paper
+        self.fs = BCIC.CONFIG.SAMPLERATE  # sampling rate: 250Hz from original paper
         self.n_trials_max = None  # Maximum possible number of trials
         self.channel_idxs = to_idxs_of_list(ch_names, BCIC.CHANNELS)  # 22 EEG electrodes
 
         self.tmin = CONFIG.EEG.TMIN
         self.tmax = CONFIG.EEG.TMAX
-        self.n_samples = int((self.tmax - self.tmin) * self.fs)
+        self.n_samples = calc_n_samples(self.tmin, self.tmax, self.fs)
+
         print("BCIC_IV2a_dataset: fs, tmin, tmax, n_samples= ", self.fs, self.tmin, self.tmax, self.n_samples)
 
         self.pl_data = None

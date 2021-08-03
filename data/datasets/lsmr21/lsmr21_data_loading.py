@@ -9,14 +9,15 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from config import datasets_folder, VERBOSE, CONFIG
+from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import get_valid_trials_per_subject
-from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list
+from paths import datasets_folder
+from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list, calc_n_samples
 
 
 class LSMRNumpyRun:
@@ -71,8 +72,8 @@ class LSMRNumpyRun:
         trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
-        min_sample = math.floor(CONFIG.EEG.TMIN * CONFIG.EEG.SAMPLERATE)
-        max_sample = math.floor(CONFIG.EEG.SAMPLERATE * (mi_tmin))
+        min_sample = math.floor(CONFIG.EEG.TMIN * LSMR21.CONFIG.SAMPLERATE)
+        max_sample = math.floor(LSMR21.CONFIG.SAMPLERATE * (mi_tmin))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
         elapsed = 0.0
@@ -193,6 +194,8 @@ class LSMR21DataLoader(MIDataLoader):
         subjects_data = np.zeros((len(subjects), n_subject_trials_max, len(ch_names), CONFIG.EEG.SAMPLES),
                                  dtype=np.float32)
         subjects_labels = np.zeros((len(subjects), n_subject_trials_max), dtype=np.int)
+        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
         for i, subject in enumerate(tqdm(subjects)):
             s_data, s_labels = cls.load_subject(subject, n_class, ch_names, n_subject_trials_max)
             subjects_data[i] = s_data
@@ -213,7 +216,9 @@ class LSMR21DataLoader(MIDataLoader):
             trial_category = CONFIG.EEG.TRIAL_CATEGORY
         if runs is None:
             runs = LSMR21.runs
-        subject_data = np.full((n_trials_max, len(ch_names), CONFIG.EEG.SAMPLES), -1, dtype=np.float32)
+        subject_data = np.full((n_trials_max, len(ch_names),
+                                calc_n_samples(cls.eeg_config.TMIN, cls.eeg_config.TMAX, cls.eeg_config.SAMPLERATE)),
+                               -1, dtype=np.float32)
         subject_labels = np.full((n_trials_max), -1, dtype=np.int)
         t_idx = 0
         # Load Trials of every available Subject Run
@@ -238,6 +243,7 @@ class LSMR21DataLoader(MIDataLoader):
             elapsed = (time.time() - start)
             if VERBOSE:
                 print(f"Loading + Slicing Time {subject_idx + 1}: {elapsed:.2f}")
+        subject_data = cls.check_and_resample(subject_data)
         return subject_data, subject_labels
 
     @classmethod
@@ -254,6 +260,8 @@ class LSMR21DataLoader(MIDataLoader):
     def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):
         # 11 Runs, 62 Subjects, 75 Trials per Class
         n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
+        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
         preloaded_data, preloaded_labels = cls.load_subject(used_subject, n_class, ch_names, n_subject_trials_max)
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[0], 1, preloaded_data.shape[1],
                                                  preloaded_data.shape[2]))

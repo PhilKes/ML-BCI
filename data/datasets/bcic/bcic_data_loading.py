@@ -16,13 +16,13 @@ import math
 
 import numpy as np
 
-from config import CONFIG
+from config import CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from machine_learning.util import get_valid_trials_per_subject
+from machine_learning.util import get_valid_trials_per_subject, resample_eeg_data
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -66,12 +66,13 @@ class BCICDataloader(MIDataLoader):
     def load_subjects_data(cls, subjects, n_class, ch_names=BCIC.CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):
         subjects.sort()
-
         training = 1  # load BCIC training data set
         ds_w = BCIC_IV2a_dataset(subjects=subjects, n_class=n_class, ch_names=ch_names)
         preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
         ds_w.print_stats()
-
+        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
+        preloaded_data = cls.check_and_resample(preloaded_data)
         return preloaded_data, preloaded_labels
 
     @classmethod
@@ -80,6 +81,7 @@ class BCICDataloader(MIDataLoader):
         preloaded_data, preloaded_labels = ds_w.load_subjects_data(1)
         preloaded_data = np.squeeze(preloaded_data, 0)
         preloaded_labels = np.squeeze(preloaded_labels, 0)
+        preloaded_data = cls.check_and_resample(preloaded_data)
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[0], 1, preloaded_data.shape[1],
                                                  preloaded_data.shape[2]))
         n_trials_max = 6 * 12 * n_class  # 6 runs with 12 trials per class per subject
