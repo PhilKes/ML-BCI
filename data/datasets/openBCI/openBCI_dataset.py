@@ -13,7 +13,7 @@ class OpenBCI:
     name = 'OpenBCI Dataset'
     short_name = 'OpenBCI'
 
-    trials_per_subject = 47
+    trials_per_subject = 288
 
     # No excluded subjects
     ALL_SUBJECTS = [1, 2]#[i for i in range(1, 10) if i not in []]  # 9 subjects

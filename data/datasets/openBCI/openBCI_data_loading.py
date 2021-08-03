@@ -39,8 +39,8 @@ class OpenBCITrialsDataset(TrialsDataset):
 
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
-        self.trials_per_subject = OpenBCI.trials_per_subject #get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
-                                     #                           self.used_subjects, self.n_trials_max)
+        self.trials_per_subject = OpenBCI.trials_per_subject  # get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
+        #                           self.used_subjects, self.n_trials_max)
 
         # Only for testing !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         #        for subject_idx in range(len(self.subjects)):
@@ -65,6 +65,7 @@ class OpenBCIDataLoader(MIDataLoader):
     preloaded_data = [subject, trial, channel, sample_idx]
     preloaded_labels = [subject, trial]
     """
+
     @classmethod
     def load_subjects_data(cls, subjects, n_class, ch_names=OpenBCI.CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):
@@ -74,10 +75,7 @@ class OpenBCIDataLoader(MIDataLoader):
         preloaded_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), samples))
         preloaded_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
         for subject in subjects:
-            if subject == 1:
-                data = np.load(f'{datasets_folder}/OpenBCI/Trial_2_22_07_21_processed_data.npz')
-            elif subject == 2:
-                data = np.load(f'{datasets_folder}/OpenBCI/Trial_3_22_07_21_processed_data.npz')
+            data = np.load(f'{datasets_folder}/OpenBCI/Sub_1/Test_1/Session_' + str(subject) + '/Processed_data.npz')
             channels = data["channels"]
             # labels = data["labels"]
             labels_start = data["labels_start"]
@@ -86,9 +84,10 @@ class OpenBCIDataLoader(MIDataLoader):
             # create preloaded_data array
             channel_idxes = to_idxs_of_list(ch_names, OpenBCI.CHANNELS)
             for idx, trial_idx in enumerate(trial_idxes):
-                preloaded_data[0, idx] = channels[channel_idxes, labels_start[trial_idx][0]:(labels_start[trial_idx][0]+samples)]
+                preloaded_data[subject - 1, idx] = channels[channel_idxes,
+                                                   labels_start[trial_idx][0]:(labels_start[trial_idx][0] + samples)]
                 # Todo replace 2 when higher 2 class
-                preloaded_labels[0, idx] = labels_start[trial_idx][1]-2
+                preloaded_labels[subject - 1, idx] = labels_start[trial_idx][1] - 2
         return preloaded_data, preloaded_labels
 
     @classmethod
