@@ -197,18 +197,19 @@ class LSMR21DataLoader(MIDataLoader):
         if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
             print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
         for i, subject in enumerate(tqdm(subjects)):
-            s_data, s_labels = cls.load_subject(subject, n_class, ch_names, n_subject_trials_max)
+            s_data, s_labels = cls.load_subject(subject, n_class, ch_names)
             subjects_data[i] = s_data
             subjects_labels[i] = s_labels
         return subjects_data, subjects_labels
 
     @classmethod
-    def load_subject(cls, subject_idx, n_class, ch_names, n_trials_max, runs=None, artifact=-1,
+    def load_subject(cls, subject_idx, n_class, ch_names, runs=None, artifact=-1,
                      trial_category=-1):
         """
         Load all Trials of all Runs of Subject
         :return: subject_data Numpy Array, subject_labels Numpy Array for all Subject's Trials
         """
+        n_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
         # if artifact/trial_category = -1 use default values from config.py
         if artifact == -1:
             artifact = CONFIG.EEG.ARTIFACTS
@@ -262,7 +263,7 @@ class LSMR21DataLoader(MIDataLoader):
         n_subject_trials_max = len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
         if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
             print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
-        preloaded_data, preloaded_labels = cls.load_subject(used_subject, n_class, ch_names, n_subject_trials_max)
+        preloaded_data, preloaded_labels = cls.load_subject(used_subject, n_class, ch_names)
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[0], 1, preloaded_data.shape[1],
                                                  preloaded_data.shape[2]))
         valid_trials = get_valid_trials_per_subject(np.expand_dims(preloaded_labels, 0), [used_subject],
