@@ -11,7 +11,7 @@ import pandas as pd
 from scipy import io
 from tabulate import tabulate
 
-from config import chs_names_txt
+from paths import chs_names_txt
 
 
 def print_subjects_ranges(train, test):
@@ -201,3 +201,23 @@ def print_pretty_table(dataframe: pandas.DataFrame):
 
 def load_matlab(filename):
     return io.loadmat(filename)['BCI']
+
+
+def calc_n_samples(tmin: float, tmax: float, samplerate: float):
+    return int((tmax - tmin) * samplerate)
+
+
+import functools
+
+
+# Source:
+# https://stackoverflow.com/a/46924437/9748566
+def combine_dims(a, i=0, n=1):
+    """
+    Combines dimensions of numpy array `a`,
+    starting at index `i`,
+    and combining `n` dimensions
+    """
+    s = list(a.shape)
+    combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
+    return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])

@@ -1,10 +1,13 @@
 from typing import List, Dict, Any, Callable
 
-from torch.utils.data import RandomSampler, DataLoader
+import torch
+from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
-from config import BATCH_SIZE, global_config
+from config import EEGConfig, CONFIG, RESAMPLE
 import numpy as np
 
+from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
+from machine_learning.util import resample_eeg_data
 from util.misc import print_subjects_ranges
 
 
@@ -20,7 +23,7 @@ class MIDataLoader:
     available_subjects: List[int]
     folds: int
     channels: List[int]
-    eeg_config: Dict
+    eeg_config: EEGConfig
     # Constructor of Dataset specific TrialsDataset subclass
     ds_class: Callable
     # Sample the trials in random order (see MIDataLoader.create_loader_from_subjects)
@@ -32,7 +35,7 @@ class MIDataLoader:
     @classmethod
     def create_loaders_from_splits(cls, splits, validation_subjects: List[int], n_class: int, device,
                                    preloaded_data: np.ndarray = None, preloaded_labels: np.ndarray = None,
-                                   bs: int = BATCH_SIZE, ch_names: List[str] = [],
+                                   bs: int = CONFIG.MI.BATCH_SIZE, ch_names: List[str] = [],
                                    equal_trials: bool = True, used_subjects: List[int] = []):
         """
         Function: create_loaders_from_splits(...)
@@ -60,10 +63,6 @@ class MIDataLoader:
                                                            preloaded_data,
                                                            preloaded_labels,
                                                            bs, ch_names, equal_trials)
-        # TODO Numpy fancy slicing (indexing with list of subject_idxs)
-        #  creates copy of array -> much higher memory usage every fold
-        s_t = preloaded_data[subjects_train_idxs]
-        # print("s_t is View of preloaded_data: ",s_t.base is preloaded_data)
         loader_train = cls.create_loader_from_subjects(subjects_train, used_subjects, n_class, device,
                                                        preloaded_data, preloaded_labels,
                                                        bs, ch_names, equal_trials)
@@ -76,7 +75,7 @@ class MIDataLoader:
     # Creates DataLoader with Random Sampling from subject list
     @classmethod
     def create_loader_from_subjects(cls, subjects, used_subjects, n_class, device, preloaded_data, preloaded_labels,
-                                    bs=BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
+                                    bs=CONFIG.MI.BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
         """
         Create Loaders for given subjects
         :return: Loader
@@ -99,6 +98,28 @@ class MIDataLoader:
         :return: preloaded_data, preloaded_labels of specified subjects
         """
         raise NotImplementedError('This method is not implemented!')
+
+    @classmethod
+    def check_and_resample(cls, data: np.ndarray):
+        """
+        Checks and executes resampling of given EEG Data if necessary
+        :param data: original EEG Data Array
+        :return: resampled EEG Data (Sample rate= CONFIG.SYSTEM_SAMPLE_RATE)
+        """
+        # Resample EEG Data if necessary
+        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            data = resample_eeg_data(data, cls.eeg_config.SAMPLERATE,
+                                     CONFIG.SYSTEM_SAMPLE_RATE,
+                                     per_subject=False
+                                     # per_subject=(cls.name_short == LSMR21.short_name)
+                                     )
+        return data
+
+    @classmethod
+    def create_loader(cls, preloaded_data, preloaded_labels, device, batch_size=CONFIG.MI.BATCH_SIZE):
+        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
+                                 torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
+        return DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
 
     @classmethod
     def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
@@ -124,6 +145,14 @@ class MIDataLoader:
                                                preloaded_labels, batch_size, equal_trials=equal_trials)
 
     @classmethod
-    def mne_load_subject_raw(cls, subject: int, runs: List[int], ch_names: List[str] = [], notch: bool = False,
-                             fmin=global_config.FREQ_FILTER_HIGHPASS, fmax=global_config.FREQ_FILTER_LOWPASS):
+    def load_live_sim_data(cls, subject, n_class, ch_names):
+        """
+        Load all necessary Data for the Live Simulation Run of subject
+        X: ndarray (channels,Samples) of single Subject's Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trial_tdeltas: ndarray with Times of every Slice Timepoint in the Run
+        """
         raise NotImplementedError('This method is not implemented!')

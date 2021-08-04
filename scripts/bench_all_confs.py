@@ -8,7 +8,7 @@ results can be visualized with visualize_bench_all.py (provide --folder {parent_
 """
 import argparse
 import numpy as np
-from config import SUBJECTS_CS, benchmark_results_folder, BATCH_SIZE, N_CLASSES
+from config import benchmark_results_folder, CONFIG
 from main import single_run
 from scripts.visualize_bench_all import visualize_benchmarks
 
@@ -17,14 +17,14 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--model', type=str, default=None,
                     help='Relative Folder path of model used to benchmark (in ./results/.../training folder)')
 parser.add_argument('--bs', nargs='+', type=int, default=[8, 16, 32],
-                    help=f'Trial Batch Size (default:{BATCH_SIZE})')
+                    help=f'Trial Batch Size (default:{CONFIG.MI.BATCH_SIZE})')
 parser.add_argument('--all', dest='continuous', action='store_false',
                     help=f'If present, will only loop benchmarking over entire Physionet Dataset, with loading Subjects chunks in between Inferences (default: False)')
 parser.add_argument('--iters', type=int, default=1,
                     help=f'Number of benchmark iterations over the Dataset in a loop (default:1, if --continuous:10)')
 parser.add_argument('--tag', type=str, default=None,
                     help=f'Additional tag for the results folder name')
-parser.add_argument('--n_classes', nargs='+', type=int, default=N_CLASSES,
+parser.add_argument('--n_classes', nargs='+', type=int, default=CONFIG.MI.N_CLASSES,
                     help="List of n-class Classifications to run (2/3/4-Class possible)")
 args = parser.parse_args()
 
@@ -62,7 +62,7 @@ parent_folder = f"{args.model}{benchmark_results_folder}"
 default_options = ['-benchmark',
                    '--model', str(args.model),
                    '--iters', str(args.iters),
-                   '--subjects_cs', str(SUBJECTS_CS),
+                   '--subjects_cs', str(CONFIG.MI.SUBJECTS_CS),
                    '--n_classes'] + [str(i) for i in args.n_classes]
 batch_lat_avgs, trial_inf_time_avgs = np.zeros((len(all_confs), len(args.bs), len(args.n_classes))), np.zeros(
     (len(all_confs), len(args.bs), len(args.n_classes)))

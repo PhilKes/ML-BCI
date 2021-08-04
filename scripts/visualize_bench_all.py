@@ -8,7 +8,7 @@ import sys
 
 import numpy as np
 
-from config import JETSON_CPU_MAX_BS
+from config import CONFIG
 from util.plot import matplot_grouped_configs
 
 
@@ -40,7 +40,7 @@ def visualize_benchmarks(argv=sys.argv[1:]):
     print(batch_sizes)
     cpu_max_bs_idx = 0
     for i, bs in enumerate(batch_sizes):
-        if bs > JETSON_CPU_MAX_BS:
+        if bs > CONFIG.MI.JETSON_CPU_MAX_BS:
             print("CPU batch size", bs, i)
             cpu_max_bs_idx = i
             break

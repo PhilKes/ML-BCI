@@ -6,6 +6,7 @@ https://physionet.org/content/eegmmidb/1.0.0/
 
 from mne.datasets import eegbci
 
+from config import EEGConfig
 from util.dot_dict import DotDict
 
 
@@ -31,7 +32,7 @@ class PHYS:
 
     cv_folds = 5
     # Time Interval per EEG Trial (T=0: start of MI Cue)
-    CONFIG = DotDict(
+    CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,
         TMAX=2.0,
         SAMPLERATE=160,

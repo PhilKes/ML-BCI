@@ -11,7 +11,7 @@ from matplotlib import lines
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import precision_recall_fscore_support as score
 
-from config import PLOT_TO_PDF, N_CLASSES, BATCH_SIZE, SHOW_PLOTS
+from config import PLOT_TO_PDF, SHOW_PLOTS, CONFIG
 from data.datasets.phys.phys_dataset import PHYS
 
 colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown',
@@ -303,7 +303,7 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
 def load_and_plot_training(model_path):
     # -> have to manually tell which was best fold from results.txt
     best_folds = {2: 2, 3: 2, 4: 2}
-    for n_class in N_CLASSES:
+    for n_class in CONFIG.MI.N_CLASSES:
         stats = np.load(os.path.join(model_path, f'{n_class}class-training.npz'))
         class_accs = stats['class_accs']
         # avg_class_accuracies = get_class_avgs(n_class, stats['class_accs'])
@@ -318,7 +318,7 @@ def load_and_plot_training(model_path):
                                  stats['train_losses'],
                                  stats['test_losses'],
                                  best_folds[n_class],
-                                 BATCH_SIZE,
+                                 CONFIG.MI.BATCH_SIZE,
                                  5,
                                  False
                                  )
@@ -364,11 +364,12 @@ def create_plot_vspans(vspan_start_xs, color_idx, max_x):
 
 # Generate vertical Lines (vlines) for plot
 # Of Trials where interval of Training is highlighted
-def create_vlines_from_trials_epochs(raw, vline_xs, tdelta, slices):
+def create_vlines_from_trials_epochs(trial_tdeltas, vline_xs, slices):
     vlines = []
-    for trial_start_time in vline_xs:
-        for i in range(1, slices + 1):
-            trial_tdelta_sample = raw.time_as_index(trial_start_time + (tdelta / slices) * i)
+    for idx, trial_start_time in enumerate(vline_xs):
+        s = range(1, slices + 1)
+        for i in s:
+            trial_tdelta_sample = trial_tdeltas[idx * len(s) + i - 1]
             # -1: color_idx -> see plot.py colors[]
             vlines.append((trial_tdelta_sample, -1))
     return vlines
@@ -454,7 +455,7 @@ def plot_confusion_matrix(cm, classes, recalls, precisions, acc,
 
 
 # Plot n_classes Confusion Matrices of Training Results
-def plot_confusion_matrices(model_path, n_classes=N_CLASSES):
+def plot_confusion_matrices(model_path, n_classes=CONFIG.MI.N_CLASSES):
     for n_class in n_classes:
         actual_predicted = np.load(os.path.join(model_path, f"{n_class}class_training_actual_predicted.npz"))
         y_true, y_pred = actual_predicted['actual_labels'], actual_predicted['pred_labels']

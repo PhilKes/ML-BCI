@@ -1,8 +1,10 @@
 # ML-BCI
-## Machine Learning based Brain-Computer Interface
+## Machine Learning based Brain-Computer Interface Framework
 
 * EEGNet Implementation in PyTorch
-* Training, Testing, Benchmarking on [PhysioNet Dataset](https://physionet.org/content/eegmmidb/1.0.0/) and [BCIC IV 2a](http://www.bbci.de/competition/iv/#dataset2a)
+* Training, Testing, Benchmarking on [PhysioNet Dataset](https://physionet.org/content/eegmmidb/1.0.0/)
+  , [BCIC IV 2a](http://www.bbci.de/competition/iv/#dataset2a)
+  , [LSMR21](https://figshare.com/articles/dataset/Human_EEG_Dataset_for_Brain-Computer_Interface_and_Meditation/13123148)
 * Proposed Implementation for use on NVIDIA Jetson Nano
 
 ___
@@ -14,6 +16,7 @@ Main Script to run Training/Benchmarking of EEGNet
 * n-Class-Classification Training
 * K-Fold Crossvalidation
 * Saving results and trained model in _./results/{DateTime/Name}/training_
+* Dataset Selection with `--dataset` argument
 
 `main.py -benchmark` 
 * Inference Benchmarking in batches with specified trained model (default size: 16)
@@ -71,27 +74,40 @@ ___
 * Wrap Datasets in PyTorch Dataloader
 
 ### /data/datasets/physionet_dataset.py
+
 * All important Properties of the Physionet Motorimagery Dataset
 * List of available Subjects, Tasks, Runs
 * Default Values for Epoching (tmin, tmax, ...)
 
 ### /data/datasets/bcic_dataset.py
+
 * All important Properties of the BCIC Motorimagery Dataset
 * List of available Subjects, Tasks, Runs
 * Default Values for Epoching (tmin, tmax, ...)
 
+### /data/datasets/lsmr21_dataset.py
+
+* All important Properties of the LSMR21 Motorimagery Dataset
+* List of available Subjects, Tasks, Runs
+* Default Values for Epoching (tmin, tmax, ...)
+
 ### /data/data_utils.py
+
 * TrialsDataset class for usage with PyTorch Dataloader
 * Utility methods ofr preprocessing data
 
 ___
+
 ## Scripts
- Have to be executed as python modules with:
- 
- ```python3 -m scripts.<script_name> ```
+
+Have to be executed as python modules with:
+
+```python3 -m scripts.<script_name> ```
  
 ### batch_training.py
+
 * Can be used for Batchruns of Training Runs
+* Training Configurations editable in Python Dictionary
 * Creates .csv and .txt files containing Results of Training Batchruns
 
 ### neural_responses_training.py
@@ -103,21 +119,27 @@ ___
 * Tests different Fx-filtered Test Data of trained Model
 
 #### bench_all_confs.py
+
 * Runs _main.py_ with all possible Configurations in benchmark mode (/w TRT (fp16/32))
 * Saves results in parent folder _./results/{model_path}/benchmark/_
 * Benchmarking with different Batch Sizes with `--bs` argument
 
 #### visualize_results.py
+
 * Plots and saves Results from _bench_all_confs.py_ Runs as .png
 * `--model` specifies the folder location of the _results.npz_ file
 
+#### /paths.py
+
+* All relevant paths, results folder locations, file names, ...
+
 #### /util/plot.py
+
 * Plot Results with Matplotlib
 
 #### /util/configs_results.py
+
 * Handles storing results/config .txt files
-
-
 
 #### python_test.py
 Python Playground for testing, has no further use

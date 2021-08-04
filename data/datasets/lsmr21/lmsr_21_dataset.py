@@ -2,7 +2,9 @@
 File containing all relevant Properties of the
 LSMR-21 dataset
 """
+from typing import List
 
+from config import EEGConfig
 from util.dot_dict import DotDict
 
 
@@ -33,7 +35,7 @@ class LSMR21:
     # Time Interval per EEG Trial (T=4: start of MI Cue)
     # Time: 2s blank Screen + 2s Target Presentation + 0-6s Feedback Control + 1s additional = max. 11s
     # TMAX = 7s (0-6s Feedback Control (MI Cue) + 1s additional)
-    CONFIG = DotDict(
+    CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,
         TMAX=2.0,
         # SAMPLERATE=1000,
@@ -47,6 +49,6 @@ class LSMR21:
     n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}
 
     # n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}
-
-    def set_runs(self, runs):
-        self.runs = runs
+    @classmethod
+    def set_runs(cls, runs: List[int]):
+        cls.runs = runs

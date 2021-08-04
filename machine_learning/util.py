@@ -7,7 +7,7 @@ import torch  # noqa
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import SequentialSampler
 
-from config import eeg_config, TEST_OVERFITTING
+from config import TEST_OVERFITTING, CONFIG
 from data.datasets import TrialsDataset
 from machine_learning.configs_results import get_trained_model_file
 from machine_learning.models.eegnet import EEGNet
@@ -44,7 +44,7 @@ def get_confusion_matrix(act_labels, pred_labels):
 
 # Returns EEGNet model optimized with TensorRT (fp16/32)
 def get_tensorrt_model(model, batch_size, chs, device, fp16):
-    t = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
+    t = torch.randn((batch_size, 1, chs, CONFIG.EEG.SAMPLES)).to(device)
     # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
     # TensorRT either with fp16 ("half") or fp32
     if fp16:
@@ -60,14 +60,14 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
     print("Warming up GPU")
     for u in range(warm_ups):
         with torch.no_grad():
-            data = torch.randn((batch_size, 1, chs, eeg_config.SAMPLES)).to(device)
+            data = torch.randn((batch_size, 1, chs, CONFIG.EEG.SAMPLES)).to(device)
             y = model(data.half() if fp16 else data)
 
 
 # Return EEGNet model
 # pretrained state will be loaded if present
 def get_model(n_class, chs, device, model_path=None):
-    model = EEGNet(N=n_class, T=eeg_config.SAMPLES, C=chs)
+    model = EEGNet(N=n_class, T=CONFIG.EEG.SAMPLES, C=chs)
     # model = DoseNet(C=chs, n_class=n_class, T=eeg_config.SAMPLES)
     if model_path is not None:
         model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
@@ -235,7 +235,6 @@ def resample_eeg_data(data: np.ndarray, or_samplerate: float, dest_samplerate: f
     large datasets because resampling uses a lot of memory
     :return: data resampled to dest_samplerate
     """
-    print(f"Resampling EEG Data from {or_samplerate}Hz to {dest_samplerate}Hz Samplerate")
     # E.g. Original LSMR21 Dataset has Trials of different Sample size so the dtype of the ndarray is 'object'
     # -> have to resample each Trial Data array individually
     if (data.dtype == object) or per_subject:

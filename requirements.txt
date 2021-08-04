@@ -1,8 +1,11 @@
-mne==0.22.0
-numpy==1.17.0
-scipy==1.5.4
-torch==1.7.0
-tqdm==4.56.0
-matplotlib==3.3.3
 pandas==1.1.5
+tabulate==0.8.9
+numpy==1.19.2
+tqdm==4.56.0
+scipy==1.6.2
+torch==1.7.0
+matplotlib==3.3.4
+dataclasses==0.6
+mne==0.22.0
+sympy==1.6.2
 scikit_learn==0.24.2

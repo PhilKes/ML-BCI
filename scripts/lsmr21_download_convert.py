@@ -15,7 +15,7 @@ import numpy as np
 from scipy import signal
 from tqdm import tqdm
 
-from config import datasets_folder, SYSTEM_SAMPLE_RATE
+from config import datasets_folder, CONFIG
 from data.datasets.lsmr21.lmsr21_matlab import LSMRTrialData
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun
@@ -35,7 +35,7 @@ def subject_run_to_numpy(sr: LSMRSubjectRun, path, ds_factor=None):
     trial_info = np.zeros((data.shape[0], 5))
     # Resample trial data either with ds_factor if present
     # or to global System Samplerate if ds_factor=None
-    up_factor = SYSTEM_SAMPLE_RATE if ds_factor is None else (LSMR21.ORIGINAL_SAMPLERATE / ds_factor)
+    up_factor = CONFIG.SYSTEM_SAMPLE_RATE if ds_factor is None else (LSMR21.ORIGINAL_SAMPLERATE / ds_factor)
     data = resample_eeg_data(data, LSMR21.ORIGINAL_SAMPLERATE, up_factor)
     for trial_idx in range(data.shape[0]):
         # data[trial_idx] = mne.filter.resample(data[trial_idx].astype(np.float64), window='boxcar',
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     # Get Matlab Files in origin_path
     matlab_files = sorted([f for f in os.listdir(args.origin_path) if f.endswith('.mat')])
     print(f"Converting all {len(matlab_files)} .mat Files from '{args.origin_path}'"
-          f" to minimal .npz Files in '{args.dest_path}'")
+          f" to minimal .npz Files in '{args.dest_path}' with Resampling to {CONFIG.SYSTEM_SAMPLE_RATE}Hz Samplerate")
     for file in tqdm(matlab_files):
         mat_file_name, mat_file_ext = os.path.splitext(file)
         npz_file = os.path.join(args.dest_path, f"{mat_file_name}.npz")

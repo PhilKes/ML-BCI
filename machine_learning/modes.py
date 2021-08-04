@@ -19,8 +19,7 @@ import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
-from config import BATCH_SIZE, LR, N_CLASSES, EPOCHS, TEST_OVERFITTING, GPU_WARMUPS, \
-    trained_model_name, VALIDATION_SUBJECTS, eeg_config, SYSTEM_SAMPLE_RATE, set_eeg_samplerate
+from config import TEST_OVERFITTING, CONFIG
 from data.datasets.datasets import DATASETS
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
@@ -33,13 +32,14 @@ from machine_learning.configs_results import training_config_str, create_results
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
     ML_Run_Data, resample_eeg_data
+from paths import trained_model_name
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
-from config import global_config
 
 
-def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_classes=N_CLASSES,
+def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, folds=None, lr=CONFIG.MI.LR,
+                n_classes=CONFIG.MI.N_CLASSES,
                 save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
                 equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS.short_name, only_fold=None):
     """
@@ -82,11 +82,11 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
     # Currently if early_stop=true:
     # Validation Set = Test Set
     # 0 validation subjects, train() evaluates valid_loss on loader_test
-    if early_stop & (VALIDATION_SUBJECTS > 0):
+    if early_stop & (CONFIG.MI.VALIDATION_SUBJECTS > 0):
         # 76 Subjects (~72%) for Train + 19 (~18%) for Test (get split in 5 different Splits)
-        used_subjects = available_subjects[:(len(available_subjects) - VALIDATION_SUBJECTS)]
+        used_subjects = available_subjects[:(len(available_subjects) - CONFIG.MI.VALIDATION_SUBJECTS)]
         # 10 (~10%) Subjects for Validation (always the same)
-        validation_subjects = available_subjects[(len(available_subjects) - VALIDATION_SUBJECTS):]
+        validation_subjects = available_subjects[(len(available_subjects) - CONFIG.MI.VALIDATION_SUBJECTS):]
         print(f"Validation Subjects: [{validation_subjects[0]}-{validation_subjects[-1]}]")
 
     # Group labels (subjects in same group need same group label)
@@ -108,11 +108,6 @@ def training_cv(num_epochs=EPOCHS, batch_size=BATCH_SIZE, folds=None, lr=LR, n_c
         print("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials, normalize=False)
-        # Resample EEG Data to global System Sample Rate if necessary
-        if dataset.eeg_config.SAMPLERATE != SYSTEM_SAMPLE_RATE:
-            preloaded_data = resample_eeg_data(preloaded_data, dataset.eeg_config.SAMPLERATE, SYSTEM_SAMPLE_RATE,
-                                               per_subject=(mi_ds == LSMR21.short_name))
-            set_eeg_samplerate(SYSTEM_SAMPLE_RATE)
         print(f"######### {n_class}Class-Classification")
         cv_split = cv.split(X=used_subjects, groups=groups)
         run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
@@ -199,7 +194,7 @@ def testing(n_class, model_path, device, ch_names):
 
     print(f"Testing '{model_path}' {n_class}-classification of Best Fold ({best_fold + 1})")
     print(f"TMIN: {n_class_results['tmin']}, TMAX: {n_class_results['tmax']}"
-          f" FMIN: {global_config.FREQ_FILTER_HIGHPASS},  FMAX: {global_config.FREQ_FILTER_LOWPASS}")
+          f" FMIN: {CONFIG.FILTER.FREQ_FILTER_HIGHPASS},  FMAX: {CONFIG.FILTER.FREQ_FILTER_LOWPASS}")
 
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(dataset.available_subjects), dataset.folds)
@@ -224,14 +219,14 @@ def testing(n_class, model_path, device, ch_names):
     # Test with Best-Fold Test set subjects
     loader_test = dataset.create_loader_from_subjects(subjects_test, n_class, device,
                                                       preloaded_data, preloaded_labels,
-                                                      BATCH_SIZE, dataset.channels)
+                                                      CONFIG.MI.BATCH_SIZE, dataset.channels)
     test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
     print(f"Test Accuracy: {test_accuracy}")
     return test_accuracy
 
 
-def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, n_classes=[3],
-                device=torch.device("cpu"), tag=None, ch_names=PHYS.CHANNELS):
+def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE,
+                lr=CONFIG.MI.LR, n_classes=[3], device=torch.device("cpu"), tag=None, ch_names=PHYS.CHANNELS):
     """
     Runs Subject-specific Training on pretrained model (model_path)
     Supposed to be used before live_sim mode is executed
@@ -249,8 +244,10 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
     for i, n_class in enumerate(n_classes):
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds']]
-        load_global_conf_from_results(n_class_results)
+        mi_ds = n_class_results['mi_ds'].item()
+        dataset = DATASETS[mi_ds]
+        CONFIG.EEG.set_config(dataset.eeg_config)
+        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", mode='train_ss')
@@ -262,27 +259,29 @@ def training_ss(model_path, subject=None, num_epochs=EPOCHS, batch_size=BATCH_SI
         loader_train, loader_test = dataset.create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs,
                                                                                 batch_size,
                                                                                 ch_names, device)
+        run_data = ML_Run_Data(1, n_class, num_epochs, None)
+        run_data.start_run()
+        train_results = do_train(model, loader_train, loader_test,
+                                 num_epochs, device)
+        epoch_losses_train, epoch_losses_test, _, __ = train_results
+        run_data.set_train_results(0, train_results)
 
-        epoch_losses_train, epoch_losses_test, _, __ = do_train(model, loader_train, loader_test,
-                                                                num_epochs, device)
         test_accuracy[0], act_labels, pred_labels = do_test(model, loader_test)
-
+        run_data.set_test_results(0, test_accuracy, act_labels, pred_labels)
         elapsed = datetime.now() - start
         class_trials, class_accuracies = get_trials_per_class(n_class, act_labels), \
                                          get_class_accuracies(act_labels, pred_labels)
-
+        run_data.end_run()
         res_str = training_ss_result_str(test_accuracy[0], class_trials, class_accuracies, elapsed)
         print(res_str)
         save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(test_accuracy, class_accuracies,
-                                 epoch_losses_train, epoch_losses_test,
-                                 dir_results, n_class, [used_subject], None)
+        save_training_numpy_data(run_data, dir_results, n_class, [used_subject], mi_ds)
 
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
-def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
-                 warm_ups=GPU_WARMUPS, subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1,
+def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
+                 warm_ups=CONFIG.MI.GPU_WARMUPS, subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1,
                  fp16=False, tag=None, ch_names=PHYS.CHANNELS, equal_trials=True, continuous=False):
     """
     Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
@@ -310,7 +309,8 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds']]
-        load_global_conf_from_results(n_class_results)
+        CONFIG.EEG.set_config(dataset.eeg_config)
+        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
         class_models[n_class] = get_model(n_class, chs, device, model_path)
@@ -369,7 +369,7 @@ def benchmarking(model_path, name=None, batch_size=BATCH_SIZE, n_classes=[2], de
 
 
 def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
-             n_classes=N_CLASSES, device=torch.device("cpu"), tag=None):
+             n_classes=CONFIG.MI.N_CLASSES, device=torch.device("cpu"), tag=None):
     """
     Simulates Live usage
     Loads pretrained model of model_path
@@ -384,8 +384,9 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds']]
-        load_global_conf_from_results(n_class_results)
+        dataset = DATASETS[n_class_results['mi_ds'].item()]
+        CONFIG.EEG.set_config(dataset.eeg_config)
+        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         run = PHYS.n_classes_live_run[n_class]
@@ -398,19 +399,10 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
         model = get_model(n_class, len(ch_names), device, model_path)
         model.eval()
 
-        # Load Raw Subject Run for n_class
-        raw = dataset.mne_load_subject_raw(used_subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
-        # Get Data from raw Run
-        X = get_data_from_raw(raw)
+        X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas = dataset.load_live_sim_data(
+            used_subject, n_class,
+            ch_names)
 
-        max_sample = raw.n_times
-        slices = eeg_config.TRIALS_SLICES
-        # times = raw.times[:max_sample]
-        trials_start_times = raw.annotations.onset
-        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
-
-        # Get samples of Trials Start Times
-        trials_start_samples = map_times_to_samples(raw, trials_start_times)
         # if eeg_config.TRIALS_SLICES is not None:
         #     used_samples = math.floor(used_samples / eeg_config.TRIALS_SLICES)
         sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, device)
@@ -419,8 +411,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
 
         # Highlight Trials and mark the trained on positions of each Trial
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
-        tdelta = eeg_config.TMAX - eeg_config.TMIN
-        vlines = create_vlines_from_trials_epochs(raw, trials_start_times, tdelta, slices)
+        vlines = create_vlines_from_trials_epochs(trial_tdeltas, trials_start_times, slices)
 
         # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,
         #                                                               trials_start_samples,
@@ -439,6 +430,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
         np.save(os.path.join(dir_results, f"{n_class}class_predictions"), sample_predictions)
         # Split into multiple plots, otherwise too long
         plot_splits = 5
+        if max_sample > 100000:
+            plot_splits = 10
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
         n_class_offset = 0 if n_class > 2 else 1
         for i in range(plot_splits):

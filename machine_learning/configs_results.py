@@ -9,9 +9,10 @@ import numpy as np
 import torch  # noqa
 from sklearn.metrics import recall_score, precision_score
 
-from config import TEST_OVERFITTING, training_results_folder, benchmark_results_folder, \
-    trained_model_name, chs_names_txt, results_folder, global_config, live_sim_results_folder, \
-    training_ss_results_folder, eeg_config, set_eeg_times, set_eeg_trials_slices, SYSTEM_SAMPLE_RATE
+from config import TEST_OVERFITTING, CONFIG
+from paths import training_results_folder, benchmark_results_folder, \
+    trained_model_name, chs_names_txt, results_folder, live_sim_results_folder, \
+    training_ss_results_folder
 from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write
 
 
@@ -64,8 +65,8 @@ def save_training_numpy_data(run_data, save_path, n_class,
     np.savez(f"{save_path}/{n_class}class-training.npz", test_accs=run_data.fold_accuracies,
              train_losses=run_data.epoch_losses_train, class_accs=run_data.class_accuracies,
              test_losses=run_data.epoch_losses_test, best_fold=run_data.best_fold,
-             tmin=eeg_config.TMIN - eeg_config.CUE_OFFSET, tmax=eeg_config.TMAX - eeg_config.CUE_OFFSET,
-             slices=eeg_config.TRIALS_SLICES,
+             tmin=CONFIG.EEG.TMIN - CONFIG.EEG.CUE_OFFSET, tmax=CONFIG.EEG.TMAX - CONFIG.EEG.CUE_OFFSET,
+             slices=CONFIG.EEG.TRIALS_SLICES, sample_rate=CONFIG.EEG.SAMPLERATE,
              excluded_subjects=np.asarray(excluded_subjects, dtype=np.int), mi_ds=mi_ds)
     if run_data.best_fold_act_labels is not None:
         np.savez(f"{save_path}/{n_class}class_training_actual_predicted.npz",
@@ -76,10 +77,10 @@ def training_result_str(run_data, only_fold=None, early_stop=True):
     folds_str = ""
     for fold in range(len(run_data.fold_accuracies)):
         folds_str += f'\tFold {fold + 1 + (only_fold if only_fold is not None else 0)}' \
-            f' {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'
+                     f' {"[Best]" if fold == run_data.best_fold else ""}:\t{run_data.fold_accuracies[fold]:.2f}\n'
         if TEST_OVERFITTING:
             folds_str += f"\t\tOverfitting (Test-Training): " \
-                f"{run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
+                         f"{run_data.fold_accuracies[fold] - run_data.accuracies_overfitting[fold]:.2f}\n"
 
     trials_str = ""
     for cl, trs in enumerate(run_data.class_trials):
@@ -92,7 +93,7 @@ def training_result_str(run_data, only_fold=None, early_stop=True):
         best_epochs_str += "Best Validation Loss Epochs of Folds:\n"
         for fold in range(run_data.best_valid_epochs.shape[0]):
             best_epochs_str += f'Fold {fold + 1}{" [Best]" if fold == run_data.best_fold else ""}: ' \
-                f'{run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
+                               f'{run_data.best_valid_epochs[fold]} (loss: {run_data.best_valid_losses[fold]:.5f})\n'
 
     return train_result_str.format(
         elapsed=run_data.elapsed,
@@ -177,10 +178,10 @@ def training_config_str(config):
 Dataset split in {config.folds} Subject Groups, {config.folds - 1} for Training, {1} for Testing (Cross Validation)
 {f'Excluded Subjects:{config["excluded"]}' if len(config["excluded"]) > 0 else ""}
 Folds: {f'1 (Fold {config["only_fold"]})' if config['only_fold'] is not None else config["folds"]}
-{get_global_config_str()}
 Early Stopping: {config.early_stop}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
+{CONFIG}
 ###############\n\n"""
 
 
@@ -189,7 +190,7 @@ def training_ss_config_str(config):
 {get_default_config_str(config)}
 Subject: {config.subject}
 Runs for Testing: {config.n_test_runs}
-{get_global_config_str()}
+{CONFIG}
 Epochs: {config.num_epochs}
 Learning Rate: initial = {config.lr.start}, Epoch milestones = {config.lr.milestones}, gamma = {config.lr.gamma}
 ###############\n\n"""
@@ -199,7 +200,7 @@ def benchmark_config_str(config):
     return f"""#### Config ####
 {get_default_config_str(config)}
 TensorRT optimized: {config.trt} (fp{16 if bool(config.fp16) else 32})
-{get_global_config_str()}
+{CONFIG}
 Preload subjects Chunksize: {config.subjects_cs}
 Dataset Iterations: {config.iters}
 ###############\n\n"""
@@ -208,18 +209,10 @@ Dataset Iterations: {config.iters}
 def live_sim_config_str(config, n_class=None):
     return f"""#### Config ####
 {get_default_config_str(config)}
-{get_global_config_str()}
+{CONFIG}
 Subject: {config.subject}
 Run: {config.run}
 ###############\n\n"""
-
-
-def get_global_config_str():
-    return f"""EEG Epoch interval: [{eeg_config.TMIN - eeg_config.CUE_OFFSET};{eeg_config.TMAX - eeg_config.CUE_OFFSET}]s
-Bandpass Filter: [{global_config.FREQ_FILTER_HIGHPASS};{global_config.FREQ_FILTER_LOWPASS}]Hz
-Notch Filter (60Hz): {global_config.USE_NOTCH_FILTER}
-System Sample Rate: {SYSTEM_SAMPLE_RATE}Hz
-Trials Slices:{eeg_config.TRIALS_SLICES}"""
 
 
 def get_default_config_str(config):
@@ -241,19 +234,23 @@ def get_trained_model_file(model, n_class):
 
 def load_npz(npz):
     try:
-        return np.load(npz)
+        return np.load(npz, allow_pickle=True)
     except FileNotFoundError:
         raise FileNotFoundError(f'File {npz} does not exist!')
 
 
 # Load TMIN, TMAX, TRIALS_SLICES from .npz result file
-def load_global_conf_from_results(results):
+def load_global_conf_from_results(results, cue_offset):
+    if 'sample_rate' in results:
+        CONFIG.EEG.set_samplerate(results['sample_rate'].item())
+    else:
+        raise ValueError(f'There is no "sample_rate" in {results}')
     if ('tmin' in results) & ('tmax' in results):
-        set_eeg_times(results['tmin'], results['tmax'])
+        CONFIG.EEG.set_times(results['tmin'].item(), results['tmax'].item(), cue_offset)
     else:
         raise ValueError(f'There is no "tmin" or "tmax" in {results}')
     if 'slices' in results:
-        set_eeg_trials_slices(results['slices'])
+        CONFIG.EEG.set_trials_slices(results['slices'].item())
     else:
         raise ValueError(f'There is no "slices" in {results}')
 
