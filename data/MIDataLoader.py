@@ -148,7 +148,6 @@ class MIDataLoader:
     def load_live_sim_data(cls, subject, n_class, ch_names):
         """
         Load all necessary Data for the Live Simulation Run of subject
-        :return:
         X: ndarray (channels,Samples) of single Subject's Run data
         max_sample: Maximum sample number of the Run
         slices: Trial Slices

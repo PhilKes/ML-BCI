@@ -17,7 +17,7 @@ from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import get_valid_trials_per_subject
 from paths import datasets_folder
-from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list, calc_n_samples
+from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list, calc_n_samples, combine_dims
 
 
 class LSMRNumpyRun:
@@ -87,6 +87,18 @@ class LSMRNumpyRun:
                 (data, np.reshape(trial_data, (1, trial_data.shape[0], trial_data.shape[1]))))
         # print("Slicing Time: ", f"{time.time() - start:.2f}")
         return data
+
+    def get_data_raw(self, trials=None):
+        if trials is None:
+            return self.data[:]
+        return self.data[trials]
+
+    def get_data_samples(self, n_class: int, ch_idxs=range(len(LSMR21.CHANNELS))):
+        raw = np.zeros((len(ch_idxs), 0), dtype=np.float32)
+        for i in self.get_n_class_trials(n_class):
+            x = self.data[i][ch_idxs, :]
+            raw = np.append(raw, x, axis=1)
+        return raw
 
     def get_trials(self, n_class=4, tmin=CONFIG.EEG.TMIN, artifact=CONFIG.EEG.ARTIFACTS,
                    trial_category=CONFIG.EEG.TRIAL_CATEGORY):
@@ -227,11 +239,9 @@ class LSMR21DataLoader(MIDataLoader):
             if VERBOSE:
                 print("\n", f"Loading Subject {subject_idx + 1} Run {run}")
             start = time.time()
-            try:
-                sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
-            except FileNotFoundError as e:
-                if VERBOSE:
-                    print(f"Skipped missing Subject {subject_idx + 1} Run {run + 1}")
+
+            sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
+            if sr is None:
                 continue
             # Get Trials idxs of correct n_class and minimum Sample size
             trials_idxs = sr.get_trials(n_class, CONFIG.EEG.TMAX, artifact=artifact, trial_category=trial_category)
@@ -248,14 +258,41 @@ class LSMR21DataLoader(MIDataLoader):
         return subject_data, subject_labels
 
     @classmethod
+    def load_subject_run_raw(cls, subject_idx, run, n_class=4):
+        """
+        Load all Trials of all Runs of Subject
+        :return: subject_data Numpy Array, subject_labels Numpy Array for all Subject's Trials
+        """
+        sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
+        all_trials_idxs = sr.get_trials(tmin=0.0, n_class=n_class)
+        subject_run_data = sr.get_data_raw(all_trials_idxs)
+        subject_run_labels = sr.get_labels(trials_idxs=all_trials_idxs) - 1
+        subject_run_data = cls.check_and_resample(subject_run_data)
+        return subject_run_data, subject_run_labels
+
+    @classmethod
+    def load_subject_samples_data(cls, subject_idx, run, n_class=4):
+        """
+        Loads all Samples of the run
+        :return: data ndarray with shape (channels,samples)
+        """
+        sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
+        return sr.get_data_samples(n_class)
+
+    @classmethod
     def load_subject_run(cls, subject, run, from_matlab=False) -> LSMRNumpyRun:
-        # TODO Remove matlab
-        if from_matlab:
-            x = load_matlab(f"{datasets_folder}/{LSMR21.short_name}/matlab/S{subject}_Session_{run}")
-            return LSMRSubjectRun(subject, x)
-        else:
-            path = f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{run}"
-            return LSMRNumpyRun.from_npz(np.load(f"{path}.npz", allow_pickle=True))
+        if VERBOSE:
+            print("\n", f"Loading Subject {subject} Run {run}")
+        try:
+            if from_matlab:
+                x = load_matlab(f"{datasets_folder}/{LSMR21.short_name}/matlab/S{subject}_Session_{run}")
+                return LSMRSubjectRun(subject, x)
+            else:
+                path = f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{run}"
+                return LSMRNumpyRun.from_npz(np.load(f"{path}.npz", allow_pickle=True))
+        except FileNotFoundError as e:
+            print(Exception(f"Missing: Subject {subject} Run {run}"))
+            return None
 
     @classmethod
     def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):
@@ -278,5 +315,38 @@ class LSMR21DataLoader(MIDataLoader):
 
     @classmethod
     def load_live_sim_data(cls, subject, n_class, ch_names):
-        # TODO
-        return
+        """
+        Load all neccessary Data for the Live Simulation Run of subject
+        X: ndarray (channels,Samples) of single Subject Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trial_sample_deltas: ndarray with Times of every Slice Timepoint in the Run
+        """
+        # Get Data from raw Run
+        data, labels = cls.load_subject_run_raw(subject, LSMR21.runs[0])
+        # data, labels = data[:data.shape[0] // 2], labels[:labels.shape[0] // 2]
+
+        slices = CONFIG.EEG.TRIALS_SLICES
+        # times = raw.times[:max_sample]
+        trials_start_times = []
+        trial_sample_deltas = []
+        trials_start_samples = []
+        samples_before = 0
+        for t_idx in range(data.shape[0]):
+            trial_sample_length = data[t_idx].shape[-1]
+            trials_start_samples.append(samples_before)
+            trials_start_times.append((1 / CONFIG.EEG.SAMPLERATE) * samples_before)
+            # Get Trial Sample Nr. of each Slice Timepoint in the Trial
+            for i in range(1, slices + 1):
+                trial_sample_deltas.append(trials_start_samples[-1] + (trial_sample_length / slices) * i)
+            samples_before += trial_sample_length
+
+        trials_classes = labels
+
+        X = cls.load_subject_samples_data(subject, LSMR21.runs[0])
+        max_sample = X.shape[-1] // 2
+
+        return X, max_sample, slices, trials_classes, np.asarray(trials_start_times), np.asarray(
+            trials_start_samples), np.asarray(trial_sample_deltas)

@@ -117,7 +117,7 @@ def matlab_to_numpy(subjects, runs):
             npz_path = f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{run}.npz"
             if os.path.isfile(npz_path):
                 continue
-            s = LSMRSubjectRun(subject, LSMR21DataLoader.load_subject_run(subject, run))
+            s = LSMR21DataLoader.load_subject_run(subject, run)
             s.to_npz(npz_path)
 
 

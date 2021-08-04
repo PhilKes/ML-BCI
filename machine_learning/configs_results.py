@@ -250,7 +250,7 @@ def load_global_conf_from_results(results, cue_offset):
     else:
         raise ValueError(f'There is no "tmin" or "tmax" in {results}')
     if 'slices' in results:
-        CONFIG.EEG.set_trials_slices(results['slices'])
+        CONFIG.EEG.set_trials_slices(results['slices'].item())
     else:
         raise ValueError(f'There is no "slices" in {results}')
 

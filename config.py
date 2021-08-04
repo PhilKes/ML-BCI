@@ -133,7 +133,7 @@ Trials Slices: {self.TRIALS_SLICES}
         self.SAMPLES = math.floor(
             ((self.TMAX - self.TMIN) * self.SAMPLERATE) / self.TRIALS_SLICES)
 
-    def set_trials_slices(self, slices):
+    def set_trials_slices(self, slices: int):
         # eeg_config.TMIN = 0
         # eeg_config.TMAX = 4
         self.TRIALS_SLICES = slices

@@ -430,6 +430,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
         np.save(os.path.join(dir_results, f"{n_class}class_predictions"), sample_predictions)
         # Split into multiple plots, otherwise too long
         plot_splits = 5
+        if max_sample > 100000:
+            plot_splits = 10
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
         n_class_offset = 0 if n_class > 2 else 1
         for i in range(plot_splits):

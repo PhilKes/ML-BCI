@@ -5,95 +5,16 @@ from datetime import datetime
 import numpy
 import pandas as pd
 
-from config import results_folder, training_results_folder, training_ss_results_folder, CONFIG
+from config import CONFIG
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
+from paths import results_folder, training_results_folder, training_ss_results_folder
 from util.misc import print_pretty_table
 
 default_options = ['-train']
 confs = {
-    # 'defaults': {
-    #     'params': [[]],
-    #     'names': ['defaults']
-    # },
-    # 'slicing': {
-    #     'params': [
-    #         # ['--tmin', '0', '--tmax', '4'],
-    #         # ['--tmin', '0', '--tmax', '4', '--trials_slices', '2'],
-    #         # ['--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
-    #         ['--tmin', '0', '--tmax', '4', '--trials_slices', '8']],
-    #     'names': [
-    #         # 'no_slices',
-    #         # '2_slices',
-    #         # '4_slices',
-    #         '8_slices'
-    #     ],
-    #     'init': [
-    #         lambda: None,
-    #         lambda: None,
-    #         lambda: None
-    #     ],
-    #     'after': lambda: set_rest_from_bl_run(True)
-    # },
-    # 'tmin_tmax': {
-    #     # main.py -train Params for each run
-    #     'params': [
-    #         ['--tmin', '0', '--tmax', '1'],
-    #         ['--tmin', '0', '--tmax', '3'],
-    #         ['--tmin', '-0.5', '--tmax', '3'],
-    #         ['--tmin', '0', '--tmax', '4'],
-    #         ['--tmin', '-1', '--tmax', '5']
-    #     ],
-    #     # name for subfolder for each run
-    #     'names': [
-    #         'tmax_1', 'tmax_3',
-    #         'tmin_-05_tmax_3', 'tmax_4', 'tmin_-1_tmax_5'],
-    #     # Initialize methods for each run to set global settings (optional)
-    #     # len(params) = len(names) = len(init)
-    #     # 'init': [
-    #     #     lambda: set_eeg_times(0, 1),
-    #     #     lambda: set_eeg_times(0, 4),
-    #     #     lambda: set_eeg_times(-1, 5),
-    #     # ],
-    #     # Execute after all runs finished -> reset changed parameters (optional)
-    #     'after': lambda: reset_eeg_times(),
-    # },
-    # 'rest_trials': {
-    #     'params': [[] + excluded_params, [] + excluded_params, [] + excluded_params, [] + excluded_params],
-    #     'names': ['from_bl_run_4_less_rests', 'from_bl_run', 'from_runs', 'from_runs_4_less_rests'],
-    #     'init': [
-    #         lambda: set_rests_config(True, 4),
-    #         lambda: set_rests_config(True, 0),
-    #         lambda: set_rests_config(False, 0),
-    #         lambda: set_rests_config(False, 4),
-    #     ],
-    #     'after': lambda: set_rests_config(True, 0)
-    # },
-
-    # 'pool': {
-    #     'params': [[], []],
-    #     'names': ['pool_4', 'pool_8'],
-    #     'init': [
-    #         lambda: set_poolsize(4),
-    #         lambda: set_poolsize(8),
-    #     ],
-    #     'after': lambda: set_poolsize(4)
-    # },
-    # 'chs': {
-    #     'params': [
-    #         ['--ch_motorimg', '16_csp'],
-    #         ['--ch_motorimg', '16'],
-    #         ['--ch_motorimg', '16_2'],
-    #         ['--ch_motorimg', '16_openbci'],
-    #         ['--ch_motorimg', '16_bs']],
-    #     'names': ['chs_16_csp', 'chs_16', 'chs_16_2', 'chs_16_openbci', 'chs_16_bs']
-    # },
-    # 'excluded': {
-    #     'params': [['--excluded', '42']],
-    #     'names': ['excl_42']
-    # },
     # 'PHYS': {
     #     'params': [
     #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '2'],
@@ -108,12 +29,8 @@ confs = {
     #     ],
     #     'names': ['bcic_all_2s', 'bcic_all_4s']
     # },
-    'LSMR21_params2_refactored': {
+    'LSMR21_params': {
         'params': [
-            # ['--dataset', LSMR21.short_name],
-            # ['--dataset', LSMR21.short_name],
-            # ['--dataset', LSMR21.short_name],
-            # ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name, '--ch_motorimg', '16'],
             ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
             ['--dataset', LSMR21.short_name],
@@ -149,6 +66,7 @@ confs = {
         'after': lambda: CONFIG.EEG.set_artifacts_trial_category(artifacts=0, trial_category=0)
     },
 }
+
 train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()

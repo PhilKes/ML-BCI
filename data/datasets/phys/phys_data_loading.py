@@ -284,8 +284,8 @@ class PHYSDataLoader(MIDataLoader):
         max_sample: Maximum sample number of the Run
         slices: Trial Slices
         trials_classes: ndarray with label nr. of every Trial in the Run
-        trials_start_times: ndarray with Start Times of every Trial in the Run
-        trial_tdeltas: ndarray with Times of every Slice Timepoint in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run in Sec.
+        trial_sample_deltas: ndarray with Sample Nrs. of every Slice Timepoint in the Run
         """
         # Load Raw Subject Run for n_class
         raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
@@ -302,13 +302,13 @@ class PHYSDataLoader(MIDataLoader):
         # Get samples of Trials Start Times
         trials_start_samples = map_times_to_samples(raw, trials_start_times)
 
-        tdelta = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
-        trial_tdeltas = []
+        trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
+        trial_sample_deltas = []
         for trial_start_time in trials_start_times:
             for i in range(1, slices + 1):
-                trial_tdeltas.append(raw.time_as_index(trial_start_time + (tdelta / slices) * i))
+                trial_sample_deltas.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
 
-        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_sample_deltas
 
 
 # Plots Subject Run with raw EEG Channel data
