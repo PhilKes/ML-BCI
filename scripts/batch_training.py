@@ -8,6 +8,7 @@ import pandas as pd
 from config import CONFIG
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
+from data.datasets.openBCI.openBCI_dataset import OpenBCI
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
 from paths import results_folder, training_results_folder, training_ss_results_folder
@@ -29,42 +30,21 @@ confs = {
     #     ],
     #     'names': ['bcic_all_2s', 'bcic_all_4s']
     # },
-    'LSMR21_params': {
+    'OpenBCI': {
         'params': [
-            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16'],
-            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
+            ['--dataset', OpenBCI.short_name],
+            ['--dataset', OpenBCI.short_name],
         ],
         'names': [
-            'ch_motorimg_16',
-            'ch_motorimg_16_openbci',
-            'pool_size_8',
-            'pool_size_4',
-            'cue_offset_2.0',
-            'cue_offset_4.0',
-            'cue_offset_0.0',
-            'bp_0_32',
-            'bp_4_Inf',
+            'bp_2_16',
+            'default',
         ],
         'init': [
-            lambda: None,
-            lambda: None,
-            lambda: CONFIG.NET.set_poolsize(8),
-            lambda: CONFIG.NET.set_poolsize(4),
-            lambda: CONFIG.EEG.set_cue_offset(2.0),
-            lambda: CONFIG.EEG.set_cue_offset(4.0),
-            lambda: CONFIG.EEG.set_cue_offset(0.0),
-            lambda: CONFIG.FILTER.set_filters(0, 32),
-            lambda: CONFIG.FILTER.set_filters(4, None),
+            lambda: CONFIG.FILTER.set_filters(4.0, 16.0, True),
+            lambda: CONFIG.FILTER.set_filters(),
         ],
-        'after': lambda: CONFIG.EEG.set_artifacts_trial_category(artifacts=0, trial_category=0)
-    },
+        'after': lambda: None
+    }
 }
 
 train_ss_options = ['-train_ss', '--model']

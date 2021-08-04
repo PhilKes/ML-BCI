@@ -190,7 +190,6 @@ System Sample Rate: {self.SYSTEM_SAMPLE_RATE}
 
 CONFIG = Config()
 
-
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:
 # https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/EEG_10-10_system_with_additional_information.svg/640px-EEG_10-10_system_with_additional_information.svg.png?1615815815740

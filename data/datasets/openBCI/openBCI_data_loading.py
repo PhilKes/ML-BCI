@@ -12,8 +12,7 @@ Author: Manfred Strahnen (based on the template given by Philipp Kessler
 History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
-
-from config import global_config, datasets_folder, eeg_config
+from config import CONFIG
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
@@ -22,6 +21,7 @@ import numpy as np
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
 from data.datasets.openBCI.openBCI_dataset import OpenBCI
 from machine_learning.util import get_valid_trials_per_subject
+from paths import datasets_folder
 from util.misc import to_idxs_of_list
 
 
@@ -70,7 +70,7 @@ class OpenBCIDataLoader(MIDataLoader):
     def load_subjects_data(cls, subjects, n_class, ch_names=OpenBCI.CHANNELS, equal_trials=True,
                            normalize=False, ignored_runs=[]):
         subjects.sort()
-        samples = int((eeg_config.TMAX - eeg_config.TMIN) * eeg_config.SAMPLERATE)
+        samples = int((CONFIG.EEG.TMAX - CONFIG.EEG.TMIN) * CONFIG.EEG.SAMPLERATE)
 
         preloaded_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), samples))
         preloaded_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
@@ -96,7 +96,7 @@ class OpenBCIDataLoader(MIDataLoader):
         raise NotImplementedError('This method is not implemented!')
 
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=global_config.FREQ_FILTER_HIGHPASS,
-                             fmax=global_config.FREQ_FILTER_LOWPASS):
+    def mne_load_subject_raw(cls, subject, runs, ch_names=[], notch=False, fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
+                             fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
         # TODO
         raise NotImplementedError('This method is not implemented!')
