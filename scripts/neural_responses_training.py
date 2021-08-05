@@ -16,9 +16,11 @@ from datetime import datetime
 import numpy as np
 
 from data.datasets.bcic.bcic_dataset import BCIC
+from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
-from config import results_folder, FBS_NAMES, FBS, CONFIG
+from config import FBS_NAMES, FBS, CONFIG
 from data.data_utils import save_accs_panda, subtract_first_config_accs
+from paths import results_folder
 from scripts.batch_training import run_batch_training
 from util.misc import datetime_to_folder_str
 from util.plot import matplot
@@ -29,7 +31,7 @@ parser.add_argument('--best_fold', dest='use_cv', action='store_false',
                     help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
 
 args = parser.parse_args()
-ds_used = [BCIC.short_name, PHYS.short_name]
+ds_used = [LSMR21.short_name, BCIC.short_name, PHYS.short_name]
 
 # Folds to use if --best_fold is used (0-base index)
 ds_best_folds = [2, 2]

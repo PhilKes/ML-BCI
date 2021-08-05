@@ -63,7 +63,7 @@ class LSMRNumpyRun:
 
     def get_data(self, trials_idxs: List[int] = None, mi_tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))) -> np.ndarray:
         """
-        Return float Data of all Trials as numpy array
+        Return float EEG Data of all Trials as numpy array
         :param ch_idxs: Channel Idxs to be used
         :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
         :param trials_idxs: Force to return only specified trials
@@ -77,8 +77,8 @@ class LSMRNumpyRun:
         max_sample = math.floor(LSMR21.CONFIG.SAMPLERATE * (mi_tmin))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
-        elapsed = 0.0
-        start = time.time()
+        # elapsed = 0.0
+        # start = time.time()
         # TODO Slicing takes ~ 0.7-1.5 Seconds for each Subject
         # data = np.resize(self.data[trials], (len(trials), len(ch_idxs), max_sample - min_sample))
         # data= np.vstack(data[:, :,:]).astype(np.float)
@@ -242,9 +242,10 @@ class LSMR21DataLoader(MIDataLoader):
             start = time.time()
 
             sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
+            # Some Subjects have differing number of Runs -> Skip if missing
             if sr is None:
                 continue
-            # Get Trials idxs of correct n_class and minimum Sample size
+            # Get Trials idxs of correct n_class and minimum Sample size Trials
             trials_idxs = sr.get_trials(n_class, CONFIG.EEG.TMAX, artifact=artifact, trial_category=trial_category)
             data = sr.get_data(trials_idxs=trials_idxs,
                                ch_idxs=to_idxs_of_list([ch.upper() for ch in ch_names], LSMR21.CHANNELS))

@@ -116,7 +116,7 @@ class MIDataLoader:
                                      # per_subject=(cls.name_short == LSMR21.short_name)
                                      )
         # optional butterworth bandpass filtering
-        if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
+        if (CONFIG.FILTER.FREQ_FILTER_HIGHPASS is not None) or (CONFIG.FILTER.FREQ_FILTER_LOWPASS is not None):
             data = butter_bandpass_filt(data, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
                                         highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS,
                                         fs=CONFIG.EEG.SAMPLERATE, order=7)

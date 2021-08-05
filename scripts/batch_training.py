@@ -15,34 +15,113 @@ from util.misc import print_pretty_table
 
 default_options = ['-train']
 confs = {
-    # 'PHYS': {
-    #     'params': [
-    #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '2'],
-    #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '4']
-    #     ],
-    #     'names': ['phys_all_2s', 'phys_all_4s']
-    # },
-    # 'BCIC': {
-    #     'params': [
-    #         ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '2'],
-    #         ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '4']
-    #     ],
-    #     'names': ['bcic_all_2s', 'bcic_all_4s']
-    # },
-    'LSMR21_bandpass': {
+    'PHYS': {
         'params': [
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
+            ['--dataset', PHYS.short_name],
+            ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '3'],
+            ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '4'],
+            ['--dataset', PHYS.short_name, '--tmin', '-1', '--tmax', '1'],
+            ['--dataset', PHYS.short_name],
+            ['--dataset', PHYS.short_name],
+            ['--dataset', PHYS.short_name],
+            ['--dataset', PHYS.short_name, '--ch_motorimg', '16'],
+            ['--dataset', PHYS.short_name, '--ch_motorimg', '16_openbci'],
         ],
         'names': [
-            'bp_0_32',
-            'bp_4_Inf',
+            'default',
+            'tmin_0_tmax_3',
+            'tmin_0_tmax_4',
+            'tmin_-1_tmax_1',
+            'fmin_0_fmax_60',
+            'fmin_2_fmax_60',
+            'fmin_4_fmax_60',
+            'motorimg_16',
+            'motorimg_16_openbci',
         ],
         'init': [
-            lambda: CONFIG.FILTER.set_filters(None, 32),
-            lambda: CONFIG.FILTER.set_filters(4, None),
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: CONFIG.FILTER.set_filters(None, 60),
+            lambda: CONFIG.FILTER.set_filters(2, 60),
+            lambda: CONFIG.FILTER.set_filters(4, 60),
+            lambda: None,
+            lambda: None,
+
         ],
-        'after': lambda: CONFIG.EEG.set_artifacts_trial_category(artifacts=0, trial_category=0)
+    },
+    'BCIC': {
+        'params': [
+            ['--dataset', BCIC.short_name],
+            ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '3'],
+            ['--dataset', BCIC.short_name, '--tmin', '0', '--tmax', '4'],
+            ['--dataset', BCIC.short_name, '--tmin', '-1', '--tmax', '1'],
+            ['--dataset', BCIC.short_name],
+            ['--dataset', BCIC.short_name],
+            ['--dataset', BCIC.short_name],
+            ['--dataset', BCIC.short_name, '--ch_motorimg', '16'],
+            ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
+        ],
+        'names': [
+            'default',
+            'tmin_0_tmax_3',
+            'tmin_0_tmax_4',
+            'tmin_-1_tmax_1',
+            'fmin_0_fmax_60',
+            'fmin_2_fmax_60',
+            'fmin_4_fmax_60',
+            'motorimg_16',
+            'motorimg_16_openbci',
+        ],
+        'init': [
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: CONFIG.FILTER.set_filters(None, 60),
+            lambda: CONFIG.FILTER.set_filters(2, 60),
+            lambda: CONFIG.FILTER.set_filters(4, 60),
+            lambda: None,
+            lambda: None,
+
+        ],
+    },
+    'LSMR21': {
+        'params': [
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
+            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4'],
+            ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16'],
+            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
+        ],
+        'names': [
+            'default',
+            'tmin_0_tmax_3',
+            'tmin_0_tmax_4',
+            'tmin_-1_tmax_1',
+            'fmin_0_fmax_60',
+            'fmin_2_fmax_60',
+            'fmin_4_fmax_60',
+            'motorimg_16',
+            'motorimg_16_openbci',
+        ],
+        'init': [
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: None,
+            lambda: CONFIG.FILTER.set_filters(None, 60),
+            lambda: CONFIG.FILTER.set_filters(2, 60),
+            lambda: CONFIG.FILTER.set_filters(4, 60),
+            lambda: None,
+            lambda: None,
+
+        ],
     },
 }
 
@@ -50,7 +129,7 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "batch_trainings"
+folder = "batch_trainings/params"
 default_n_classes = ['2']
 
 train_ss = False
@@ -79,6 +158,8 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
         # Execute each run consisting of
         # name, params, init(optional)
         for run in range(runs):
+            # Reset Global Config before each run
+            CONFIG.reset()
             if 'init' in conf.keys():
                 conf['init'][run]()
             params = conf['params'][run]
@@ -103,7 +184,6 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
                     single_run(
                         live_sim_options + [os.path.join(train_ss, x)] +
                         ['--n_classes'] + n_classes)
-
         if 'after' in conf.keys():
             conf['after']()
         results_list.append(runs_results.copy())

@@ -287,9 +287,6 @@ class PHYSDataLoader(MIDataLoader):
     def load_live_sim_data(cls, subject, n_class, ch_names):
         """
         Load all neccessary Data for the Live Simulation Run of subject
-        :param subject:
-        :param n_class:
-        :param ch_names:
         :return:
         X: ndarray (channels,Samples) of single Subject Run data
         max_sample: Maximum sample number of the Run

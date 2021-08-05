@@ -62,6 +62,8 @@ class FilterConfig(object):
     USE_NOTCH_FILTER: bool = False
 
     def set_filters(self, fmin=None, fmax=None, notch=False):
+        if fmin == 0:
+            fmin = None
         self.FREQ_FILTER_HIGHPASS = fmin
         self.FREQ_FILTER_LOWPASS = fmax
         self.USE_NOTCH_FILTER = notch
@@ -180,6 +182,12 @@ class Config(object):
     FILTER: FilterConfig = FilterConfig()
     MI: MIConfig = MIConfig()
 
+    def reset(self):
+        self.EEG = EEGConfig()
+        self.NET = ANNConfig()
+        self.FILTER = FilterConfig()
+        self.MI = MIConfig()
+
     def __repr__(self):
         return f"""
 System Sample Rate: {self.SYSTEM_SAMPLE_RATE}
@@ -189,7 +197,6 @@ System Sample Rate: {self.SYSTEM_SAMPLE_RATE}
 
 
 CONFIG = Config()
-
 
 # Selections of Channels for reduced amount of needed EEG Channels
 # Visualization:
