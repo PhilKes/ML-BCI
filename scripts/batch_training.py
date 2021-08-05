@@ -48,7 +48,6 @@ confs = {
             lambda: CONFIG.FILTER.set_filters(4, 60),
             lambda: None,
             lambda: None,
-
         ],
     },
     'BCIC': {

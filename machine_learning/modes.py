@@ -14,6 +14,7 @@ History:
 """
 import os
 from datetime import datetime
+from typing import List
 
 import numpy as np
 import torch  # noqa
@@ -21,9 +22,7 @@ from sklearn.model_selection import GroupKFold
 
 from config import TEST_OVERFITTING, CONFIG
 from data.datasets.datasets import DATASETS
-from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
-from data.data_utils import map_trial_labels_to_classes, get_data_from_raw, map_times_to_samples
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
@@ -31,33 +30,31 @@ from machine_learning.configs_results import training_config_str, create_results
     live_sim_result_str
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
-    ML_Run_Data, resample_eeg_data
+    ML_Run_Data
 from paths import trained_model_name
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels
 from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
+import torch.types
 
 
-def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, folds=None, lr=CONFIG.MI.LR,
-                n_classes=CONFIG.MI.N_CLASSES,
-                save_model=True, device=torch.device("cpu"), name=None, tag=None, ch_names=PHYS.CHANNELS,
-                equal_trials=True, early_stop=False, excluded=[], mi_ds=PHYS.short_name, only_fold=None):
+def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[int],
+                name: str, tag: str, ch_names: List[int], equal_trials=True, early_stop=False, excluded=[],
+                only_fold=None, save_model=True, lr: DotDict = CONFIG.MI.LR):
     """
     Runs Training + Testing
     Cross Validation
     Can run 2/3/4-Class Classifications
     Saves + Plots Accuracies + Epoch Losses in ./results/{DateTime/name}/training
-
     :param save_model: Saves trained model with highest accuracy in results folder
     :param mi_ds: sed Dataset as String
     :param only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
     :return: n_class Accuracies + n_class Overfittings
     """
     dataset = DATASETS[mi_ds]
-    if folds is None:
-        folds = dataset.folds
+    folds = dataset.folds
 
-    config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=device,
+    config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=CONFIG.DEVICE,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded,
                      mi_ds=mi_ds, only_fold=only_fold)
 
@@ -107,7 +104,7 @@ def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, fo
 
         print("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                      ch_names, equal_trials, normalize=False)
+                                                                      ch_names, equal_trials)
         print(f"######### {n_class}Class-Classification")
         cv_split = cv.split(X=used_subjects, groups=groups)
         run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
@@ -122,14 +119,14 @@ def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, fo
         for fold in range(folds):
             print(f"############ Fold {fold + 1} ############")
             # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-            loaders = dataset.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
+            loaders = dataset.create_loaders_from_splits(next(cv_split), validation_subjects, n_class,
                                                          preloaded_data, preloaded_labels, batch_size, ch_names,
                                                          equal_trials, used_subjects=used_subjects)
             loader_train, loader_test, loader_valid = loaders
 
-            model = get_model(n_class, len(ch_names), device)
+            model = get_model(n_class, len(ch_names))
 
-            train_results = do_train(model, loader_train, loader_test, num_epochs, device, early_stop)
+            train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE, early_stop)
             run_data.set_train_results(fold, train_results)
             # Load best model state of this fold to Test global accuracy if using Early Stopping
             if early_stop:
@@ -178,7 +175,7 @@ def training_cv(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, fo
     return n_class_accuracy, n_class_overfitting_diff
 
 
-def testing(n_class, model_path, device, ch_names):
+def testing(n_class, model_path, ch_names):
     """
     Test pretrained model (Best Fold)
     Determines Accuracy on Best-Fold's Test Set
@@ -210,14 +207,14 @@ def testing(n_class, model_path, device, ch_names):
     test_subjects_idxs = next(cv_split)[1].tolist()
     subjects_test = [dataset.available_subjects[idx] for idx in test_subjects_idxs]
 
-    model = get_model(n_class, len(ch_names), device, model_path)
+    model = get_model(n_class, len(ch_names), model_path)
 
     print("PRELOADING ALL DATA IN MEMORY")
     preloaded_data, preloaded_labels = dataset.load_subjects_data(subjects_test, n_class,
                                                                   ch_names)
 
     # Test with Best-Fold Test set subjects
-    loader_test = dataset.create_loader_from_subjects(subjects_test, n_class, device,
+    loader_test = dataset.create_loader_from_subjects(subjects_test, n_class,
                                                       preloaded_data, preloaded_labels,
                                                       CONFIG.MI.BATCH_SIZE, dataset.channels)
     test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
@@ -226,7 +223,7 @@ def testing(n_class, model_path, device, ch_names):
 
 
 def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE,
-                lr=CONFIG.MI.LR, n_classes=[3], device=torch.device("cpu"), tag=None, ch_names=PHYS.CHANNELS):
+                lr=CONFIG.MI.LR, n_classes=[3], tag=None, ch_names=PHYS.CHANNELS):
     """
     Runs Subject-specific Training on pretrained model (model_path)
     Supposed to be used before live_sim mode is executed
@@ -235,7 +232,7 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
     :param subject: Subject to train specifically
     """
     n_test_runs = 1
-    config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=device,
+    config = DotDict(subject=subject, num_epochs=num_epochs, batch_size=batch_size, lr=lr, device=CONFIG.DEVICE,
                      n_classes=n_classes, ch_names=ch_names, n_test_runs=n_test_runs)
 
     start = datetime.now()
@@ -254,15 +251,14 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         save_config(training_ss_config_str(config), ch_names, dir_results, tag)
         print(f"Loading pretrained model from '{model_path}'")
 
-        model = get_model(n_class, len(ch_names), device, model_path)
+        model = get_model(n_class, len(ch_names), model_path)
         # Split subjects' data into Training Set (2 of 3 Runs) + Test Set (1 remaining Run)
         loader_train, loader_test = dataset.create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs,
                                                                                 batch_size,
-                                                                                ch_names, device)
+                                                                                ch_names)
         run_data = ML_Run_Data(1, n_class, num_epochs, None)
         run_data.start_run()
-        train_results = do_train(model, loader_train, loader_test,
-                                 num_epochs, device)
+        train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE)
         epoch_losses_train, epoch_losses_test, _, __ = train_results
         run_data.set_train_results(0, train_results)
 
@@ -280,9 +276,9 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
-def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_classes=[2], device=torch.device("cpu"),
-                 warm_ups=CONFIG.MI.GPU_WARMUPS, subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1,
-                 fp16=False, tag=None, ch_names=PHYS.CHANNELS, equal_trials=True, continuous=False):
+def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_classes=[2], warm_ups=CONFIG.MI.GPU_WARMUPS,
+                 subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
+                 ch_names=PHYS.CHANNELS, equal_trials=True, continuous=False):
     """
     Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
     with Physionet Dataset
@@ -296,7 +292,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
     :param continuous: Benchmark on same Subject Chunk continuously
     :return: Batch Latencies Averages + Trial Inference Times Averages
     """
-    config = DotDict(batch_size=batch_size, device=device.type, n_classes=n_classes, subjects_cs=subjects_cs,
+    config = DotDict(batch_size=batch_size, device=CONFIG.DEVICE, n_classes=n_classes, subjects_cs=subjects_cs,
                      trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
     chs = len(ch_names)
 
@@ -313,11 +309,11 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
         load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
-        class_models[n_class] = get_model(n_class, chs, device, model_path)
+        class_models[n_class] = get_model(n_class, chs, model_path)
         class_models[n_class].eval()
         # Get optimized model with TensorRT
         if tensorRT:
-            class_models[n_class] = get_tensorrt_model(class_models[n_class], batch_size, chs, device, fp16)
+            class_models[n_class] = get_tensorrt_model(class_models[n_class], batch_size, chs, fp16)
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
         preload_chunks = split_list_into_chunks(PHYS.ALL_SUBJECTS, subjects_cs)
@@ -330,30 +326,30 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
 
         # Preloads 1 chunk of Subjects and executes 1 gpu_warmup
         if continuous:
-            loader_data = dataset.create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size, device,
+            loader_data = dataset.create_preloaded_loader(preload_chunks[0], n_class, ch_names, batch_size,
                                                           equal_trials)
             # Warm up GPU with random data
-            if device.type != 'cpu':
-                gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
+            if CONFIG.DEVICE.type != 'cpu':
+                gpu_warmup(CONFIG.DEVICE, warm_ups, class_models[n_class], batch_size, chs, fp16)
         # Infer multiple times to get an average benchmark
         for i in range(iters):
             if not continuous:
                 # Benchmarking is executed per subject chunk over all Subjects
                 # Infers over 1 subject chunks, loads next subject chunk + gpu_warmup, ...
                 for ch_idx, subjects_chunk in enumerate(preload_chunks):
-                    loader_data = dataset.create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size, device,
+                    loader_data = dataset.create_preloaded_loader(subjects_chunk, n_class, ch_names, batch_size,
                                                                   equal_trials)
                     # Warm up GPU with random data
-                    if device.type != 'cpu':
-                        gpu_warmup(device, warm_ups, class_models[n_class], batch_size, chs, fp16)
+                    if CONFIG.DEVICE.type != 'cpu':
+                        gpu_warmup(CONFIG.DEVICE, warm_ups, class_models[n_class], batch_size, chs, fp16)
                     idx = chunks * i + ch_idx
-                    benchmark_results = do_benchmark(class_models[n_class], loader_data, device, fp16)
+                    benchmark_results = do_benchmark(class_models[n_class], loader_data, CONFIG.DEVICE, fp16)
                     batch_lats[idx], trial_inf_times[idx], accuracies[idx] = benchmark_results
 
             else:
                 # Benchmarking is executed continuously only over 1 subject chunk
                 # Infers over the same subject chunk i times without loading in between
-                benchmark_results = do_benchmark(class_models[n_class], loader_data, device, fp16)
+                benchmark_results = do_benchmark(class_models[n_class], loader_data, CONFIG.DEVICE, fp16)
                 batch_lats[i], trial_inf_times[i], accuracies[i] = benchmark_results
         elapsed = datetime.now() - start
         acc_avg = np.average(accuracies)
@@ -368,8 +364,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
     return batch_lat_avgs, trial_inf_time_avgs
 
 
-def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
-             n_classes=CONFIG.MI.N_CLASSES, device=torch.device("cpu"), tag=None):
+def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_classes=CONFIG.MI.N_CLASSES, tag=None):
     """
     Simulates Live usage
     Loads pretrained model of model_path
@@ -390,13 +385,13 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         run = PHYS.n_classes_live_run[n_class]
-        config = DotDict(subject=used_subject, device=device.type,
+        config = DotDict(subject=used_subject, device=CONFIG.DEVICE.type,
                          n_classes=n_classes, ch_names=ch_names, run=run)
         print(live_sim_config_str(config))
 
         print(f"######### {n_class}Class-Classification Live Simulation")
         print(f"Loading pretrained model from '{model_path}'")
-        model = get_model(n_class, len(ch_names), device, model_path)
+        model = get_model(n_class, len(ch_names), model_path)
         model.eval()
 
         X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas = dataset.load_live_sim_data(
@@ -405,7 +400,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS,
 
         # if eeg_config.TRIALS_SLICES is not None:
         #     used_samples = math.floor(used_samples / eeg_config.TRIALS_SLICES)
-        sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, device)
+        sample_predictions = do_predict_on_samples(model, n_class, X, max_sample, CONFIG.DEVICE)
         # sample_predictions = sample_predictions * 100
         sample_predictions = np.swapaxes(sample_predictions, 0, 1)
 

@@ -13,7 +13,7 @@ from config import TEST_OVERFITTING, CONFIG
 from paths import training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, live_sim_results_folder, \
     training_ss_results_folder
-from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write
+from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write, get_device_name
 
 
 def create_results_folders(path=None, name=None, datetime=None, mode='train'):
@@ -216,7 +216,7 @@ Run: {config.run}
 
 
 def get_default_config_str(config):
-    return f"""Device: {config.device}
+    return f"""Device: {get_device_name(config.device)}
 Nr. of classes: {config.n_classes}
 {get_str_n_classes(config.n_classes)}
 Channels: {len(config.ch_names)} {config.ch_names}

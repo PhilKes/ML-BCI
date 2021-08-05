@@ -7,6 +7,7 @@ On initial Run MNE downloads the Physionet Dataset into datasets_folder
 Edition History:
 2021-05-31: mne_load_subject_raw(): fmin, fmax explicitely set - ms
 """
+from typing import List
 
 import mne
 import numpy as np
@@ -37,9 +38,9 @@ class PHYSTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for Physionet Dataset
     """
 
-    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, preloaded_tuple,
                  ch_names=PHYS.CHANNELS, equal_trials=True):
-        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
 
         self.trials_per_subject = get_trials_size(n_class, equal_trials) \
                                   * CONFIG.EEG.TRIALS_SLICES - PHYS.CONFIG.REST_TRIALS_LESS
@@ -49,6 +50,7 @@ class PHYSDataLoader(MIDataLoader):
     """
     MIDataLoader implementation for Physionet Dataset
     """
+
     name = PHYS.name
     name_short = PHYS.short_name
     available_subjects = PHYS.ALL_SUBJECTS
@@ -58,7 +60,8 @@ class PHYSDataLoader(MIDataLoader):
     ds_class = PHYSTrialsDataset
 
     @classmethod
-    def create_n_class_loaders_from_subject(cls, subject, n_class, n_test_runs, batch_size, ch_names, device):
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
+                                            batch_size: int, ch_names: List[str]):
         """
         Returns Train/Test Loaders containing all n_class Runs of subject
         n_test_runs specifies how many Runs are reserved for Testing
@@ -68,30 +71,15 @@ class PHYSDataLoader(MIDataLoader):
         n_class_runs = get_runs_of_n_classes(n_class)
         train_runs = n_class_runs[:-n_test_runs]
         test_runs = n_class_runs[-n_test_runs:]
-        loader_train = cls.create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
+        loader_train = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names, CONFIG.DEVICE,
                                                            ignored_runs=test_runs)
-        loader_test = cls.create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
+        loader_test = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names, CONFIG.DEVICE,
                                                           ignored_runs=train_runs)
         return loader_train, loader_test
 
     @classmethod
-    def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names, device,
-                                        ignored_runs=[]):
-        """
-        Creates Loader containing all Trials of n_class Runs of subject
-        :param ignored_runs: List of Run Nrs. that should not be loaded
-        :return: DataLoader with Data of given Subject's Runs
-        """
-        preloaded_data, preloaded_labels = cls.load_subjects_data([subject], n_class, ch_names,
-                                                                  ignored_runs=ignored_runs)
-        preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
-                                                 preloaded_data.shape[3]))
-        preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
-        return cls.create_loader(preloaded_data, preloaded_labels, device, batch_size)
-
-    @classmethod
-    def load_subjects_data(cls, subjects, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
-                           normalize=False, ignored_runs=[]):
+    def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = PHYS.CHANNELS,
+                           equal_trials: bool = True, ignored_runs: List[int] = []):
         subjects.sort()
         trials = get_trials_size(n_class, equal_trials, ignored_runs)
         trials_per_run_class = np.math.floor(trials / n_class)
@@ -116,12 +104,60 @@ class PHYSDataLoader(MIDataLoader):
                 data, labels = split_trials(data, labels, CONFIG.EEG.TRIALS_SLICES, CONFIG.EEG.SAMPLES)
             preloaded_data[i] = data
             preloaded_labels[i] = labels
-        if normalize:
-            preloaded_data = normalize_data(preloaded_data)
         print("Trials per class loaded:")
         print_numpy_counts(preloaded_labels)
         # print(collections.Counter(preloaded_labels))
         return preloaded_data, preloaded_labels
+
+    @classmethod
+    def load_live_sim_data(cls, subject, n_class, ch_names):
+        """
+        Load all neccessary Data for the Live Simulation Run of subject
+        :return:
+        X: ndarray (channels,Samples) of single Subject Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run in Sec.
+        trial_sample_deltas: ndarray with Sample Nrs. of every Slice Timepoint in the Run
+        """
+        # Load Raw Subject Run for n_class
+        raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
+        # Get Data from raw Run
+        X = get_data_from_raw(raw)
+        X = cls.resample_filter_normalize(X)
+
+        max_sample = raw.n_times
+        slices = CONFIG.EEG.TRIALS_SLICES
+        # times = raw.times[:max_sample]
+        trials_start_times = raw.annotations.onset
+        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
+
+        # Get samples of Trials Start Times
+        trials_start_samples = map_times_to_samples(raw, trials_start_times)
+
+        trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
+        trial_sample_deltas = []
+        for trial_start_time in trials_start_times:
+            for i in range(1, slices + 1):
+                trial_sample_deltas.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
+
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_sample_deltas
+
+    @classmethod
+    def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names,
+                                        ignored_runs=[]):
+        """
+        Creates Loader containing all Trials of n_class Runs of subject
+        :param ignored_runs: List of Run Nrs. that should not be loaded
+        :return: DataLoader with Data of given Subject's Runs
+        """
+        preloaded_data, preloaded_labels = cls.load_subjects_data([subject], n_class, ch_names,
+                                                                  ignored_runs=ignored_runs)
+        preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
+                                                 preloaded_data.shape[3]))
+        preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
+        return cls.create_loader(preloaded_data, preloaded_labels, batch_size)
 
     @classmethod
     def load_n_classes_tasks(cls, subject, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
@@ -262,7 +298,7 @@ class PHYSDataLoader(MIDataLoader):
         subject_data = epochs.get_data().astype('float32')
         # Labels (0-index based)
         subject_labels = epochs.events[:, -1] - 1
-        subject_data = cls.resample_and_filter(subject_data)
+        subject_data = cls.resample_filter_normalize(subject_data)
         return subject_data, subject_labels
 
     @classmethod
@@ -283,40 +319,6 @@ class PHYSDataLoader(MIDataLoader):
         # raw.load_data()
         return raw
 
-    @classmethod
-    def load_live_sim_data(cls, subject, n_class, ch_names):
-        """
-        Load all neccessary Data for the Live Simulation Run of subject
-        :return:
-        X: ndarray (channels,Samples) of single Subject Run data
-        max_sample: Maximum sample number of the Run
-        slices: Trial Slices
-        trials_classes: ndarray with label nr. of every Trial in the Run
-        trials_start_times: ndarray with Start Times of every Trial in the Run in Sec.
-        trial_sample_deltas: ndarray with Sample Nrs. of every Slice Timepoint in the Run
-        """
-        # Load Raw Subject Run for n_class
-        raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
-        # Get Data from raw Run
-        X = get_data_from_raw(raw)
-        X = cls.resample_and_filter(X)
-
-        max_sample = raw.n_times
-        slices = CONFIG.EEG.TRIALS_SLICES
-        # times = raw.times[:max_sample]
-        trials_start_times = raw.annotations.onset
-        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
-
-        # Get samples of Trials Start Times
-        trials_start_samples = map_times_to_samples(raw, trials_start_times)
-
-        trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
-        trial_sample_deltas = []
-        for trial_start_time in trials_start_times:
-            for i in range(1, slices + 1):
-                trial_sample_deltas.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
-
-        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_sample_deltas
 
 
 def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}/plots_training",
@@ -332,7 +334,7 @@ def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}
     raw = PHYSDataLoader.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
     # Get Data from raw Run
     X = get_data_from_raw(raw)
-    X = MIDataLoader.resample_and_filter(X)
+    X = MIDataLoader.resample_filter_normalize(X)
 
     max_sample = raw.n_times
     slices = 5

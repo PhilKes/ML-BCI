@@ -1,14 +1,13 @@
-from typing import List, Dict, Any, Callable
+from abc import abstractmethod
+from typing import List, Callable
 
 import mne.filter
+import numpy as np
 import torch
 from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
 from config import EEGConfig, CONFIG, RESAMPLE
-import numpy as np
-
-from data.data_utils import butter_bandpass_filt
-from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
+from data.data_utils import butter_bandpass_filt, normalize_data
 from machine_learning.util import resample_eeg_data
 from util.misc import print_subjects_ranges
 
@@ -35,7 +34,7 @@ class MIDataLoader:
     # for n_class classification
     # also returns loader_valid containing validation_subjects for loss calculation if validation_subjects are present
     @classmethod
-    def create_loaders_from_splits(cls, splits, validation_subjects: List[int], n_class: int, device,
+    def create_loaders_from_splits(cls, splits, validation_subjects: List[int], n_class: int,
                                    preloaded_data: np.ndarray = None, preloaded_labels: np.ndarray = None,
                                    bs: int = CONFIG.MI.BATCH_SIZE, ch_names: List[str] = [],
                                    equal_trials: bool = True, used_subjects: List[int] = []):
@@ -61,14 +60,14 @@ class MIDataLoader:
         loader_valid = None
         if len(validation_subjects) > 0:
             subjects_valid_idxs = [used_subjects.index(i) for i in validation_subjects]
-            loader_valid = cls.create_loader_from_subjects(validation_subjects, used_subjects, n_class, device,
+            loader_valid = cls.create_loader_from_subjects(validation_subjects, used_subjects, n_class,
                                                            preloaded_data,
                                                            preloaded_labels,
                                                            bs, ch_names, equal_trials)
-        loader_train = cls.create_loader_from_subjects(subjects_train, used_subjects, n_class, device,
+        loader_train = cls.create_loader_from_subjects(subjects_train, used_subjects, n_class,
                                                        preloaded_data, preloaded_labels,
                                                        bs, ch_names, equal_trials)
-        loader_test = cls.create_loader_from_subjects(subjects_test, used_subjects, n_class, device,
+        loader_test = cls.create_loader_from_subjects(subjects_test, used_subjects, n_class,
                                                       preloaded_data,
                                                       preloaded_labels,
                                                       bs, ch_names, equal_trials)
@@ -76,33 +75,20 @@ class MIDataLoader:
 
     # Creates DataLoader with Random Sampling from subject list
     @classmethod
-    def create_loader_from_subjects(cls, subjects, used_subjects, n_class, device, preloaded_data, preloaded_labels,
+    def create_loader_from_subjects(cls, subjects, used_subjects, n_class, preloaded_data, preloaded_labels,
                                     bs=CONFIG.MI.BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
         """
         Create Loaders for given subjects
         :return: Loader
         """
-        trials_ds = cls.ds_class(subjects, used_subjects, n_class, device,
+        trials_ds = cls.ds_class(subjects, used_subjects, n_class,
                                  preloaded_tuple=(preloaded_data, preloaded_labels),
                                  ch_names=ch_names, equal_trials=equal_trials)
         sampler = None if cls.sampler is None else cls.sampler(trials_ds)
         return DataLoader(trials_ds, bs, sampler=sampler, pin_memory=False)
 
     @classmethod
-    def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = [], equal_trials: bool = True,
-                           normalize: bool = False, ignored_runs: List[int] = []):
-        """
-        Loads and returns n_class data of subjects
-        Can lead to high memory usage depending on the Dataset
-        :param subjects: Subjects to be loaded
-        :param equal_trials: Load equal amount of Trials for each class?
-        :param ignored_runs: Runs to ignore (MNE with PHYS)
-        :return: preloaded_data, preloaded_labels of specified subjects
-        """
-        raise NotImplementedError('This method is not implemented!')
-
-    @classmethod
-    def resample_and_filter(cls, data: np.ndarray):
+    def resample_filter_normalize(cls, data: np.ndarray):
         """
         Checks and executes resampling and/or bandpass filtering of given EEG Data if necessary
         :param data: original EEG Data Array
@@ -126,26 +112,19 @@ class MIDataLoader:
             #  filter_length (1651) is longer than the signal (500), distortion is likely. Reduce filter length or filter a longer signal.
             data = mne.filter.notch_filter(data, Fs=CONFIG.EEG.SAMPLERATE, freqs=60.0, filter_length='auto',
                                            phase='zero')
+        # Normalize Data if wanted
+        if CONFIG.FILTER.NORMALIZE:
+            data = normalize_data(data)
         return data
 
     @classmethod
-    def create_loader(cls, preloaded_data, preloaded_labels, device, batch_size=CONFIG.MI.BATCH_SIZE):
-        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=device, dtype=torch.float32),
-                                 torch.as_tensor(preloaded_labels, device=device, dtype=torch.int))
+    def create_loader(cls, preloaded_data, preloaded_labels, batch_size=CONFIG.MI.BATCH_SIZE):
+        data_set = TensorDataset(torch.as_tensor(preloaded_data, device=CONFIG.DEVICE, dtype=torch.float32),
+                                 torch.as_tensor(preloaded_labels, device=CONFIG.DEVICE, dtype=torch.int))
         return DataLoader(data_set, batch_size, sampler=RandomSampler(data_set), pin_memory=False)
 
     @classmethod
-    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
-                                            batch_size: int, ch_names: List[str], device):
-        """
-        Create Train/Test Loaders for a single subject
-        :param n_test_runs: Which runs are used for the Test Loader
-        :return: Train Loader, Test Loader
-        """
-        raise NotImplementedError('This method is not implemented!')
-
-    @classmethod
-    def create_preloaded_loader(cls, subjects: List[int], n_class: int, ch_names: List[str], batch_size: int, device,
+    def create_preloaded_loader(cls, subjects: List[int], n_class: int, ch_names: List[str], batch_size: int,
                                 equal_trials: bool):
         """
         Create Loader with preloaded data for given subjects
@@ -154,11 +133,37 @@ class MIDataLoader:
         print(f"Preloading Subjects [{subjects[0]}-{subjects[-1]}] Data in memory")
         preloaded_data, preloaded_labels = cls.load_subjects_data(subjects, n_class, ch_names,
                                                                   equal_trials=equal_trials)
-        return cls.create_loader_from_subjects(subjects, n_class, device, preloaded_data,
+        return cls.create_loader_from_subjects(subjects, n_class, preloaded_data,
                                                preloaded_labels, batch_size, equal_trials=equal_trials)
 
     @classmethod
-    def load_live_sim_data(cls, subject, n_class, ch_names):
+    @abstractmethod
+    def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = [], equal_trials: bool = True,
+                           ignored_runs: List[int] = []):
+        """
+        Loads and returns n_class data of subjects
+        Can lead to high memory usage depending on the Dataset
+        :param subjects: Subjects to be loaded
+        :param equal_trials: Load equal amount of Trials for each class?
+        :param ignored_runs: Runs to ignore (MNE with PHYS)
+        :return: preloaded_data, preloaded_labels of specified subjects
+        """
+        raise NotImplementedError('This method is not implemented!')
+
+    @classmethod
+    @abstractmethod
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
+                                            batch_size: int, ch_names: List[str]):
+        """
+        Create Train/Test Loaders for a single subject
+        :param n_test_runs: Which runs are used for the Test Loader
+        :return: Train Loader, Test Loader
+        """
+        raise NotImplementedError('This method is not implemented!')
+
+    @classmethod
+    @abstractmethod
+    def load_live_sim_data(cls, subject: int, n_class: int, ch_names: List[str]):
         """
         Load all necessary Data for the Live Simulation Run of subject
         X: ndarray (channels,Samples) of single Subject's Run data

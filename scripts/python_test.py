@@ -4,20 +4,17 @@ Python script for miscellaneous testing of libraries
 """
 import math
 import os
-from typing import List
 
 import mne
 import numpy as np
-
 import torch
-from scipy import io
-from sympy import pretty_print
-from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
+import torch.types
 
-from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader, LSMRNumpyRun
+from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
-from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_per_subject
-from util.misc import copy_attrs, to_el_list, print_counts
+from machine_learning.util import get_valid_trials_per_subject
+from paths import datasets_folder
+from util.misc import get_device_name
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -30,7 +27,11 @@ if torch.cuda.is_available():
     dev = "cuda:0"
 else:
     dev = "cpu"
-device = torch.device("cpu")
+device: torch.types.Device = torch.device("cpu")
+print(get_device_name(device))
+print("Available CUDA Devices:")
+for i in range(torch.cuda.device_count()):
+    print(f"\tcuda:{i}", f"'{torch.cuda.get_device_name(0)}'")
 
 
 # scale = lambda x: x * 10000
@@ -93,8 +94,6 @@ def check_bad_data(subjects, n_classes):
     print("Min", min, "Max", max)
 
 
-import time
-from config import datasets_folder
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 
 
@@ -147,6 +146,8 @@ if __name__ == '__main__':
     subjects = [1, 26, 46]
     #
     runs = [1, 11]
+
+
     # print_trials_per_tmin(subjects, runs)
 
     # print(time.time() - start)

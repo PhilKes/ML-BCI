@@ -4,10 +4,12 @@ Miscellaneous Utility Methods
 import errno
 import math
 import os
+import platform
 
 import numpy as np
 import pandas
 import pandas as pd
+import torch.types
 from scipy import io
 from tabulate import tabulate
 
@@ -221,3 +223,10 @@ def combine_dims(a, i=0, n=1):
     s = list(a.shape)
     combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
+
+
+def get_device_name(device: torch.types.Device):
+    # Get Name from torch if CUDA Device
+    if 'cuda' in str(device):
+        return f"CUDA ({torch.cuda.get_device_name(device)})"
+    return f"CPU ({platform.processor()})"

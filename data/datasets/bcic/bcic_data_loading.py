@@ -13,6 +13,7 @@ History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
 import math
+from typing import List
 
 import numpy as np
 
@@ -30,9 +31,9 @@ class BCICTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for BCIC Dataset
     """
 
-    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, preloaded_tuple,
                  ch_names=BCIC.CHANNELS, equal_trials=True):
-        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
         self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
@@ -63,8 +64,8 @@ class BCICDataLoader(MIDataLoader):
     ds_class = BCICTrialsDataset
 
     @classmethod
-    def load_subjects_data(cls, subjects, n_class, ch_names=BCIC.CHANNELS, equal_trials=True,
-                           normalize=False, ignored_runs=[]):
+    def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = BCIC.CHANNELS,
+                           equal_trials: bool = True, ignored_runs: List[int] = []):
         subjects.sort()
         training = 1  # load BCIC training data set
         ds_w = BCIC_IV2a_dataset(subjects=subjects, n_class=n_class, ch_names=ch_names)
@@ -72,16 +73,17 @@ class BCICDataLoader(MIDataLoader):
         ds_w.print_stats()
         if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
             print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
-        preloaded_data = cls.resample_and_filter(preloaded_data)
+        preloaded_data = cls.resample_filter_normalize(preloaded_data)
         return preloaded_data, preloaded_labels
 
     @classmethod
-    def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
+                                            batch_size: int, ch_names: List[str]):
         ds_w = BCIC_IV2a_dataset(subjects=[used_subject], n_class=n_class, ch_names=ch_names)
         preloaded_data, preloaded_labels = ds_w.load_subjects_data(1)
         preloaded_data = np.squeeze(preloaded_data, 0)
         preloaded_labels = np.squeeze(preloaded_labels, 0)
-        preloaded_data = cls.resample_and_filter(preloaded_data)
+        preloaded_data = cls.resample_filter_normalize(preloaded_data)
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[0], 1, preloaded_data.shape[1],
                                                  preloaded_data.shape[2]))
         n_trials_max = 6 * 12 * n_class  # 6 runs with 12 trials per class per subject
@@ -90,12 +92,12 @@ class BCICDataLoader(MIDataLoader):
         # Use 80% of the subject's data as Training Data, 20% as Test Data
         training_trials_size = math.floor(4 * valid_trials / 5)
         loader_train = cls.create_loader(preloaded_data[:training_trials_size],
-                                         preloaded_labels[:training_trials_size], device, batch_size)
+                                         preloaded_labels[:training_trials_size], batch_size)
         loader_test = cls.create_loader(preloaded_data[training_trials_size:valid_trials],
-                                        preloaded_labels[training_trials_size:valid_trials], device, batch_size)
+                                        preloaded_labels[training_trials_size:valid_trials], batch_size)
         return loader_train, loader_test
 
     @classmethod
-    def load_live_sim_data(cls, subject, n_class, ch_names):
+    def load_live_sim_data(cls, subject: int, n_class: int, ch_names: List[str]):
         # TODO
         pass

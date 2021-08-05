@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import List
 
 import matplotlib.pyplot as plt
+import torch.types
 
 from util.dot_dict import DotDict
 from util.misc import calc_n_samples
@@ -60,6 +61,7 @@ class FilterConfig(object):
     FREQ_FILTER_HIGHPASS: float = None
     FREQ_FILTER_LOWPASS: float = None
     USE_NOTCH_FILTER: bool = False
+    NORMALIZE: bool = False
 
     def set_filters(self, fmin=None, fmax=None, notch=False):
         if fmin == 0:
@@ -176,6 +178,8 @@ class Config(object):
     # after preloading any Dataset the EEG Data gets resampled
     # to this Samplerate (see training_cv() in machine_learning/modes.py)
     SYSTEM_SAMPLE_RATE: int = 250
+
+    DEVICE: torch.types.Device = torch.device("cpu")
 
     EEG: EEGConfig = EEGConfig()
     NET: ANNConfig = ANNConfig()
