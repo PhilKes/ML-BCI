@@ -39,7 +39,7 @@ confs = {
             'bp_4_Inf',
         ],
         'init': [
-            lambda: CONFIG.FILTER.set_filters(0, 32),
+            lambda: CONFIG.FILTER.set_filters(None, 32),
             lambda: CONFIG.FILTER.set_filters(4, None),
         ],
         'after': lambda: CONFIG.EEG.set_artifacts_trial_category(artifacts=0, trial_category=0)

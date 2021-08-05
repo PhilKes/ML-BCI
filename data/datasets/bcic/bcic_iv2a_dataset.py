@@ -214,8 +214,8 @@ class BCIC_IV2a_dataset:
         events_duration = data['edur'].T
         artifacts = data['artifacts'].T
 
-        # optional resampling + butterworth bandpass filtering
-        raw = MIDataLoader.resample_and_filter(raw)
+        # # optional resampling + butterworth bandpass filtering
+        # raw = MIDataLoader.resample_and_filter(raw)
         startrial_code = 768
         starttrial_events = events_type == startrial_code
         idxs = [i for i, x in enumerate(starttrial_events[0]) if x]

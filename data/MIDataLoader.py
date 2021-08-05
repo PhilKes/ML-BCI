@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Callable
 
+import mne.filter
 import torch
 from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
@@ -119,7 +120,12 @@ class MIDataLoader:
             data = butter_bandpass_filt(data, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
                                         highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS,
                                         fs=CONFIG.EEG.SAMPLERATE, order=7)
-        # TODO: Add Notch Filter for all Datasets? Only present for PHYS with mne
+        # optional Notch Filter to filter out Powerline Noise
+        if CONFIG.FILTER.USE_NOTCH_FILTER:
+            # TODO RuntimeWarning:
+            #  filter_length (1651) is longer than the signal (500), distortion is likely. Reduce filter length or filter a longer signal.
+            data = mne.filter.notch_filter(data, Fs=CONFIG.EEG.SAMPLERATE, freqs=60.0, filter_length='auto',
+                                           phase='zero')
         return data
 
     @classmethod

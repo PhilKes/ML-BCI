@@ -293,7 +293,8 @@ class LSMR21DataLoader(MIDataLoader):
                 path = f"{datasets_folder}/{LSMR21.short_name}/numpy/S{subject}_Session_{run}"
                 return LSMRNumpyRun.from_npz(np.load(f"{path}.npz", allow_pickle=True))
         except FileNotFoundError as e:
-            print(Exception(f"Missing: Subject {subject} Run {run}"))
+            if VERBOSE:
+                print(Exception(f"Missing: Subject {subject} Run {run}"))
             return None
 
     @classmethod

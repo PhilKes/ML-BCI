@@ -278,10 +278,6 @@ class PHYSDataLoader(MIDataLoader):
         raw: mne.io.Raw = concatenate_raws(raw_files)
         raw.rename_channels(lambda x: x.strip('.'))
         raw.pick_channels(ch_names)
-        if CONFIG.FILTER.USE_NOTCH_FILTER:
-            picks = mne.pick_channels(raw.info['ch_names'], ch_names)
-            raw.notch_filter(60.0, picks=picks, filter_length='auto',
-                             phase='zero')
         # # Resample/Filter if necessary
         # raw.apply_function(cls.resample_and_filter, channel_wise=False)
         # raw.load_data()

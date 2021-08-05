@@ -1,11 +1,11 @@
 """
 File containing all relevant Properties of the
-LSMR-21 dataset
+LSMR-21 dataset:
+https://figshare.com/articles/dataset/Human_EEG_Dataset_for_Brain-Computer_Interface_and_Meditation/13123148
 """
 from typing import List
 
 from config import EEGConfig
-from util.dot_dict import DotDict
 
 
 class LSMR21:
