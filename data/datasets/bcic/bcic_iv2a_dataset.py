@@ -22,6 +22,7 @@ import sys
 import matplotlib.pyplot as plt
 from scipy import signal
 from config import CONFIG
+from data.MIDataLoader import MIDataLoader
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.data_utils import butter_bandpass_filt
 
@@ -213,12 +214,8 @@ class BCIC_IV2a_dataset:
         events_duration = data['edur'].T
         artifacts = data['artifacts'].T
 
-        # optional butterworth bandpass filtering
-        if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
-            raw = butter_bandpass_filt(raw, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS, \
-                                       highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS, \
-                                       fs=CONFIG.FILTER.SAMPLERATE, order=7)
-
+        # optional resampling + butterworth bandpass filtering
+        raw = MIDataLoader.resample_and_filter(raw)
         startrial_code = 768
         starttrial_events = events_type == startrial_code
         idxs = [i for i, x in enumerate(starttrial_events[0]) if x]

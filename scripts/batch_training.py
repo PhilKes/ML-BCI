@@ -29,37 +29,16 @@ confs = {
     #     ],
     #     'names': ['bcic_all_2s', 'bcic_all_4s']
     # },
-    'LSMR21_params': {
+    'LSMR21_bandpass': {
         'params': [
-            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16'],
-            ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
         ],
         'names': [
-            'ch_motorimg_16',
-            'ch_motorimg_16_openbci',
-            'pool_size_8',
-            'pool_size_4',
-            'cue_offset_2.0',
-            'cue_offset_4.0',
-            'cue_offset_0.0',
             'bp_0_32',
             'bp_4_Inf',
         ],
         'init': [
-            lambda: None,
-            lambda: None,
-            lambda: CONFIG.NET.set_poolsize(8),
-            lambda: CONFIG.NET.set_poolsize(4),
-            lambda: CONFIG.EEG.set_cue_offset(2.0),
-            lambda: CONFIG.EEG.set_cue_offset(4.0),
-            lambda: CONFIG.EEG.set_cue_offset(0.0),
             lambda: CONFIG.FILTER.set_filters(0, 32),
             lambda: CONFIG.FILTER.set_filters(4, None),
         ],
@@ -71,7 +50,7 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "LSMR21_parameters"
+folder = "batch_trainings"
 default_n_classes = ['2']
 
 train_ss = False

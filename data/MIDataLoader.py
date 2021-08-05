@@ -6,6 +6,7 @@ from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 from config import EEGConfig, CONFIG, RESAMPLE
 import numpy as np
 
+from data.data_utils import butter_bandpass_filt
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from machine_learning.util import resample_eeg_data
 from util.misc import print_subjects_ranges
@@ -100,11 +101,11 @@ class MIDataLoader:
         raise NotImplementedError('This method is not implemented!')
 
     @classmethod
-    def check_and_resample(cls, data: np.ndarray):
+    def resample_and_filter(cls, data: np.ndarray):
         """
-        Checks and executes resampling of given EEG Data if necessary
+        Checks and executes resampling and/or bandpass filtering of given EEG Data if necessary
         :param data: original EEG Data Array
-        :return: resampled EEG Data (Sample rate= CONFIG.SYSTEM_SAMPLE_RATE)
+        :return: resampled and/or filtered EEG Data (Sample rate = CONFIG.SYSTEM_SAMPLE_RATE)
         """
         # Resample EEG Data if necessary
         if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
@@ -113,6 +114,12 @@ class MIDataLoader:
                                      per_subject=False
                                      # per_subject=(cls.name_short == LSMR21.short_name)
                                      )
+        # optional butterworth bandpass filtering
+        if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
+            data = butter_bandpass_filt(data, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
+                                        highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS,
+                                        fs=CONFIG.EEG.SAMPLERATE, order=7)
+        # TODO: Add Notch Filter for all Datasets? Only present for PHYS with mne
         return data
 
     @classmethod

@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
+from data.data_utils import butter_bandpass_filt
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
@@ -254,7 +255,8 @@ class LSMR21DataLoader(MIDataLoader):
             elapsed = (time.time() - start)
             if VERBOSE:
                 print(f"Loading + Slicing Time {subject_idx + 1}: {elapsed:.2f}")
-        subject_data = cls.check_and_resample(subject_data)
+        # Check if resampling or filtering has to be executed
+        subject_data = cls.resample_and_filter(subject_data)
         return subject_data, subject_labels
 
     @classmethod
@@ -267,7 +269,7 @@ class LSMR21DataLoader(MIDataLoader):
         all_trials_idxs = sr.get_trials(tmin=0.0, n_class=n_class)
         subject_run_data = sr.get_data_raw(all_trials_idxs)
         subject_run_labels = sr.get_labels(trials_idxs=all_trials_idxs) - 1
-        subject_run_data = cls.check_and_resample(subject_run_data)
+        subject_run_data = cls.resample_and_filter(subject_run_data)
         return subject_run_data, subject_run_labels
 
     @classmethod

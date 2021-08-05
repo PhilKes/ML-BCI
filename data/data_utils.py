@@ -66,6 +66,7 @@ def get_data_from_raw(raw, ch_names=PHYS.CHANNELS):
     # raw1 = raw.copy()
     raw.pick_channels(ch_names)
     data, times = raw[:, :]
+
     return data
 
 
