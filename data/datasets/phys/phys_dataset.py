@@ -32,6 +32,7 @@ class PHYS:
 
     cv_folds = 5
     # Time Interval per EEG Trial (T=0: start of MI Cue)
+    # These are Constants, DO NOT MODIFY!
     CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,
         TMAX=2.0,

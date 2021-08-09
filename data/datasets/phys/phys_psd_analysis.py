@@ -72,9 +72,9 @@ def analyze_data(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, f
 
     batch_size = 1
     # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-    loaders = PHYSDataLoader.create_loaders_from_splits(next(cv_split), validation_subjects, n_class, device,
-                                                        preloaded_data,
-                                                        preloaded_labels, batch_size, ch_names, equal_trials,
+    loaders = PHYSDataLoader.create_loaders_from_splits(next(cv_split), validation_subjects, n_class,
+                                                        preloaded_data, preloaded_labels, batch_size,
+                                                        ch_names, equal_trials,
                                                         used_subjects=used_subjects)
     loader_train, loader_test, loader_valid = loaders
 

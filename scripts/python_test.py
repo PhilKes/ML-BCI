@@ -9,9 +9,12 @@ import mne
 import numpy as np
 import torch
 import torch.types
+from mne import Epochs
 
+from data.datasets.bcic.bcic_data_loading import BCICDataLoader
 from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
+from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import get_valid_trials_per_subject
 from paths import datasets_folder
 from util.misc import get_device_name
@@ -193,6 +196,7 @@ if __name__ == '__main__':
         trials = get_valid_trials_per_subject(y, [0], [0], 2000)
         print(trials)
 
+
     # set_eeg_config(LSMR21.CONFIG)
     # LSMR21.set_runs([1,7])
     # for i in range(2):
@@ -200,3 +204,15 @@ if __name__ == '__main__':
     #         print(f"artifacts= {i} + Trial Cat. {j}")
     #         set_eeg_artifacts_trial_category(i, j)
     #         load_sub()
+
+    # raw = PHYSDataLoader.mne_load_subject_raw(1, [8])
+    # events, event_ids = mne.events_from_annotations(raw)
+    # ch_names = PHYS.CHANNELS
+    # picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+    # tmin, tmax = 0, 2
+    # epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / PHYS.CONFIG.SAMPLERATE), picks=picks,
+    #                 baseline=None, preload=True)
+
+    data, labels = BCICDataLoader.load_subjects_data([1], 3)
+
+    print()

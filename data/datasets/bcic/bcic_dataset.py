@@ -1,12 +1,12 @@
 """
 File containing all relevant Properties of the
 BCI competition IV 2a dataset
+http://www.bbci.de/competition/iv/desc_2a.pdf
 
 History:
   2021-05-10: Getting started - ms
 """
 from config import EEGConfig
-from util.dot_dict import DotDict
 
 
 class BCIC:
@@ -23,7 +23,8 @@ class BCIC:
         'c15', 'c16', 'c17', 'c18', 'c19', 'c20', 'c21',
         'c22']
     cv_folds = 9
-    # Time Interval per EEG Trial (T=2: start of MI Cue)
+    # Default Time Interval per EEG Trial (T=2: start of MI Cue)
+    # These are Constants, DO NOT MODIFY!
     CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,
         TMAX=2.0,

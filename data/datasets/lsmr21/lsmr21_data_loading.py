@@ -286,7 +286,7 @@ class LSMR21DataLoader(MIDataLoader):
         if runs is None:
             runs = LSMR21.runs
         subject_data = np.full((n_trials_max, len(ch_names),
-                                calc_n_samples(cls.eeg_config.TMIN, cls.eeg_config.TMAX, cls.eeg_config.SAMPLERATE)),
+                                calc_n_samples(CONFIG.EEG.TMIN, CONFIG.EEG.TMAX, cls.eeg_config.SAMPLERATE)),
                                -1, dtype=np.float32)
         subject_labels = np.full((n_trials_max), -1, dtype=np.int)
         t_idx = 0

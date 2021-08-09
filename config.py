@@ -101,12 +101,12 @@ class EEGConfig(object):
     """
     # Time Interval per EEG Trial (T=0: start of MI Cue)
     # Trials Slicing (divide every Trial in equally long Slices)
-    TMIN: float = None
-    TMAX: float = None
+    TMIN: float = -1
+    TMAX: float = -1
     CUE_OFFSET: float = None
     TRIALS_SLICES: int = 1
-    SAMPLERATE: float = None
-    SAMPLES: int = None
+    SAMPLERATE: float = -1
+    SAMPLES: int = -1
     # FOR LSMR21:
     # 0 = disallow Trials with Artifacts, 1 = use all Trials
     ARTIFACTS: int = 1
@@ -129,11 +129,12 @@ Trials Slices: {self.TRIALS_SLICES}
 """
 
     def set_cue_offset(self, cue_offset):
-        self.TMIN -= self.CUE_OFFSET
-        self.TMIN += cue_offset
-        self.TMAX -= self.CUE_OFFSET
-        self.TMAX += cue_offset
+        if self.CUE_OFFSET is not None:
+            self.TMIN -= self.CUE_OFFSET
+            self.TMAX -= self.CUE_OFFSET
         self.CUE_OFFSET = cue_offset
+        self.TMIN += self.CUE_OFFSET
+        self.TMAX += self.CUE_OFFSET
         self.SAMPLES = math.floor(
             ((self.TMAX - self.TMIN) * self.SAMPLERATE) / self.TRIALS_SLICES)
 
@@ -154,10 +155,13 @@ Trials Slices: {self.TRIALS_SLICES}
         self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
     def set_config(self, cfg):
-        self.TMIN = cfg.TMIN + cfg.CUE_OFFSET
-        self.TMAX = cfg.TMAX + cfg.CUE_OFFSET
+        # If CUE_OFFSET is manually set with set_cue_offset() before main.py (e.g. in batch_training 'init' methods)
+        # do not overwrite manually set CUE_OFFSET
+        if self.CUE_OFFSET is None:
+            self.CUE_OFFSET = cfg.CUE_OFFSET
+        self.TMIN = cfg.TMIN + self.CUE_OFFSET
+        self.TMAX = cfg.TMAX + self.CUE_OFFSET
         self.TRIALS_SLICES = 1
-        self.CUE_OFFSET = cfg.CUE_OFFSET
         self.SAMPLERATE = cfg.SAMPLERATE
         self.SAMPLES = calc_n_samples(cfg.TMIN, cfg.TMAX, cfg.SAMPLERATE)
         if RESAMPLE:
