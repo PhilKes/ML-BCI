@@ -15,8 +15,8 @@ class LSMR21:
     # No excluded subjects
     ALL_SUBJECTS = [i for i in range(62)]  # 62 Subjects
     runs = [i for i in range(11)]
-    # Number of Trials per class in 1 Subject Run
-    trials_per_class_per_sr = 75
+    # Maximum number of Trials per class in 1 Subject Run
+    trials_per_class_per_sr = 80
     cv_folds = 5
 
     # # No excluded subjects
@@ -48,7 +48,11 @@ class LSMR21:
     ORIGINAL_SAMPLERATE = 1000
     # Mapping of n_class Classification to correct Tasks
     # 1: Left/Right, 2: Up/Down, 3: 2D (Left/Right/Up/Down)
-    n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2, 3]}
+    # TODO:
+    #  2 class: only Task 1 Trials? (Task 3 also contains Left/Right Trials)
+    #  3 class: only Tasks 1,2 Trials? (Task 3 also contains Left/Right/Up Trials)
+    #  4 class: only 3 Trials? (Tasks 1+2 also contain Left/Right/Up/Down combined Trials)
+    n_classes_tasks = {2: [1], 3: [1, 2], 4: [1, 2]}
 
     # n_classes_targets = {2: [1, 2], 3: [1, 2, 3], 4: [1, 2, 3, 4]}
     @classmethod

@@ -11,8 +11,9 @@ import torch
 import torch.types
 from mne import Epochs
 
+from config import CONFIG
 from data.datasets.bcic.bcic_data_loading import BCICDataLoader
-from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader
+from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader, LSMR21TrialsDataset
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import get_valid_trials_per_subject
@@ -205,14 +206,26 @@ if __name__ == '__main__':
     #         set_eeg_artifacts_trial_category(i, j)
     #         load_sub()
 
-    raw = PHYSDataLoader.mne_load_subject_raw(1, [8])
-    events, event_ids = mne.events_from_annotations(raw)
-    ch_names = PHYS.CHANNELS
-    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
-    tmin, tmax = 0, 2
-    epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / PHYS.CONFIG.SAMPLERATE), picks=picks,
-                    baseline=None, preload=True)
+    # raw = PHYSDataLoader.mne_load_subject_raw(1, [8])
+    # events, event_ids = mne.events_from_annotations(raw)
+    # ch_names = PHYS.CHANNELS
+    # picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+    # tmin, tmax = 0, 2
+    # epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / PHYS.CONFIG.SAMPLERATE), picks=picks,
+    #                 baseline=None, preload=True)
 
     # data, labels = BCICDataLoader.load_subjects_data([1], 3)
-    # run = LSMR21DataLoader.load_subject_run(1, 3,from_matlab=True)
-    print()
+    CONFIG.EEG.set_config(LSMR21.CONFIG)
+    n_class = 4
+    failed_subjects = []
+    for i in [1, 7, 8, 9, 14, 16, 18, 27, 28, 30, 40, 45, 49, 50, 53, 54, 57]:
+        used_subjects = [i]
+        try:
+            preloaded_tuple = LSMR21DataLoader.load_subjects_data(used_subjects, n_class)
+            ds = LSMR21TrialsDataset(used_subjects, used_subjects, n_class, preloaded_tuple)
+        except Exception as e:
+            # ds.print_stats()
+            failed_subjects.append(i)
+            print("Subject", i)
+            print(e)
+    print("Failed SUbject", failed_subjects)

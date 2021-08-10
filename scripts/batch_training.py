@@ -18,33 +18,33 @@ parent_folder = "batch_trainings/params"
 """
 All Batch Configurations to execute Training with in 'confs' Dictionary
 Add new Keys for new Training batches, e.g.:
-        'Example_Batch': {
-          # A Training Config consists of:
-          #   * Command Line params for 'main.py -train' ('params')
-          #   * A name for the result folder of the Config ('names')
-          #   * An initialization Method executed before the Training ('init')
-          # Every Row represents a Training Configuration
-          #   -> e.g. the first Training Config is defined by params[0], names[0], init[0]
-          #   -> 'params', 'names', 'init' have to have same amount of rows
-            'params': [
-                # You can add any available Argument for 'main.py -train'
-                ['--dataset', PHYS.short_name, '--tmin', '2', '--tmax', '4'],
-                ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
-            ],
-            'names': [
-                # Training results will be stored in /results/{parent_folder}/Example_Batch/{names[i]}
-                'phys_tmin_2_tmax_4',
-                'bcic_16_openbci_fmin_4_fmax_60',
-            ],
-            'init': [
-                # Init. Method as single-line lambda (optional, can also just be 'lambda: None' if no init. is necessary)
-                lambda: None,
-                lambda: CONFIG.FILTER.set_filter(4,60),
-            ],
-          # Training Results are summarized per Batch as a Table in:
-          # /results/{parent_folder}/Example_Batch/Example_Batch_training.txt
-        },
-    """
+    'Example_Batch': {
+      # A Training Config consists of:
+      #   * Command Line params for 'main.py -train' ('params')
+      #   * A name for the result folder of the Config ('names')
+      #   * An initialization Method executed before the Training ('init')
+      # Every Row represents a Training Configuration
+      #   -> e.g. the first Training Config is defined by params[0], names[0], init[0]
+      #   -> 'params', 'names', 'init' have to have same amount of rows
+        'params': [
+            # You can add any available Argument for 'main.py -train'
+            ['--dataset', PHYS.short_name, '--tmin', '2', '--tmax', '4'],
+            ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
+        ],
+        'names': [
+            # Training results will be stored in /results/{parent_folder}/Example_Batch/{names[i]}
+            'phys_tmin_2_tmax_4',
+            'bcic_16_openbci_fmin_4_fmax_60',
+        ],
+        'init': [
+            # Init. Method as single-line lambda (optional, can also just be 'lambda: None' if no init. is necessary)
+            lambda: None,
+            lambda: CONFIG.FILTER.set_filter(4,60),
+        ],
+      # Training Results are summarized per Batch as a Table in:
+      # /results/{parent_folder}/Example_Batch/Example_Batch_training.txt
+    },
+"""
 confs = {
 
     # 'PHYS': {
@@ -151,12 +151,10 @@ confs = {
 }
 
 default_options = ['-train']
+default_n_classes = ['2']
 
 train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
-start = datetime.now()
-
-default_n_classes = ['2']
 
 train_ss = False
 live_sim = False

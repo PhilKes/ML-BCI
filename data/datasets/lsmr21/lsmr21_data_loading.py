@@ -25,6 +25,8 @@ class LSMRNumpyRun:
     # shape: (trials, channels, samples)
     data: np.ndarray
     # per Trial: (label, tasknr, trial_category, artifact, triallength)
+    # label:
+    #  1: Left, 2: Right, 3: Up, 4: Down
     trial_info: np.ndarray
     subject: int
 
@@ -47,16 +49,23 @@ class LSMRNumpyRun:
         :return: List of Trial idxs
         """
         # Get all trials with correct tasknr
-        # trial_info[1]= tasknr
-        return [i for i, td in enumerate(self.trial_info) if
-                (td[1] in LSMR21.n_classes_tasks[n_class])]
+        # trial_info[0]= label, trial_info[1]= tasknr
+        n_class_trials = [i for i, td in enumerate(self.trial_info) if
+                          (int(td[1]) in LSMR21.n_classes_tasks[n_class])]
+        # Omit all Trials with label == 4 ('down') for n_class == 3
+        if n_class == 3:
+            n_class_trials = [n_class_trials[i] for i, td in enumerate(self.trial_info[n_class_trials])
+                              if int(td[0]) != 4]
+        return n_class_trials
 
-    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=CONFIG.EEG.TMAX):
+    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=None):
         """
         Return int Labels of all Trials as numpy array
         :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
         :param trials_idxs: Force to return only specified trials
         """
+        if mi_tmin is None:
+            mi_tmin = CONFIG.EEG.TMAX
         trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
         # trial_info[0]= label (targetnumber)
         return np.asarray([trial[0] for trial in [self.trial_info[i] for i in trials]], dtype=np.int)
@@ -306,7 +315,8 @@ class LSMR21DataLoader(MIDataLoader):
                                ch_idxs=to_idxs_of_list([ch.upper() for ch in ch_names], LSMR21.CHANNELS))
             max_data_trial = t_idx + data.shape[0]
             subject_data[t_idx:max_data_trial] = data
-            subject_labels[t_idx:max_data_trial] = sr.get_labels(trials_idxs=trials_idxs) - 1
+            labels = sr.get_labels(trials_idxs=trials_idxs) - 1
+            subject_labels[t_idx:max_data_trial] = labels
             t_idx += data.shape[0]
             elapsed = (time.time() - start)
             if VERBOSE:
