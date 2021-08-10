@@ -205,14 +205,14 @@ if __name__ == '__main__':
     #         set_eeg_artifacts_trial_category(i, j)
     #         load_sub()
 
-    # raw = PHYSDataLoader.mne_load_subject_raw(1, [8])
-    # events, event_ids = mne.events_from_annotations(raw)
-    # ch_names = PHYS.CHANNELS
-    # picks = mne.pick_channels(raw.info['ch_names'], ch_names)
-    # tmin, tmax = 0, 2
-    # epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / PHYS.CONFIG.SAMPLERATE), picks=picks,
-    #                 baseline=None, preload=True)
+    raw = PHYSDataLoader.mne_load_subject_raw(1, [8])
+    events, event_ids = mne.events_from_annotations(raw)
+    ch_names = PHYS.CHANNELS
+    picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+    tmin, tmax = 0, 2
+    epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / PHYS.CONFIG.SAMPLERATE), picks=picks,
+                    baseline=None, preload=True)
 
-    data, labels = BCICDataLoader.load_subjects_data([1], 3)
-
+    # data, labels = BCICDataLoader.load_subjects_data([1], 3)
+    # run = LSMR21DataLoader.load_subject_run(1, 3,from_matlab=True)
     print()

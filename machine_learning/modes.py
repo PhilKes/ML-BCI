@@ -306,7 +306,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds']]
         CONFIG.EEG.set_config(dataset.eeg_config)
-        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
+        load_global_conf_from_results(n_class_results, CONFIG.EEG.CUE_OFFSET)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
         class_models[n_class] = get_model(n_class, chs, model_path)

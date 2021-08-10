@@ -23,7 +23,7 @@ class BCIC:
         'c15', 'c16', 'c17', 'c18', 'c19', 'c20', 'c21',
         'c22']
     cv_folds = 9
-    # Default Time Interval per EEG Trial (T=2: start of MI Cue)
+    # Default Time Interval per EEG Trial (T=2: start of MI Cue because Trial start with 2 Seconds Rest)
     # These are Constants, DO NOT MODIFY!
     CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,

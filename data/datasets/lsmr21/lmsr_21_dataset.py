@@ -43,7 +43,7 @@ class LSMR21:
         # SAMPLERATE=1000,
         # TODO KEEP IN SYNC WITH NUMPY DOWNSAMPLING
         SAMPLERATE=250,
-        CUE_OFFSET=4.0
+        CUE_OFFSET=2.0
     )
     ORIGINAL_SAMPLERATE = 1000
     # Mapping of n_class Classification to correct Tasks

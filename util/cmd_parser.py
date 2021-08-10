@@ -99,7 +99,7 @@ def check_common_arguments(parser, args):
         if (args.tmin > args.tmax) or (args.tmin == args.tmax):
             parser.error(f"tmax has to be greater than tmin!")
         else:
-            CONFIG.EEG.set_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
+            CONFIG.EEG.set_times(args.tmin, args.tmax, CONFIG.EEG.CUE_OFFSET)
     if args.trials_slices < 1:
         parser.error(f"Trials slices has to be greater than 0!")
     if (CONFIG.EEG.SAMPLES % args.trials_slices != 0):
