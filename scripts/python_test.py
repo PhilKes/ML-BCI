@@ -12,6 +12,7 @@ import torch.types
 from mne import Epochs
 
 from config import CONFIG
+from data.data_utils import slice_trials
 from data.datasets.bcic.bcic_data_loading import BCICDataLoader
 from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader, LSMR21TrialsDataset
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
@@ -221,4 +222,24 @@ if __name__ == '__main__':
     # used_subjects = LSMR21.ALL_SUBJECTS
     # preloaded_tuple = LSMR21DataLoader.load_subjects_data(used_subjects, n_class)
     # ds = LSMR21TrialsDataset(used_subjects, used_subjects, n_class, preloaded_tuple)
-    LSMR21DataLoader.print_n_class_stats('/home/pkessler/Projects/doc/Trials_stats/')
+    # LSMR21DataLoader.print_n_class_stats('/home/pkessler/Projects/doc/Trials_stats/')
+    def test_trials_slicing(splits=4):
+        CONFIG.EEG.set_trials_slices(splits)
+        # Generate Random Data with shape (Trials, Channels, Samples)
+        data, labels = np.zeros((10, 64, splits * 120)), np.zeros((10))
+        # Determine Sample length of a Trial Slice
+        trial_slice_length = math.floor(data.shape[-1] / splits)
+        # Fill Slices inside original data Array with Slice number
+        for split in range(splits):
+            data[:, :, (split * trial_slice_length): ((split + 1) * trial_slice_length)] = split
+        data2, labels2 = slice_trials(data, labels, splits)
+        print("data shape before splitting:", data.shape)
+        print("data shape after splitting:", data2.shape)
+        # Check if every Trials Slice contains the correct values
+        for trial_idx in range(data2.shape[0]):
+            if not np.all(data2[trial_idx] == (trial_idx % splits)):
+                raise Exception("data_utils.py split_trials() method does not work as expected")
+        print("data_utils.py split_trials() method works as expected")
+
+
+    test_trials_slicing()

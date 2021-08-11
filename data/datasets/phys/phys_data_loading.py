@@ -21,7 +21,7 @@ from tqdm import tqdm
 from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, \
-    get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
+    get_equal_trials_per_class, slice_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
     map_trial_labels_to_classes
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import PHYS
@@ -83,6 +83,7 @@ class PHYSDataLoader(MIDataLoader):
         subjects.sort()
         trials = get_trials_size(n_class, equal_trials, ignored_runs)
         trials_per_run_class = np.math.floor(trials / n_class)
+        # n-times the amount of Trials for TRIALS_SLICES = n
         trials = trials * CONFIG.EEG.TRIALS_SLICES
         if n_class > 2:
             trials -= PHYS.CONFIG.REST_TRIALS_LESS
@@ -100,8 +101,6 @@ class PHYSDataLoader(MIDataLoader):
                                                     ignored_runs)
             # if data.shape[0] > preloaded_data.shape[1]:
             #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
-            if CONFIG.EEG.TRIALS_SLICES > 1:
-                data, labels = split_trials(data, labels, CONFIG.EEG.TRIALS_SLICES, CONFIG.EEG.SAMPLES)
             preloaded_data[i] = data
             preloaded_labels[i] = labels
         print("Trials per class loaded:")
@@ -180,6 +179,9 @@ class PHYSDataLoader(MIDataLoader):
                                           n_class=n_class)
         if n_class == 2:
             labels = dec_label(labels)
+        # Divide Trials in equally long, non-overlapping Trial Slices
+        if CONFIG.EEG.TRIALS_SLICES > 1:
+            data, labels = slice_trials(data, labels, CONFIG.EEG.TRIALS_SLICES, CONFIG.EEG.SAMPLES)
         return data, labels
 
     event_dict = {'T0': 1, 'T1': 2, 'T2': 3}

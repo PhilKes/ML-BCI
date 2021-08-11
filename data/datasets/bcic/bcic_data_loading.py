@@ -19,6 +19,7 @@ import numpy as np
 
 from config import CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
+from data.data_utils import slice_trials
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
 
@@ -36,7 +37,8 @@ class BCICTrialsDataset(TrialsDataset):
         super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
-        self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
+        # 6 runs with 12 trials per class per subject
+        self.n_trials_max = 6 * 12 * self.n_class * CONFIG.EEG.TRIALS_SLICES
 
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
@@ -74,6 +76,10 @@ class BCICDataLoader(MIDataLoader):
         if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
             print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
         preloaded_data = cls.resample_filter_normalize(preloaded_data)
+        # Divide Trials in equally long, non-overlapping Trial Slices
+        if CONFIG.EEG.TRIALS_SLICES > 1:
+            preloaded_data, preloaded_labels = slice_trials(preloaded_data, preloaded_labels,
+                                                            CONFIG.EEG.TRIALS_SLICES, CONFIG.EEG.SAMPLES)
         return preloaded_data, preloaded_labels
 
     @classmethod

@@ -6,6 +6,7 @@ Contains several utility functions needed during dataset loading.
 History:
   2021-05-15: butterworth bandpass filter from scipy included - ms
 """
+import math
 import os
 
 import numpy as np
@@ -156,18 +157,26 @@ def get_equal_trials_per_class(data, labels, classes, trials):
     return data[trials_idxs], labels[trials_idxs]
 
 
-def split_trials(data, labels, splits, samples):
-    split_size = np.math.floor(data.shape[0] / splits)
+def slice_trials(data: np.ndarray, labels: np.ndarray, slices: int):
+    """
+    Slices given Data + Labels into specified amount of slices
+    :param data: EEG Data as ndarray with shape (Trials, Channels, Samples)
+    :param labels: Trial Labels as ndarray with shape (Trial Labels)
+    :param slices: Every Trial gets split into 'slices'-Slices (equally long, non-overlapping)
+    :return: data, labels with shapes (Trial Slices, Channels, Samples), (Trials Slices Labels)
+    """
+    slice_samples = math.floor(data.shape[-1] / slices)
+    # split_size = np.math.floor(data.shape[0] / splits)
     # data = np.array_split(data, splits, axis=2)
-    data_split = np.zeros((data.shape[0] * splits, data.shape[1], samples))
-    labels_split = np.zeros((data.shape[0] * splits), dtype=np.int)
+    data_slices = np.zeros((data.shape[0] * slices, data.shape[1], slice_samples))
+    labels_slices = np.zeros((data.shape[0] * slices), dtype=np.int)
     for t_idx in range(data.shape[0]):
-        for split in range(splits):
-            data_split[t_idx * splits + split] = data[t_idx, :, (samples * split):(samples * (split + 1))]
-            labels_split[t_idx * splits + split] = labels[t_idx]
+        for slice in range(slices):
+            data_slices[t_idx * slices + slice] = data[t_idx, :, (slice_samples * slice):(slice_samples * (slice + 1))]
+            labels_slices[t_idx * slices + slice] = labels[t_idx]
     # print(collections.Counter(labels))
     # print(collections.Counter(labels_split))
-    return data_split, labels_split
+    return data_slices, labels_slices
 
 
 # Calculates relative area of correct Prediction per Trial

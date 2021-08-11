@@ -113,6 +113,7 @@ class MIDataLoader:
             data = mne.filter.notch_filter(data, Fs=CONFIG.EEG.SAMPLERATE, freqs=60.0, filter_length='auto',
                                            phase='zero')
         # Normalize Data if wanted
+        # NOT USED YET
         if CONFIG.FILTER.NORMALIZE:
             data = normalize_data(data)
         return data
