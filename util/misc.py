@@ -187,6 +187,14 @@ def counts_of_list(list):
     return df['data'].value_counts(dropna=False)
 
 
+def save_dataframe(df, save_path):
+    """
+    Stores pandas.DataFrame df to save_path
+    """
+    with open(save_path, 'w') as outfile:
+        df.to_string(outfile)
+
+
 def to_idxs_of_list(elements, list):
     """
     Returns list of elements' indexes in list

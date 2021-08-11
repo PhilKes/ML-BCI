@@ -2,6 +2,7 @@
 Handles all EEG-Data loading of the 'Human EEG Dataset for Brain-Computer Interface and Meditation' Dataset
 """
 import math
+import os
 import time
 from typing import List
 
@@ -18,7 +19,8 @@ from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import get_valid_trials_per_subject
 from paths import datasets_folder
-from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list, calc_n_samples, combine_dims
+from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list, calc_n_samples, combine_dims, \
+    save_dataframe
 
 
 class LSMRNumpyRun:
@@ -58,32 +60,32 @@ class LSMRNumpyRun:
                               if int(td[0]) != 4]
         return n_class_trials
 
-    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=None):
+    def get_labels(self, trials_idxs: List[int] = None, tmin=None):
         """
         Return int Labels of all Trials as numpy array
-        :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
+        :param tmin: Return only of Trials with minimum Time length of 'tmin'
         :param trials_idxs: Force to return only specified trials
         """
-        if mi_tmin is None:
-            mi_tmin = CONFIG.EEG.TMAX
-        trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
-        # trial_info[0]= label (targetnumber)
+        if tmin is None:
+            tmin = CONFIG.EEG.TMAX
+        trials = self.get_trials(tmin=tmin) if trials_idxs is None else trials_idxs
+        # trial_info[0] = label (targetnumber)
         return np.asarray([trial[0] for trial in [self.trial_info[i] for i in trials]], dtype=np.int)
 
-    def get_data(self, trials_idxs: List[int] = None, mi_tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))) -> np.ndarray:
+    def get_data(self, trials_idxs: List[int] = None, tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))) -> np.ndarray:
         """
         Return float EEG Data of all Trials as numpy array
-        :param ch_idxs: Channel Idxs to be used
-        :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
+        :param ch_idxs: Indexes of Channels to be used
+        :param tmin: Return only Data of Trials with Time length of 'tmin' (defaults to CONFIG.EEG.TMAX)
         :param trials_idxs: Force to return only specified trials
         """
-        if mi_tmin is None:
-            mi_tmin = CONFIG.EEG.TMAX
-        trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
+        if tmin is None:
+            tmin = CONFIG.EEG.TMAX
+        trials = self.get_trials(tmin=tmin) if trials_idxs is None else trials_idxs
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
         min_sample = math.floor(CONFIG.EEG.TMIN * LSMR21.CONFIG.SAMPLERATE)
-        max_sample = math.floor(LSMR21.CONFIG.SAMPLERATE * (mi_tmin))
+        max_sample = math.floor(LSMR21.CONFIG.SAMPLERATE * (tmin))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
         # elapsed = 0.0
@@ -115,13 +117,13 @@ class LSMRNumpyRun:
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
-        :param tmin: Minimum MI Cue Time (after 2s blank screen + 2s target presentation)
+        :param tmin: Minimum Trial Time (shorter Trials are omitted)
         :return: List of Trials indexes
         """
         # Get Trial idxs of n_class Trials (correct Tasks)
         n_class_trials_idxs = self.get_n_class_trials(n_class)
         # print("n-class Trials: ", len(trials))
-        # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
+        # Filter out Trials that dont have enough samples (min. tmin * Samplerate)
         trials_idxs = [i for i in n_class_trials_idxs if self.data[i].shape[1] >= tmin * CONFIG.EEG.SAMPLERATE]
         # Filter out by trial_category (trialdata.result/forcedresult field)
         trials_idxs = [i for i in trials_idxs if self.trial_info[i, 2] >= trial_category]
@@ -130,19 +132,19 @@ class LSMRNumpyRun:
             trials_idxs = [i for i in trials_idxs if self.trial_info[i, 3] == artifact]
         return trials_idxs
 
-    def get_trials_tmin(self, mi_tmins=np.arange(4, 11, 1)):
+    def get_trials_tmin(self, tmins=np.arange(4, 11, 1)):
         s_t = []
-        for mi_tmin in mi_tmins:
-            s_t.append(len(self.get_trials(tmin=mi_tmin)))
+        for tmin in tmins:
+            s_t.append(len(self.get_trials(tmin=tmin)))
         return s_t
 
-    def print_trials_with_min_mi_time(self, mi_tmins=np.arange(4, 11, 1)):
+    def print_trials_with_tmins(self, tmins=np.arange(4, 11, 1)):
         """
         Print Table  with Trials with min. MI Cue Time
         """
         print(f"-- Subject {self.subject} --"
               f"Trials with at least n seconds of MI Cue Period --")
-        df = pd.DataFrame([self.get_trials_tmin(mi_tmins)], columns=mi_tmins)
+        df = pd.DataFrame([self.get_trials_tmin(tmins)], columns=tmins)
         print_pretty_table(df)
 
 
@@ -159,10 +161,9 @@ class LSMR21TrialsDataset(TrialsDataset):
         # List containing amount of valid Trials per Subject (invalid Trials = -1)
         self.trials_per_subject = get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
                                                                self.used_subjects, self.n_trials_max)
-
         self.print_stats()
 
-    def print_stats(self):
+    def print_stats(self, save_path=None):
         """
         Prints Amount of Trials per Subject, per Class, Totals
         as Table
@@ -190,6 +191,8 @@ class LSMR21TrialsDataset(TrialsDataset):
         df = pd.DataFrame(trials_per_subject_per_class,
                           columns=[n_class for n_class in range(self.n_class)] + ['Total'],
                           index=[f"S{subject}" for subject in self.subjects] + ['Total'])
+        if save_path is not None:
+            save_dataframe(df, save_path)
         print_pretty_table(df)
 
 
@@ -362,3 +365,21 @@ class LSMR21DataLoader(MIDataLoader):
             if VERBOSE:
                 print(Exception(f"Missing: Subject {subject} Run {run}"))
             return None
+
+    @staticmethod
+    def print_n_class_stats(save_path=None):
+        """
+        Prints all available Trials of all Subjects for n_class=2
+        :param save_path: If present, save Stats to .txt files in save_path
+        """
+        CONFIG.EEG.set_config(LSMR21.CONFIG)
+        for tmax in np.arange(1, 10, 1):
+            print("Minimum MI Cue Time: ", tmax)
+            CONFIG.EEG.set_times(tmax=tmax)
+            for n_class in [2]:
+                # failed_subjects = [1, 7, 8, 9, 14, 16, 18, 27, 28, 30, 40, 45, 49, 50, 53, 54, 57]:
+                used_subjects = LSMR21.ALL_SUBJECTS
+                preloaded_tuple = LSMR21DataLoader.load_subjects_data(used_subjects, n_class)
+                ds = LSMR21TrialsDataset(used_subjects, used_subjects, n_class, preloaded_tuple)
+                if save_path is not None:
+                    ds.print_stats(save_path=os.path.join(save_path, f"LSMR21_stats-_tmin_{tmax}"))

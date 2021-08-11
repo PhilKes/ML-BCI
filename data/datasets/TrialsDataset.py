@@ -33,7 +33,7 @@ class TrialsDataset(Dataset):
     trials_per_subject: Any
 
     def __init__(self, subjects: List[int], used_subjects: List[int], n_class: int,
-                 preloaded_tuple: Tuple[np.ndarray],
+                 preloaded_tuple: Tuple[np.ndarray, np.ndarray],
                  ch_names=[], equal_trials=True):
         """
         Method: constructor

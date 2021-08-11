@@ -11,7 +11,7 @@ from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
 from paths import results_folder, training_results_folder, training_ss_results_folder
-from util.misc import print_pretty_table
+from util.misc import print_pretty_table, save_dataframe
 
 parent_folder = "batch_trainings/params"
 
@@ -132,7 +132,7 @@ confs = {
     #
     #         ],
     #     },
-    'LSMR21_cue_offset_3': {
+    'LSMR21_cue_offset_4': {
         'params': [
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
@@ -219,9 +219,8 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_f
         # Write results into .csv and .txt
         classes_str = ",".join(n_classes)
         df.to_csv(f"{results_folder}/{conf_folder}/{classes_str}_batch_training_results.csv")
-        with open(os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'),
-                  'w') as outfile:
-            df.to_string(outfile)
+        save_dataframe(df,
+                       os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'))
         print_pretty_table(df)
     return results_list
 

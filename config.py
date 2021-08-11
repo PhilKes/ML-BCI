@@ -144,11 +144,14 @@ Trials Slices: {self.TRIALS_SLICES}
         self.TRIALS_SLICES = slices
         self.SAMPLES = math.floor(((self.TMAX - self.TMIN) * self.SAMPLERATE) / slices)
 
-    def set_times(self, tmin, tmax, cue_offset):
-        self.TMIN = tmin + cue_offset
-        self.TMAX = tmax + cue_offset
-        self.CUE_OFFSET = cue_offset
-        self.SAMPLES = calc_n_samples(tmin, tmax, self.SAMPLERATE)
+    def set_times(self, tmin=None, tmax=None, cue_offset=None):
+        if cue_offset is not None:
+            self.CUE_OFFSET = cue_offset
+        if tmin is not None:
+            self.TMIN = tmin + self.CUE_OFFSET
+        if tmax is not None:
+            self.TMAX = tmax + self.CUE_OFFSET
+        self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
     def set_samplerate(self, sr):
         self.SAMPLERATE = sr

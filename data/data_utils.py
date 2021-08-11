@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from config import CONFIG
 from data.datasets.phys.phys_dataset import PHYS
-from util.misc import print_pretty_table
+from util.misc import print_pretty_table, save_dataframe
 
 '''
 Subroutine: butter_bandpass_definition(lowcut=0.0, highcut=80.0, fs=160, order=3)
@@ -227,8 +227,6 @@ def save_accs_panda(name, folderName, accs, columns, names, tag=None):
     #     folderName += f'/{tag}'
     # Write results into .csv and .txt
     df.to_csv(f"{folderName}/{tag if tag is not None else 'training'}_{name}.csv")
-    with open(os.path.join(f"{folderName}",
-                           f"{tag if tag is not None else 'training'}_{name}.txt"),
-              'w') as outfile:
-        df.to_string(outfile)
+    save_dataframe(df, os.path.join(f"{folderName}",
+                                    f"{tag if tag is not None else 'training'}_{name}.txt"))
     print_pretty_table(df)
