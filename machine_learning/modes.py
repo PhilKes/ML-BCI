@@ -39,7 +39,7 @@ import torch.types
 
 
 def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[int],
-                name: str, tag: str, ch_names: List[int], equal_trials=True, early_stop=False, excluded=[],
+                name: str, tag: str, ch_names: List[str], equal_trials=True, early_stop=False, excluded=[],
                 only_fold=None, save_model=True, lr: DotDict = CONFIG.MI.LR):
     """
     Runs Training + Testing
@@ -52,27 +52,26 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
     :return: n_class Accuracies + n_class Overfittings
     """
     dataset = DATASETS[mi_ds]
-    folds = dataset.folds
+    folds = dataset.CONSTANTS.cv_folds
 
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=CONFIG.DEVICE,
                      n_classes=n_classes, ch_names=ch_names, early_stop=early_stop, excluded=excluded,
                      mi_ds=mi_ds, only_fold=only_fold)
 
     if only_fold is None:
-        print(f"Cross validation training with '{dataset.name}' started!")
+        print(f"Cross validation training with '{dataset.CONSTANTS.name}' started!")
     else:
-        print(f"Training of Fold {only_fold} with '{dataset.name}' started!")
+        print(f"Training of Fold {only_fold} with '{dataset.CONSTANTS.name}' started!")
 
     start = datetime.now()
     print(training_config_str(config))
     dir_results = create_results_folders(datetime=start) if name is None else create_results_folders(path=name)
-
     if len(excluded) > 0:
         tag = 'excluded' if tag is None else (tag + '_excluded')
 
     save_config(training_config_str(config), ch_names, dir_results, tag)
 
-    available_subjects = [i for i in dataset.available_subjects if i not in excluded]
+    available_subjects = [i for i in dataset.CONSTANTS.ALL_SUBJECTS if i not in excluded]
 
     used_subjects = available_subjects
     validation_subjects = []
@@ -194,18 +193,18 @@ def testing(n_class, model_path, ch_names):
           f" FMIN: {CONFIG.FILTER.FREQ_FILTER_HIGHPASS},  FMAX: {CONFIG.FILTER.FREQ_FILTER_LOWPASS}")
 
     # Group labels (subjects in same group need same group label)
-    groups = groups_labels(len(dataset.available_subjects), dataset.folds)
+    groups = groups_labels(len(dataset.CONSTANTS.ALL_SUBJECTS), dataset.CONSTANTS.cv_folds)
 
     # Split Data into training + util
-    cv = GroupKFold(n_splits=dataset.folds)
-    cv_split = cv.split(X=dataset.available_subjects, groups=groups)
+    cv = GroupKFold(n_splits=dataset.CONSTANTS.cv_folds)
+    cv_split = cv.split(X=dataset.CONSTANTS.ALL_SUBJECTS, groups=groups)
     # Skip to best fold
     for f in range(best_fold):
         next(cv_split)
 
     # Get Test Subjects of Best Fold
     test_subjects_idxs = next(cv_split)[1].tolist()
-    subjects_test = [dataset.available_subjects[idx] for idx in test_subjects_idxs]
+    subjects_test = [dataset.CONSTANTS.ALL_SUBJECTS[idx] for idx in test_subjects_idxs]
 
     model = get_model(n_class, len(ch_names), model_path)
 
@@ -216,7 +215,7 @@ def testing(n_class, model_path, ch_names):
     # Test with Best-Fold Test set subjects
     loader_test = dataset.create_loader_from_subjects(subjects_test, n_class,
                                                       preloaded_data, preloaded_labels,
-                                                      CONFIG.MI.BATCH_SIZE, dataset.channels)
+                                                      CONFIG.MI.BATCH_SIZE, dataset.CONSTANTS.CHANNELS)
     test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
     print(f"Test Accuracy: {test_accuracy}")
     return test_accuracy
@@ -243,8 +242,8 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         n_class_results = load_npz(get_results_file(model_path, n_class))
         mi_ds = n_class_results['mi_ds'].item()
         dataset = DATASETS[mi_ds]
-        CONFIG.EEG.set_config(dataset.eeg_config)
-        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
+        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
+        load_global_conf_from_results(n_class_results, dataset.CONSTANTS.CONFIG.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         dir_results = create_results_folders(path=model_path, name=f"S{used_subject:03d}", mode='train_ss')
@@ -305,7 +304,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds']]
-        CONFIG.EEG.set_config(dataset.eeg_config)
+        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, CONFIG.EEG.CUE_OFFSET)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
@@ -380,8 +379,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds'].item()]
-        CONFIG.EEG.set_config(dataset.eeg_config)
-        load_global_conf_from_results(n_class_results, dataset.eeg_config.CUE_OFFSET)
+        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
+        load_global_conf_from_results(n_class_results, dataset.CONSTANTS.CONFIG.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
         run = PHYS.n_classes_live_run[n_class]

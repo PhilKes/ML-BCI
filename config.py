@@ -98,6 +98,8 @@ EEGNet Pool Size: {self.POOL_SIZE}
 class EEGConfig(object):
     """
     Object containing all configuration Variables for loading the selected EEG Dataset
+    Values are copied from the selected Dataset's DSConstants class ({Dataset Name}_dataset.py)
+    (see /util/cmd_parser.py 'check_common_arguments()' -> 'CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)')
     """
     # Time Interval per EEG Trial (T=0: start of MI Cue)
     # Trials Slicing (divide every Trial in equally long Slices)

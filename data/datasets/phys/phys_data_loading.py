@@ -20,11 +20,11 @@ from tqdm import tqdm
 
 from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
-from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, \
+from data.data_utils import dec_label, increase_label, get_trials_size, \
     get_equal_trials_per_class, slice_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
     map_trial_labels_to_classes
 from data.datasets.TrialsDataset import TrialsDataset
-from data.datasets.phys.phys_dataset import PHYS
+from data.datasets.phys.phys_dataset import PHYS, PHYSConstants
 from paths import datasets_folder, results_folder
 from util.misc import split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
@@ -51,16 +51,11 @@ class PHYSDataLoader(MIDataLoader):
     MIDataLoader implementation for Physionet Dataset
     """
 
-    name = PHYS.name
-    name_short = PHYS.short_name
-    available_subjects = PHYS.ALL_SUBJECTS
-    folds = PHYS.cv_folds
-    eeg_config = PHYS.CONFIG
-    channels = PHYS.CHANNELS
+    CONSTANTS: PHYSConstants = PHYS
     ds_class = PHYSTrialsDataset
 
     @classmethod
-    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: int,
                                             batch_size: int, ch_names: List[str]):
         """
         Returns Train/Test Loaders containing all n_class Runs of subject
@@ -71,9 +66,9 @@ class PHYSDataLoader(MIDataLoader):
         n_class_runs = get_runs_of_n_classes(n_class)
         train_runs = n_class_runs[:-n_test_runs]
         test_runs = n_class_runs[-n_test_runs:]
-        loader_train = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names, CONFIG.DEVICE,
+        loader_train = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
                                                            ignored_runs=test_runs)
-        loader_test = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names, CONFIG.DEVICE,
+        loader_test = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
                                                           ignored_runs=train_runs)
         return loader_train, loader_test
 
@@ -91,8 +86,8 @@ class PHYSDataLoader(MIDataLoader):
         # print(CONFIG)
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), CONFIG.EEG.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
-        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
-            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
+        if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
 
         print("Preload Shape", preloaded_data.shape)
         for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
@@ -124,7 +119,7 @@ class PHYSDataLoader(MIDataLoader):
         raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
-        X = cls.resample_filter_normalize(X)
+        X = cls.prepare_data_labels(X)
 
         max_sample = raw.n_times
         slices = CONFIG.EEG.TRIALS_SLICES
@@ -179,9 +174,7 @@ class PHYSDataLoader(MIDataLoader):
                                           n_class=n_class)
         if n_class == 2:
             labels = dec_label(labels)
-        # Divide Trials in equally long, non-overlapping Trial Slices
-        if CONFIG.EEG.TRIALS_SLICES > 1:
-            data, labels = slice_trials(data, labels, CONFIG.EEG.TRIALS_SLICES, CONFIG.EEG.SAMPLES)
+
         return data, labels
 
     event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
@@ -235,7 +228,7 @@ class PHYSDataLoader(MIDataLoader):
         :param ignored_runs: List of Run Nrs. that should not be loaded
         :return: all_data,all_labels: ndarrays with Data + Labels of Trials of given tasks
         """
-        load_samples = CONFIG.EEG.SAMPLES * CONFIG.EEG.TRIALS_SLICES
+        load_samples = CONFIG.EEG.SAMPLES
         all_data = np.zeros((0, len(ch_names), load_samples))
         all_labels = np.zeros((0), dtype=np.int)
         # Load Subject Data of all Tasks
@@ -261,7 +254,8 @@ class PHYSDataLoader(MIDataLoader):
                     classes = n_class
                     if n_class == 2:
                         classes = 3
-                    data, labels = get_equal_trials_per_class(data, labels, classes, trials_per_run_class)
+                    data, labels = get_equal_trials_per_class(data, labels, classes,
+                                                              trials_per_run_class * CONFIG.EEG.TRIALS_SLICES)
                 # Correct labels if multiple tasks are loaded
                 # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
                 contains_rest_task = (0 in tasks)
@@ -300,7 +294,7 @@ class PHYSDataLoader(MIDataLoader):
         subject_data = epochs.get_data().astype('float32')
         # Labels (0-index based)
         subject_labels = epochs.events[:, -1] - 1
-        subject_data = cls.resample_filter_normalize(subject_data)
+        subject_data, subject_labels = cls.prepare_data_labels(subject_data, subject_labels)
         return subject_data, subject_labels
 
     @classmethod
@@ -322,7 +316,6 @@ class PHYSDataLoader(MIDataLoader):
         return raw
 
 
-
 def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}/plots_training",
                               ch_names=PHYS.CHANNELS):
     """
@@ -336,7 +329,7 @@ def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}
     raw = PHYSDataLoader.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
     # Get Data from raw Run
     X = get_data_from_raw(raw)
-    X = MIDataLoader.resample_filter_normalize(X)
+    X = MIDataLoader.prepare_data_labels(X)
 
     max_sample = raw.n_times
     slices = 5

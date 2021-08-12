@@ -6,8 +6,9 @@ import numpy as np
 import torch
 from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
-from config import EEGConfig, CONFIG, RESAMPLE
-from data.data_utils import butter_bandpass_filt, normalize_data
+from config import CONFIG, RESAMPLE
+from data.data_utils import butter_bandpass_filt, normalize_data, slice_trials
+from data.datasets import DSConstants
 from machine_learning.util import resample_eeg_data
 from util.misc import print_subjects_ranges
 
@@ -19,12 +20,7 @@ class MIDataLoader:
     declared static methods + attributes has to be created
     see e.g. BCIC_DataLoader or PHYS_DataLoader
     """
-    name: str
-    name_short: str
-    available_subjects: List[int]
-    folds: int
-    channels: List[int]
-    eeg_config: EEGConfig
+    CONSTANTS: DSConstants
     # Constructor of Dataset specific TrialsDataset subclass
     ds_class: Callable
     # Sample the trials in random order (see MIDataLoader.create_loader_from_subjects)
@@ -88,15 +84,15 @@ class MIDataLoader:
         return DataLoader(trials_ds, bs, sampler=sampler, pin_memory=False)
 
     @classmethod
-    def resample_filter_normalize(cls, data: np.ndarray):
+    def prepare_data_labels(cls, data: np.ndarray, labels: np.ndarray):
         """
         Checks and executes resampling and/or bandpass filtering of given EEG Data if necessary
         :param data: original EEG Data Array
         :return: resampled and/or filtered EEG Data (Sample rate = CONFIG.SYSTEM_SAMPLE_RATE)
         """
         # Resample EEG Data if necessary
-        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
-            data = resample_eeg_data(data, cls.eeg_config.SAMPLERATE,
+        if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            data = resample_eeg_data(data, cls.CONSTANTS.CONFIG.SAMPLERATE,
                                      CONFIG.SYSTEM_SAMPLE_RATE,
                                      per_subject=False
                                      # per_subject=(cls.name_short == LSMR21.short_name)
@@ -116,7 +112,10 @@ class MIDataLoader:
         # NOT USED YET
         if CONFIG.FILTER.NORMALIZE:
             data = normalize_data(data)
-        return data
+        # Divide Trials in equally long, non-overlapping Trial Slices
+        if CONFIG.EEG.TRIALS_SLICES > 1:
+            data, labels = slice_trials(data, labels, CONFIG.EEG.TRIALS_SLICES)
+        return data, labels
 
     @classmethod
     def create_loader(cls, preloaded_data, preloaded_labels, batch_size=CONFIG.MI.BATCH_SIZE):
@@ -153,7 +152,7 @@ class MIDataLoader:
 
     @classmethod
     @abstractmethod
-    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: int,
                                             batch_size: int, ch_names: List[str]):
         """
         Create Train/Test Loaders for a single subject

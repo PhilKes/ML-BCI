@@ -8,8 +8,9 @@ results can be visualized with visualize_bench_all.py (provide --folder {parent_
 """
 import argparse
 import numpy as np
-from config import benchmark_results_folder, CONFIG
+from config import CONFIG
 from main import single_run
+from paths import benchmark_results_folder
 from scripts.visualize_bench_all import visualize_benchmarks
 
 parser = argparse.ArgumentParser(

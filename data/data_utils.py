@@ -8,6 +8,7 @@ History:
 """
 import math
 import os
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -114,7 +115,7 @@ normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).resh
 
 
 # omit_bl: Omit Baseline Runs (Rest Trials)
-def get_runs_of_n_classes(n_classes, omit_bl=False):
+def get_runs_of_n_classes(n_classes, omit_bl=False) -> List[int]:
     n_runs = []
     for task in PHYS.n_classes_tasks[n_classes]:
         if omit_bl & (task == 0):
@@ -140,8 +141,13 @@ def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
     return (trials_per_class_for_1_runs * n_class) * r
 
 
-# Ensure that same amount of Trials for each class is present
-def get_equal_trials_per_class(data, labels, classes, trials):
+def get_equal_trials_per_class(data: np.ndarray, labels: np.ndarray, classes: int, trials: int):
+    """
+    Ensure that same amount of Trials for each class is present
+    :param classes: Amount of classes present in labels
+    :param trials: Wanted Trials per class
+    :return: data,labels with equal amount of Trials per class
+    """
     trials_idxs = np.zeros(0, dtype=np.int)
     for cl in range(classes):
         cl_idxs = np.where(labels == cl)[0]

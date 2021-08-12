@@ -199,7 +199,8 @@ def to_idxs_of_list(elements, list):
     """
     Returns list of elements' indexes in list
     """
-    return [list.index(el) for el in elements]
+    list_upper = [e.upper() for e in list]
+    return [list_upper.index(el.upper()) for el in elements]
 
 
 def print_pretty_table(dataframe: pandas.DataFrame):
