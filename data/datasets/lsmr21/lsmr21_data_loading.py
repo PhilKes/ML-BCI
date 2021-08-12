@@ -210,7 +210,7 @@ class LSMR21DataLoader(MIDataLoader):
     def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = LSMR21.CHANNELS,
                            equal_trials: bool = True, ignored_runs: List[int] = []):
         # 11 Runs, 62 Subjects, 75 Trials per Class
-        subject_max_trials = cls.get_subject_max_trials(n_class)
+        subject_max_trials = cls.get_subject_max_trials(n_class) * CONFIG.EEG.TRIALS_SLICES
         subjects_data = np.zeros((len(subjects), subject_max_trials, len(ch_names), CONFIG.EEG.SAMPLES),
                                  dtype=np.float32)
         subjects_labels = np.zeros((len(subjects), subject_max_trials), dtype=np.int)
@@ -368,7 +368,7 @@ class LSMR21DataLoader(MIDataLoader):
         """
         Returns the maximum Amount of possible Trials for a Subject for n_class Trials in all Runs
         """
-        return len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class) * CONFIG.EEG.TRIALS_SLICES
+        return len(LSMR21.runs) * (LSMR21.trials_per_class_per_sr * n_class)
 
     @staticmethod
     def print_n_class_stats(save_path=None):

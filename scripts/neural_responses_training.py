@@ -80,7 +80,7 @@ print(f"Executing Training for Neural Response Frequency bands")
 folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}_{"CV" if args.use_cv is True else "Best_Fold"}'
 
 # results shape: [conf,run, n_class, (acc,OF)]
-results = run_batch_training(confs, n_classes, name=folderName)
+results, errors = run_batch_training(confs, n_classes, name=folderName)
 for ds_idx, ds in enumerate(ds_used):
     plot_data = results[ds_idx][:, :, 0]
     plot_data = np.reshape(plot_data, (len(time_slices), len(FBS))).T

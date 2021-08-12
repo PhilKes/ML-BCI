@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import sys
 from datetime import datetime
 
 import numpy
@@ -11,7 +12,7 @@ from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
 from paths import results_folder, training_results_folder, training_ss_results_folder
-from util.misc import print_pretty_table, save_dataframe
+from util.misc import print_pretty_table, save_dataframe, file_write
 
 parent_folder = "batch_trainings/params"
 
@@ -167,6 +168,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_f
     # Create .csv and .txt files with all Runs of a batch
     # e.g. /batch_sizes/..._batch_training.txt
     results_list = []
+    errors = []
     for conf_name in configs:
         conf_folder = f"{name}/{conf_name}"
         conf = configs[conf_name]
@@ -185,10 +187,17 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_f
                 conf['init'][run]()
             params = conf['params'][run]
             training_folder = f"{conf_folder}/conf_{conf['names'][run]}"
-            n_classes_accs, n_classes_ofs = single_run(
-                default_options +
-                ['--n_classes'] + n_classes +
-                ['--name', training_folder] + params)
+            try:
+                n_classes_accs, n_classes_ofs = single_run(
+                    default_options +
+                    ['--n_classes'] + n_classes +
+                    ['--name', training_folder] + params)
+            except Exception as e:
+                msg = f"Error occurred during Training for conf '{conf_name}', run '{conf['names'][run]}':\n" + str(e)
+                file_write(os.path.join(results_folder, training_folder, 'error_log.txt'), msg)
+                print(msg, file=sys.stderr)
+                errors.append(msg)
+                continue
             # Store run results (Accuracies/Overfittings)
             for n_class in range(classes):
                 runs_results[run, n_class, 0] = n_classes_accs[n_class]
@@ -222,7 +231,7 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_f
         save_dataframe(df,
                        os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'))
         print_pretty_table(df)
-    return results_list
+    return results_list, errors
 
 
 if __name__ == '__main__':
