@@ -14,6 +14,7 @@ History:
 """
 from config import CONFIG
 from data.MIDataLoader import MIDataLoader
+from data.data_utils import butter_bandpass_filt
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC
 import numpy as np
@@ -27,7 +28,7 @@ from util.misc import to_idxs_of_list
 
 class OpenBCITrialsDataset(TrialsDataset):
     """
-     TrialsDataset class Implementation for BCIC Dataset
+     TrialsDataset class Implementation for openBCI Dataset
     """
 
     def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
@@ -75,7 +76,9 @@ class OpenBCIDataLoader(MIDataLoader):
         preloaded_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), samples))
         preloaded_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
         for subject in subjects:
-            data = np.load(f'{datasets_folder}/OpenBCI/Sub_1/Test_1/Session_' + str(subject) + '/Processed_data.npz')
+            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_2/Session_' + str(subject) + '/Processed_data.npz'
+            print("Loading Dataset " + str(subject) + " from " + dataset_path)
+            data = np.load(dataset_path)
             channels = data["channels"]
             # labels = data["labels"]
             labels_start = data["labels_start"]
@@ -88,6 +91,12 @@ class OpenBCIDataLoader(MIDataLoader):
                                                    labels_start[trial_idx][0]:(labels_start[trial_idx][0] + samples)]
                 # Todo replace 2 when higher 2 class
                 preloaded_labels[subject - 1, idx] = labels_start[trial_idx][1] - 2
+
+        # optional butterworth bandpass filtering
+        if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
+            preloaded_data = butter_bandpass_filt(preloaded_data, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
+                                                  highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS,
+                                                  fs=CONFIG.EEG.SAMPLERATE, order=7)
         return preloaded_data, preloaded_labels
 
     @classmethod

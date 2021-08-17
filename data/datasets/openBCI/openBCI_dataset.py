@@ -13,10 +13,10 @@ class OpenBCI:
     name = 'OpenBCI Dataset'
     short_name = 'OpenBCI'
 
-    trials_per_subject = 288
+    trials_per_subject = 100
 
     # No excluded subjects
-    ALL_SUBJECTS = [1, 2]  # [i for i in range(1, 10) if i not in []]  # 9 subjects
+    ALL_SUBJECTS = [i for i in range(1, 5) if i not in []]
 
     # Available 22 EEG Channels from BCIC Dataset
     # TODO Channelnamen nach 10-10 system
@@ -26,7 +26,7 @@ class OpenBCI:
         'p3', 'p4']
 
     # Todo filter
-    cv_folds = 2
+    cv_folds = 4
     # Time Interval per EEG Trial (T=2: start of MI Cue)
     CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,

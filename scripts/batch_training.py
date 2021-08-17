@@ -32,15 +32,17 @@ confs = {
     # },
     'OpenBCI': {
         'params': [
-            ['--dataset', OpenBCI.short_name],
-            ['--dataset', OpenBCI.short_name],
+            # ['--dataset', OpenBCI.short_name, '--epochs', '100'],
+            ['--dataset', PHYS.short_name, '--epochs', '100',
+             '--ch_names', 'Fp1', 'Fp2', 'C3', 'C4', 'p7', 'P8', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T7', 'T8', 'P3', 'P4',
+             ],
         ],
         'names': [
-            'bp_2_16',
+            # 'default',
             'default',
         ],
         'init': [
-            lambda: CONFIG.FILTER.set_filters(4.0, 16.0, True),
+            # lambda: CONFIG.FILTER.set_filters(),
             lambda: CONFIG.FILTER.set_filters(),
         ],
         'after': lambda: None
@@ -51,7 +53,7 @@ train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
 start = datetime.now()
 
-folder = "LSMR21_parameters"
+folder = "OpenBCI_Batch_Training"
 default_n_classes = ['2']
 
 train_ss = False
