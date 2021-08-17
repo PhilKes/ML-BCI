@@ -15,7 +15,6 @@ from paths import results_folder, training_results_folder, training_ss_results_f
 from util.misc import print_pretty_table, save_dataframe, file_write
 
 parent_folder = "batch_trainings/params"
-
 """
 All Batch Configurations to execute Training with in 'confs' Dictionary
 Add new Keys for new Training batches, e.g.:
@@ -48,105 +47,54 @@ Add new Keys for new Training batches, e.g.:
 """
 confs = {
 
-    # 'PHYS': {
+    # 'trials_slicing': {
     #     'params': [
-    #         ['--dataset', PHYS.short_name],
-    #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '3'],
-    #         ['--dataset', PHYS.short_name, '--tmin', '0', '--tmax', '4'],
-    #         ['--dataset', PHYS.short_name, '--tmin', '-1', '--tmax', '1'],
-    #         ['--dataset', PHYS.short_name],
-    #         ['--dataset', PHYS.short_name],
-    #         ['--dataset', PHYS.short_name],
-    #         ['--dataset', PHYS.short_name, '--ch_motorimg', '16'],
-    #         ['--dataset', PHYS.short_name, '--ch_motorimg', '16_openbci'],
+    #         ['--dataset', BCIC.short_name, '--trials_slices', '2'],
+    #         ['--dataset', PHYS.short_name, '--trials_slices', '2'],
+    #         ['--dataset', LSMR21.short_name, '--trials_slices', '2'],
     #     ],
     #     'names': [
-    #         'default',
-    #         'tmin_0_tmax_3',
-    #         'tmin_0_tmax_4',
-    #         'tmin_-1_tmax_1',
-    #         'fmin_0_fmax_60',
-    #         'fmin_2_fmax_60',
-    #         'fmin_4_fmax_60',
-    #         'motorimg_16',
-    #         'motorimg_16_openbci',
+    #         'bcic_slices_2',
+    #         'phys_slices_2',
+    #         'lsmr21_slices_2',
     #     ],
     #     'init': [
     #         lambda: None,
     #         lambda: None,
     #         lambda: None,
-    #         lambda: None,
-    #         lambda: CONFIG.FILTER.set_filters(None, 60),
-    #         lambda: CONFIG.FILTER.set_filters(2, 60),
-    #         lambda: CONFIG.FILTER.set_filters(4, 60),
-    #         lambda: None,
-    #         lambda: None,
-    #     ],
-    # },
-    # 'BCIC_cue_offset': {
-    #     'params': [
-    #         ['--dataset', BCIC.short_name],
-    #         ['--dataset', BCIC.short_name],
-    #         ['--dataset', BCIC.short_name],
-    #         ['--dataset', BCIC.short_name],
-    #         # ['--dataset', BCIC.short_name, '--ch_motorimg', '16'],
-    #         # ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
-    #     ],
-    #     'names': [
-    #         'cue_offset_0.0',
-    #         'cue_offset_1.0',
-    #         'cue_offset_2.0',
-    #         'cue_offset_3.0',
-    #     ],
-    #     'init': [
-    #         lambda: CONFIG.EEG.set_cue_offset(0.0),
-    #         lambda: CONFIG.EEG.set_cue_offset(1.0),
-    #         lambda: CONFIG.EEG.set_cue_offset(2.0),
-    #         lambda: CONFIG.EEG.set_cue_offset(3.0),
-    #         # lambda: None,
-    #         # lambda: None,
     #
     #     ],
     # },
-    # 'PHYS_cue_offset': {
-    #         'params': [
-    #             ['--dataset', PHYS.short_name],
-    #             ['--dataset', PHYS.short_name],
-    #             ['--dataset', PHYS.short_name],
-    #             ['--dataset', PHYS.short_name],
-    #             # ['--dataset', BCIC.short_name, '--ch_motorimg', '16'],
-    #             # ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
-    #         ],
-    #         'names': [
-    #             'cue_offset_0.0',
-    #             'cue_offset_1.0',
-    #             'cue_offset_2.0',
-    #             'cue_offset_3.0',
-    #         ],
-    #         'init': [
-    #             lambda: CONFIG.EEG.set_cue_offset(0.0),
-    #             lambda: CONFIG.EEG.set_cue_offset(1.0),
-    #             lambda: CONFIG.EEG.set_cue_offset(2.0),
-    #             lambda: CONFIG.EEG.set_cue_offset(3.0),
-    #             # lambda: None,
-    #             # lambda: None,
-    #
-    #         ],
-    #     },
-    'LSMR21_cue_offset_4': {
+    'LSMR21_params': {
         'params': [
-            ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name],
+            # ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
+            # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
+            # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4'],
             ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
-
+            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
         ],
         'names': [
-            'cue_offset_2.0',
-            'cue_offset_3.0_tmin_-1_tmax_1',
+            # 'fmin_0_fmax_60',
+            # 'fmin_2_fmax_60',
+            # 'fmin_4_fmax_60',
+            # 'motorimg_16_openbci',
+            # 'tmin_0_tmax_3',
+            # 'tmin_0_tmax_4',
+            'tmin_-1_tmax_1',
+            'tmin_0_tmax_4_slices_4',
         ],
         'init': [
-            lambda: CONFIG.EEG.set_cue_offset(2.0),
-            lambda: CONFIG.EEG.set_cue_offset(3.0),
-
+            # lambda: CONFIG.FILTER.set_filters(None, 60),
+            # lambda: CONFIG.FILTER.set_filters(2, 60),
+            # lambda: CONFIG.FILTER.set_filters(4, 60),
+            # lambda: None,
+            # lambda: None,
+            # lambda: None,
+            lambda: None,
+            lambda: None,
         ],
     },
 }

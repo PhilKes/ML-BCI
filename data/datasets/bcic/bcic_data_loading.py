@@ -20,12 +20,10 @@ import numpy as np
 
 from config import CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
-from data.data_utils import slice_trials
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC, BCICConstants
-
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
-from machine_learning.util import get_valid_trials_per_subject, resample_eeg_data
+from machine_learning.util import get_valid_trials_per_subject
 
 
 class BCICTrialsDataset(TrialsDataset):

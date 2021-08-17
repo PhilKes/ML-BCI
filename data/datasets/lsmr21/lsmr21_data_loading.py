@@ -12,13 +12,13 @@ from tqdm import tqdm
 
 from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
-from data.data_utils import slice_trials
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21, LSMR21Constants
 from machine_learning.util import get_valid_trials_per_subject
 from paths import datasets_folder
-from util.misc import to_idxs_of_list, print_pretty_table, load_matlab, counts_of_list, calc_n_samples, save_dataframe
+from util.misc import to_idxs_of_list_str, print_pretty_table, load_matlab, counts_of_list, calc_n_samples, \
+    save_dataframe, to_idxs_of_list
 
 
 class LSMRNumpyRun:
@@ -159,7 +159,7 @@ class LSMR21TrialsDataset(TrialsDataset):
                  ch_names=LSMR21.CHANNELS, equal_trials=True):
         super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
         # 11 Runs, 62 Subjects, 75 Trials per Class per Subject
-        self.n_trials_max = LSMR21DataLoader.get_subject_max_trials(n_class)
+        self.n_trials_max = LSMR21DataLoader.get_subject_max_trials(n_class) * CONFIG.EEG.TRIALS_SLICES
         # List containing amount of valid Trials per Subject (invalid Trials = -1)
         self.trials_per_subject = get_valid_trials_per_subject(self.preloaded_labels, self.subjects,
                                                                self.used_subjects, self.n_trials_max)
@@ -226,7 +226,7 @@ class LSMR21DataLoader(MIDataLoader):
     def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: int,
                                             batch_size: int, ch_names: List[str]):
         # 11 Runs, 62 Subjects, 75 Trials per Class
-        subject_max_trials = cls.get_subject_max_trials(n_class)
+        subject_max_trials = cls.get_subject_max_trials(n_class) * CONFIG.EEG.TRIALS_SLICES
         if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
             print(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
         preloaded_data, preloaded_labels = cls.load_subject(used_subject, n_class, ch_names)
@@ -254,7 +254,10 @@ class LSMR21DataLoader(MIDataLoader):
                 trial_sample_deltas: ndarray with Times of every Slice Timepoint in the Run
                 """
         # Get Data from raw Run
-        data, labels = cls.load_subject_run_raw(subject, LSMR21.runs[0])
+        data, labels, used_trials_idxs = cls.load_subject_run_raw(subject, LSMR21.runs[0], n_class=2,
+                                                                  tmin=CONFIG.EEG.TMAX)
+        # TODO Get trained on Trial idxs (tmin)
+
         # data, labels = data[:data.shape[0] // 2], labels[:labels.shape[0] // 2]
 
         slices = CONFIG.EEG.TRIALS_SLICES
@@ -265,11 +268,13 @@ class LSMR21DataLoader(MIDataLoader):
         samples_before = 0
         for t_idx in range(data.shape[0]):
             trial_sample_length = data[t_idx].shape[-1]
-            trials_start_samples.append(samples_before)
-            trials_start_times.append((1 / CONFIG.EEG.SAMPLERATE) * samples_before)
-            # Get Trial Sample Nr. of each Slice Timepoint in the Trial
-            for i in range(1, slices + 1):
-                trial_sample_deltas.append(trials_start_samples[-1] + (trial_sample_length / slices) * i)
+            # Only add Trials Training Timepoints if Trials was actually trained on
+            if t_idx in used_trials_idxs:
+                trials_start_samples.append(samples_before)
+                trials_start_times.append((1 / CONFIG.EEG.SAMPLERATE) * samples_before)
+                # Get Trial Sample Nr. of each Slice Timepoint in the Trial
+                for i in range(1, slices + 1):
+                    trial_sample_deltas.append(trials_start_samples[-1] + (trial_sample_length / slices) * i)
             samples_before += trial_sample_length
 
         trials_classes = labels
@@ -312,7 +317,7 @@ class LSMR21DataLoader(MIDataLoader):
             # Get Trials idxs of correct n_class and minimum Sample size Trials
             trials_idxs = sr.get_trials(n_class, CONFIG.EEG.TMAX, artifact=artifact, trial_category=trial_category)
             data = sr.get_data(trials_idxs=trials_idxs,
-                               ch_idxs=to_idxs_of_list(ch_names, LSMR21.CHANNELS))
+                               ch_idxs=to_idxs_of_list_str(ch_names, LSMR21.CHANNELS))
             max_data_trial = t_idx + data.shape[0]
             subject_data[t_idx:max_data_trial] = data
             labels = sr.get_labels(trials_idxs=trials_idxs) - 1
@@ -326,17 +331,24 @@ class LSMR21DataLoader(MIDataLoader):
         return subject_data, subject_labels
 
     @classmethod
-    def load_subject_run_raw(cls, subject_idx, run, n_class=4):
+    def load_subject_run_raw(cls, subject_idx, run, n_class=4, tmin=0.0):
         """
         Load all Trials of all Runs of Subject
-        :return: subject_data Numpy Array, subject_labels Numpy Array for all Subject's Trials
+        :param tmin: Minimum Trial time (when loaded from Training Results)
+        :return: subject_data: Numpy Array, subject_labels: Numpy Array for all Subject's Trials,
+        used_trials_idxs: Numpy Array of used Trials as indexes in all_trials_idxs
         """
         sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
-        all_trials_idxs = sr.get_trials(tmin=0.0, n_class=n_class)
+        # Get all Trial idxs of entire Run
+        all_trials_idxs = sr.get_trials(tmin=0.0, n_class=4)
         subject_run_data = sr.get_data_raw(all_trials_idxs)
         subject_run_labels = sr.get_labels(trials_idxs=all_trials_idxs) - 1
-        subject_run_data, subject_run_labels = cls.prepare_data_labels(subject_run_data, subject_run_labels)
-        return subject_run_data, subject_run_labels
+        subject_run_data, subject_run_labels = cls.prepare_data_labels(subject_run_data, subject_run_labels,
+                                                                       slicing=False)
+        # Get used Trials idxs
+        used_trials_idxs = sr.get_trials(tmin=tmin, n_class=n_class)
+        used_trials_idxs = to_idxs_of_list(used_trials_idxs, all_trials_idxs)
+        return subject_run_data, subject_run_labels, used_trials_idxs
 
     @classmethod
     def load_subject_samples_data(cls, subject_idx, run, n_class=4):

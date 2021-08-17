@@ -13,7 +13,8 @@ from scripts.batch_training import run_batch_training
 from util.misc import datetime_to_folder_str, file_write
 
 n_classes = ['2', '3', '4']
-datasets = DATASETS.keys()
+# datasets = DATASETS.keys()
+datasets = ['LSMR21']
 if __name__ == '__main__':
     confs = {}
     for ds_idx, ds in enumerate(datasets):

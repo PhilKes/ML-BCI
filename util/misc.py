@@ -5,6 +5,7 @@ import errno
 import math
 import os
 import platform
+from typing import List
 
 import numpy as np
 import pandas
@@ -195,12 +196,19 @@ def save_dataframe(df, save_path):
         df.to_string(outfile)
 
 
-def to_idxs_of_list(elements, list):
+def to_idxs_of_list_str(elements: List[str], list: List[str]):
     """
-    Returns list of elements' indexes in list
+    Returns list of elements' indexes in string List
     """
     list_upper = [e.upper() for e in list]
     return [list_upper.index(el.upper()) for el in elements]
+
+
+def to_idxs_of_list(elements: List[any], list: List[any]):
+    """
+    Returns list of elements' indexes in list
+    """
+    return [list.index(el) for el in elements]
 
 
 def print_pretty_table(dataframe: pandas.DataFrame):

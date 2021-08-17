@@ -119,13 +119,13 @@ class PHYSDataLoader(MIDataLoader):
         raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
-        X = cls.prepare_data_labels(X)
+        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
+        X = cls.prepare_data_labels(X, trials_classes)
 
         max_sample = raw.n_times
         slices = CONFIG.EEG.TRIALS_SLICES
         # times = raw.times[:max_sample]
         trials_start_times = raw.annotations.onset
-        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
 
         # Get samples of Trials Start Times
         trials_start_samples = map_times_to_samples(raw, trials_start_times)
@@ -180,7 +180,7 @@ class PHYSDataLoader(MIDataLoader):
     event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
     @classmethod
-    def mne_load_rests(cls, subject, trials, ch_names, samples):
+    def mne_load_rests(cls, subject: int, trials: int, ch_names: List[str], samples: int):
         """
         Loads Rest trials from the 1st baseline run of subject
         if baseline run is not long enough for all needed trials
@@ -215,7 +215,7 @@ class PHYSDataLoader(MIDataLoader):
         return X, y
 
     @classmethod
-    def load_task_runs(cls, subject, tasks, exclude_bothfists=False, ch_names=PHYS.CHANNELS, n_class=3,
+    def load_task_runs(cls, subject: int, tasks: List[int], exclude_bothfists=False, ch_names=PHYS.CHANNELS, n_class=3,
                        equal_trials=True, trials_per_run_class=PHYS.TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
                        ignored_runs=[]):
         """

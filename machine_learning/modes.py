@@ -427,7 +427,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
         if max_sample > 100000:
             plot_splits = 10
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
-        n_class_offset = 0 if n_class > 2 else 1
+        n_class_offset = 0
         for i in range(plot_splits):
             first_trial = i * trials_split_size
             last_trial = (i + 1) * trials_split_size - 1

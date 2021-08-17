@@ -31,7 +31,7 @@ from data.data_utils import butter_bandpass_filt
 
 # All total trials per class per n_class-Classification
 from paths import datasets_folder
-from util.misc import to_idxs_of_list, calc_n_samples
+from util.misc import to_idxs_of_list_str, calc_n_samples
 
 BCIC_classes_trials = {
     "2class": {
@@ -152,11 +152,11 @@ class BCIC_IV2a_dataset:
     '''
 
     @classmethod
-    def get_trials(cls, subject: int, n_class: int = 4, ch_names: List[str] = BCIC.CHANNELS):
-        ch_idxs = to_idxs_of_list(ch_names, BCIC.CHANNELS)
+    def get_trials(cls, subject: int, n_class: int = 4, ch_names: List[str] = BCIC.CHANNELS, training: int = 1):
+        ch_idxs = to_idxs_of_list_str(ch_names, BCIC.CHANNELS)
         n_trials_max = 6 * 12 * n_class  # 6 runs with 12 trials per class
         n_samples = calc_n_samples(CONFIG.EEG.TMIN, CONFIG.EEG.TMAX, BCIC.CONFIG.SAMPLERATE)
-        fname = cls.get_subject_fname(subject)
+        fname = cls.get_subject_fname(subject, training)
 
         print('  - Load data of subject %d from file: %s' % (subject, fname))
         data = np.load(fname)

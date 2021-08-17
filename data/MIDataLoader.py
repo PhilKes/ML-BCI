@@ -84,7 +84,7 @@ class MIDataLoader:
         return DataLoader(trials_ds, bs, sampler=sampler, pin_memory=False)
 
     @classmethod
-    def prepare_data_labels(cls, data: np.ndarray, labels: np.ndarray):
+    def prepare_data_labels(cls, data: np.ndarray, labels: np.ndarray, slicing=True):
         """
         Checks and executes resampling and/or bandpass filtering of given EEG Data if necessary
         :param data: original EEG Data Array
@@ -113,7 +113,7 @@ class MIDataLoader:
         if CONFIG.FILTER.NORMALIZE:
             data = normalize_data(data)
         # Divide Trials in equally long, non-overlapping Trial Slices
-        if CONFIG.EEG.TRIALS_SLICES > 1:
+        if slicing & (CONFIG.EEG.TRIALS_SLICES > 1):
             data, labels = slice_trials(data, labels, CONFIG.EEG.TRIALS_SLICES)
         return data, labels
 

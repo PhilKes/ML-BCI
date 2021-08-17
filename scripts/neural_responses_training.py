@@ -31,7 +31,7 @@ parser.add_argument('--best_fold', dest='use_cv', action='store_false',
                     help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
 
 args = parser.parse_args()
-ds_used = [LSMR21.short_name, BCIC.short_name, PHYS.short_name]
+ds_used = [LSMR21.short_name]
 
 # Folds to use if --best_fold is used (0-base index)
 ds_best_folds = [2, 2]
