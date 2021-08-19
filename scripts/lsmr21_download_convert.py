@@ -10,16 +10,15 @@ import re
 import urllib.request
 from pathlib import Path
 
-import mne
 import numpy as np
-from scipy import signal
 from tqdm import tqdm
 
-from config import datasets_folder, CONFIG
+from config import CONFIG
 from data.datasets.lsmr21.lmsr21_matlab import LSMRTrialData
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun
 from machine_learning.util import resample_eeg_data
+from paths import datasets_folder
 from util import misc
 
 

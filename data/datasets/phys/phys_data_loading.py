@@ -7,6 +7,7 @@ On initial Run MNE downloads the Physionet Dataset into datasets_folder
 Edition History:
 2021-05-31: mne_load_subject_raw(): fmin, fmax explicitely set - ms
 """
+from typing import List
 
 import mne
 import numpy as np
@@ -19,12 +20,11 @@ from tqdm import tqdm
 
 from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
-from data.data_utils import dec_label, increase_label, normalize_data, get_trials_size, \
-    get_equal_trials_per_class, split_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
-    butter_bandpass_filt, map_trial_labels_to_classes
+from data.data_utils import dec_label, increase_label, get_trials_size, \
+    get_equal_trials_per_class, slice_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
+    map_trial_labels_to_classes
 from data.datasets.TrialsDataset import TrialsDataset
-from data.datasets.phys.phys_dataset import PHYS
-from machine_learning.util import resample_eeg_data
+from data.datasets.phys.phys_dataset import PHYS, PHYSConstants
 from paths import datasets_folder, results_folder
 from util.misc import split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
@@ -38,9 +38,9 @@ class PHYSTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for Physionet Dataset
     """
 
-    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, preloaded_tuple,
                  ch_names=PHYS.CHANNELS, equal_trials=True):
-        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
 
         self.trials_per_subject = get_trials_size(n_class, equal_trials) \
                                   * CONFIG.EEG.TRIALS_SLICES - PHYS.CONFIG.REST_TRIALS_LESS
@@ -50,46 +50,35 @@ class PHYSDataLoader(MIDataLoader):
     """
     MIDataLoader implementation for Physionet Dataset
     """
-    name = PHYS.name
-    name_short = PHYS.short_name
-    available_subjects = PHYS.ALL_SUBJECTS
-    folds = PHYS.cv_folds
-    eeg_config = PHYS.CONFIG
-    channels = PHYS.CHANNELS
+
+    CONSTANTS: PHYSConstants = PHYS
     ds_class = PHYSTrialsDataset
 
-    # Returns Train/Test Loaders containing all n_class Runs of subject
-    # n_test_runs specifies how many Runs are reserved for Testing
-    # 2/3class: 3 Runs, 4class: 6 Runs
     @classmethod
-    def create_n_class_loaders_from_subject(cls, subject, n_class, n_test_runs, batch_size, ch_names, device):
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: int,
+                                            batch_size: int, ch_names: List[str]):
+        """
+        Returns Train/Test Loaders containing all n_class Runs of subject
+        n_test_runs specifies how many Runs are reserved for Testing
+        2/3class: 3 Runs, 4class: 6 Runs
+        :return: loader_train: DataLoader, load_test: DataLoader
+        """
         n_class_runs = get_runs_of_n_classes(n_class)
         train_runs = n_class_runs[:-n_test_runs]
         test_runs = n_class_runs[-n_test_runs:]
-        loader_train = cls.create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
+        loader_train = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
                                                            ignored_runs=test_runs)
-        loader_test = cls.create_loader_from_subject_runs(subject, n_class, batch_size, ch_names, device,
+        loader_test = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
                                                           ignored_runs=train_runs)
         return loader_train, loader_test
 
-    # Creates Loader containing all Trials of n_class Runs of subject
-    # ignored_runs[] will not be loaded
     @classmethod
-    def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names, device,
-                                        ignored_runs=[]):
-        preloaded_data, preloaded_labels = cls.load_subjects_data([subject], n_class, ch_names,
-                                                                  ignored_runs=ignored_runs)
-        preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
-                                                 preloaded_data.shape[3]))
-        preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
-        return cls.create_loader(preloaded_data, preloaded_labels, device, batch_size)
-
-    @classmethod
-    def load_subjects_data(cls, subjects, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
-                           normalize=False, ignored_runs=[]):
+    def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = PHYS.CHANNELS,
+                           equal_trials: bool = True, ignored_runs: List[int] = []):
         subjects.sort()
         trials = get_trials_size(n_class, equal_trials, ignored_runs)
         trials_per_run_class = np.math.floor(trials / n_class)
+        # n-times the amount of Trials for TRIALS_SLICES = n
         trials = trials * CONFIG.EEG.TRIALS_SLICES
         if n_class > 2:
             trials -= PHYS.CONFIG.REST_TRIALS_LESS
@@ -97,8 +86,8 @@ class PHYSDataLoader(MIDataLoader):
         # print(CONFIG)
         preloaded_data = np.zeros((len(subjects), trials, len(ch_names), CONFIG.EEG.SAMPLES), dtype=np.float32)
         preloaded_labels = np.zeros((len(subjects), trials,), dtype=np.int)
-        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
-            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
+        if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
 
         print("Preload Shape", preloaded_data.shape)
         for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
@@ -107,22 +96,72 @@ class PHYSDataLoader(MIDataLoader):
                                                     ignored_runs)
             # if data.shape[0] > preloaded_data.shape[1]:
             #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
-            if CONFIG.EEG.TRIALS_SLICES > 1:
-                data, labels = split_trials(data, labels, CONFIG.EEG.TRIALS_SLICES, CONFIG.EEG.SAMPLES)
             preloaded_data[i] = data
             preloaded_labels[i] = labels
-        if normalize:
-            preloaded_data = normalize_data(preloaded_data)
         print("Trials per class loaded:")
         print_numpy_counts(preloaded_labels)
         # print(collections.Counter(preloaded_labels))
         return preloaded_data, preloaded_labels
 
-    # Loads corresponding tasks for n_class Classification
+    @classmethod
+    def load_live_sim_data(cls, subject, n_class, ch_names):
+        """
+        Load all neccessary Data for the Live Simulation Run of subject
+        :return:
+        X: ndarray (channels,Samples) of single Subject Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run in Sec.
+        trial_sample_deltas: ndarray with Sample Nrs. of every Slice Timepoint in the Run
+        """
+        # Load Raw Subject Run for n_class
+        raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
+        # Get Data from raw Run
+        X = get_data_from_raw(raw)
+        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
+        X = cls.prepare_data_labels(X, trials_classes)
+
+        max_sample = raw.n_times
+        slices = CONFIG.EEG.TRIALS_SLICES
+        # times = raw.times[:max_sample]
+        trials_start_times = raw.annotations.onset
+
+        # Get samples of Trials Start Times
+        trials_start_samples = map_times_to_samples(raw, trials_start_times)
+
+        trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
+        trial_sample_deltas = []
+        for trial_start_time in trials_start_times:
+            for i in range(1, slices + 1):
+                trial_sample_deltas.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
+
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_sample_deltas
+
+    @classmethod
+    def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names,
+                                        ignored_runs=[]):
+        """
+        Creates Loader containing all Trials of n_class Runs of subject
+        :param ignored_runs: List of Run Nrs. that should not be loaded
+        :return: DataLoader with Data of given Subject's Runs
+        """
+        preloaded_data, preloaded_labels = cls.load_subjects_data([subject], n_class, ch_names,
+                                                                  ignored_runs=ignored_runs)
+        preloaded_data = preloaded_data.reshape((preloaded_data.shape[1], 1, preloaded_data.shape[2],
+                                                 preloaded_data.shape[3]))
+        preloaded_labels = preloaded_labels.reshape(preloaded_labels.shape[1])
+        return cls.create_loader(preloaded_data, preloaded_labels, batch_size)
+
     @classmethod
     def load_n_classes_tasks(cls, subject, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
                              trials_per_run_class=PHYS.TRIALS_PER_SUBJECT_RUN,
                              ignored_runs=[]):
+        """
+        Loads corresponding tasks for n_class Classification
+        :param ignored_runs: List of Run Nrs. that should not be loaded
+        :return: data, labels: ndarrays with Data and Labels of n_class Task Runs of Subject
+        """
         tasks = PHYS.n_classes_tasks[n_class].copy()
         if (not PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
             tasks.remove(0)
@@ -135,15 +174,20 @@ class PHYSDataLoader(MIDataLoader):
                                           n_class=n_class)
         if n_class == 2:
             labels = dec_label(labels)
+
         return data, labels
 
     event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
 
-    # Loads Rest trials from the 1st baseline run of subject
-    # if baseline run is not long enough for all needed trials
-    # random Trials are generated from baseline run
     @classmethod
-    def mne_load_rests(cls, subject, trials, ch_names, samples):
+    def mne_load_rests(cls, subject: int, trials: int, ch_names: List[str], samples: int):
+        """
+        Loads Rest trials from the 1st baseline run of subject
+        if baseline run is not long enough for all needed trials
+        random Trials are generated from baseline run
+        :param samples: Amount of Samples per Rest Trial
+        :return: X,y: ndarrays with Data + Labels of generated Rest Trials
+        """
         used_trials = trials - PHYS.CONFIG.REST_TRIALS_LESS
         X, y = cls.mne_load_subject(subject, 1, tmin=0, tmax=60, event_id='auto', ch_names=ch_names)
         X = np.swapaxes(X, 2, 1)
@@ -170,12 +214,21 @@ class PHYSDataLoader(MIDataLoader):
         X = np.swapaxes(X, 2, 1)
         return X, y
 
-    # Merges runs from different tasks + correcting labels for n_class classification
     @classmethod
-    def load_task_runs(cls, subject, tasks, exclude_bothfists=False, ch_names=PHYS.CHANNELS, n_class=3,
+    def load_task_runs(cls, subject: int, tasks: List[int], exclude_bothfists=False, ch_names=PHYS.CHANNELS, n_class=3,
                        equal_trials=True, trials_per_run_class=PHYS.TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
                        ignored_runs=[]):
-        load_samples = CONFIG.EEG.SAMPLES * CONFIG.EEG.TRIALS_SLICES
+        """
+        Merges runs from different tasks + correcting labels for n_class classification
+        :param tasks: Task Nrs. to load
+        :param exclude_bothfists: For n_class=4 exclude bothfists from Task 4
+        :param equal_trials: Specifies if an equal amount of Trials per Class should be loaded
+        :param trials_per_run_class: Amount of Trials per Subject Run
+        :param exclude_rests: Specifies if Rest Trials should be excluded
+        :param ignored_runs: List of Run Nrs. that should not be loaded
+        :return: all_data,all_labels: ndarrays with Data + Labels of Trials of given tasks
+        """
+        load_samples = CONFIG.EEG.SAMPLES
         all_data = np.zeros((0, len(ch_names), load_samples))
         all_labels = np.zeros((0), dtype=np.int)
         # Load Subject Data of all Tasks
@@ -201,7 +254,8 @@ class PHYSDataLoader(MIDataLoader):
                     classes = n_class
                     if n_class == 2:
                         classes = 3
-                    data, labels = get_equal_trials_per_class(data, labels, classes, trials_per_run_class)
+                    data, labels = get_equal_trials_per_class(data, labels, classes,
+                                                              trials_per_run_class * CONFIG.EEG.TRIALS_SLICES)
                 # Correct labels if multiple tasks are loaded
                 # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
                 contains_rest_task = (0 in tasks)
@@ -212,16 +266,19 @@ class PHYSDataLoader(MIDataLoader):
         # all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
         return all_data, all_labels
 
-    # Loads single Subject of Physionet Data with MNE
-    # returns EEG data (X) and corresponding Labels (y)
-    # event_id specifies which event types should be loaded,
-    # if some are missing, they are ignored
-    # event_id= 'auto' loads all event types
-    # ch_names: List of Channel Names to be used (see config.py MNE_CHANNELS)
-    # tmin,tmax define what time interval of the events is returned
     @classmethod
     def mne_load_subject(cls, subject, runs, event_id='auto', ch_names=PHYS.CHANNELS, tmin=None,
                          tmax=None):
+        """
+        Loads single Subject of Physionet Data with MNE
+
+        :param runs: List of Run Nrs. to be loaded
+        :param event_id: Specifies which event types should be loaded, if some are missing, they are ignored
+        'auto' loads all event types
+        :param tmin: Defines start time of the Trial EEG Data
+        :param tmax: Defines end time of the Trial EEG Data
+        :return: X,y: ndarrays with Data + Labels of Trials of the given Subject Runs
+        """
         if tmax is None:
             tmax = CONFIG.EEG.TMAX
         if tmin is None:
@@ -237,89 +294,42 @@ class PHYSDataLoader(MIDataLoader):
         subject_data = epochs.get_data().astype('float32')
         # Labels (0-index based)
         subject_labels = epochs.events[:, -1] - 1
-        subject_data = cls.check_and_resample(subject_data)
+        subject_data, subject_labels = cls.prepare_data_labels(subject_data, subject_labels)
         return subject_data, subject_labels
 
-    # Loads raw Subject run with specified channels
-    # Can apply Bandpassfilter + Notch Filter
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=PHYS.CHANNELS, notch=False,
-                             fmin=CONFIG.FILTER.FREQ_FILTER_HIGHPASS, fmax=CONFIG.FILTER.FREQ_FILTER_LOWPASS):
-
-        fmin = CONFIG.FILTER.FREQ_FILTER_HIGHPASS
-        fmax = CONFIG.FILTER.FREQ_FILTER_LOWPASS
-
+    def mne_load_subject_raw(cls, subject, runs, ch_names=PHYS.CHANNELS):
+        """
+        Loads raw Subject run with specified channels
+        :return: raw: mne.io.Raw Object containing all Data of given Subject Runs
+        """
         if VERBOSE:
             print(f"MNE loading Subject {subject} Runs {runs}")
         raw_fnames = PHYS.mne_dataset.load_data(subject, runs, datasets_folder)
         raw_files = [read_raw_edf(f, preload=True) for f in raw_fnames]
-        raw = concatenate_raws(raw_files)
+        raw: mne.io.Raw = concatenate_raws(raw_files)
         raw.rename_channels(lambda x: x.strip('.'))
         raw.pick_channels(ch_names)
-        if notch:
-            picks = mne.pick_channels(raw.info['ch_names'], ch_names)
-            raw.notch_filter(60.0, picks=picks, filter_length='auto',
-                             phase='zero')
-        if ((fmin is not None) | (fmax is not None)):
-            # If method=”iir”, 4th order Butterworth will be used
-            # iir_params = dict(order=7, ftype='butter', output='sos')
-            # raw.filter(fmin, fmax, method='iir', iir_params=iir_params)
-            # Apply butter bandpass filter to all channels
-            raw.apply_function(butter_bandpass_filt, channel_wise=False,
-                               lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
-                               highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS,
-                               fs=CONFIG.EEG.SAMPLERATE, order=7)
-            raw.load_data()
+        # # Resample/Filter if necessary
+        # raw.apply_function(cls.resample_and_filter, channel_wise=False)
+        # raw.load_data()
         return raw
 
-    @classmethod
-    def load_live_sim_data(cls, subject, n_class, ch_names):
-        """
-        Load all neccessary Data for the Live Simulation Run of subject
-        :param subject:
-        :param n_class:
-        :param ch_names:
-        :return:
-        X: ndarray (channels,Samples) of single Subject Run data
-        max_sample: Maximum sample number of the Run
-        slices: Trial Slices
-        trials_classes: ndarray with label nr. of every Trial in the Run
-        trials_start_times: ndarray with Start Times of every Trial in the Run in Sec.
-        trial_sample_deltas: ndarray with Sample Nrs. of every Slice Timepoint in the Run
-        """
-        # Load Raw Subject Run for n_class
-        raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
-        # Get Data from raw Run
-        X = get_data_from_raw(raw)
-        X = cls.check_and_resample(X)
 
-        max_sample = raw.n_times
-        slices = CONFIG.EEG.TRIALS_SLICES
-        # times = raw.times[:max_sample]
-        trials_start_times = raw.annotations.onset
-        trials_classes = map_trial_labels_to_classes(raw.annotations.description)
-
-        # Get samples of Trials Start Times
-        trials_start_samples = map_times_to_samples(raw, trials_start_times)
-
-        trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
-        trial_sample_deltas = []
-        for trial_start_time in trials_start_times:
-            for i in range(1, slices + 1):
-                trial_sample_deltas.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
-
-        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_sample_deltas
-
-
-# Plots Subject Run with raw EEG Channel data
 def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}/plots_training",
                               ch_names=PHYS.CHANNELS):
+    """
+    Plots Subject Run with raw EEG Channel data
+    :param save_path: Path to location where plot (.png) should be saved
+    :param ch_names: List of EEG Channels to plot (see physionet_dataset.py for available Channels)
+    """
     # ch_names = ['F4', 'Oz', 'F7', 'F6']
 
     # Load Raw Subject Run for n_class
     raw = PHYSDataLoader.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
     # Get Data from raw Run
     X = get_data_from_raw(raw)
+    X = MIDataLoader.prepare_data_labels(X)
 
     max_sample = raw.n_times
     slices = 5

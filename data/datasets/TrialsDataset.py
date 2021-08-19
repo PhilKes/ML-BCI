@@ -4,6 +4,8 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
+from config import CONFIG
+
 
 class TrialsDataset(Dataset):
     """
@@ -30,8 +32,8 @@ class TrialsDataset(Dataset):
     # Either a number or a list of numbers
     trials_per_subject: Any
 
-    def __init__(self, subjects: List[int], used_subjects: List[int], n_class: int, device,
-                 preloaded_tuple: Tuple[np.ndarray],
+    def __init__(self, subjects: List[int], used_subjects: List[int], n_class: int,
+                 preloaded_tuple: Tuple[np.ndarray, np.ndarray],
                  ch_names=[], equal_trials=True):
         """
         Method: constructor
@@ -42,7 +44,6 @@ class TrialsDataset(Dataset):
         self.subjects = subjects
         self.used_subjects = used_subjects
         self.n_class = n_class
-        self.device = device
         self.equal_trials = equal_trials
         self.ch_names = ch_names
         self.preloaded_data = preloaded_tuple[0]
@@ -116,6 +117,6 @@ class TrialsDataset(Dataset):
         X, y = self.load_trial(trial)
         # Shape of 1 Batch (list of multiple __getitem__() calls):
         # [samples (BATCH_SIZE), 1 , Channels (len(ch_names), Samples]
-        X = torch.as_tensor(X[None, ...], device=self.device, dtype=torch.float32)
+        X = torch.as_tensor(X[None, ...], device=CONFIG.DEVICE, dtype=torch.float32)
         # X = TRANSFORM(X)
         return X, y

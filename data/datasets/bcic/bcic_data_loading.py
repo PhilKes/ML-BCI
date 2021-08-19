@@ -13,16 +13,17 @@ History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
 import math
+from pathlib import Path
+from typing import List
 
 import numpy as np
 
 from config import CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
-from data.datasets.bcic.bcic_dataset import BCIC
-
-from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from machine_learning.util import get_valid_trials_per_subject, resample_eeg_data
+from data.datasets.bcic.bcic_dataset import BCIC, BCICConstants
+from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
+from machine_learning.util import get_valid_trials_per_subject
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -30,12 +31,13 @@ class BCICTrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for BCIC Dataset
     """
 
-    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
+    def __init__(self, subjects, used_subjects, n_class, preloaded_tuple,
                  ch_names=BCIC.CHANNELS, equal_trials=True):
-        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+        super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
-        self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
+        # 6 runs with 12 trials per class per subject
+        self.n_trials_max = 6 * 12 * self.n_class * CONFIG.EEG.TRIALS_SLICES
 
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
@@ -49,39 +51,43 @@ class BCICTrialsDataset(TrialsDataset):
         print("trials_per_subject: ", self.trials_per_subject)
 
 
-class BCICDataloader(MIDataLoader):
+class BCICDataLoader(MIDataLoader):
     """
     MI_DataLoader implementation for BCIC Dataset
     """
 
-    name = BCIC.name
-    name_short = BCIC.short_name
-    available_subjects = BCIC.ALL_SUBJECTS
-    folds = BCIC.cv_folds
-    eeg_config = BCIC.CONFIG
-    channels = BCIC.CHANNELS
+    CONSTANTS: BCICConstants = BCIC
     ds_class = BCICTrialsDataset
 
     @classmethod
-    def load_subjects_data(cls, subjects, n_class, ch_names=BCIC.CHANNELS, equal_trials=True,
-                           normalize=False, ignored_runs=[]):
+    def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = BCIC.CHANNELS,
+                           equal_trials: bool = True, ignored_runs: List[int] = []):
         subjects.sort()
-        training = 1  # load BCIC training data set
-        ds_w = BCIC_IV2a_dataset(subjects=subjects, n_class=n_class, ch_names=ch_names)
-        preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
-        ds_w.print_stats()
-        if RESAMPLE & (cls.eeg_config.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
-            print(f"RESAMPLING from {cls.eeg_config.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
-        preloaded_data = cls.check_and_resample(preloaded_data)
+        # preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
+        subject_trials_max = 6 * 12 * n_class * CONFIG.EEG.TRIALS_SLICES
+        preloaded_data = np.zeros(
+            (len(subjects), subject_trials_max, len(ch_names), CONFIG.EEG.SAMPLES))
+        preloaded_labels = np.full((len(subjects), subject_trials_max), -1)
+        if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
+        for s_idx, subject in enumerate(subjects):
+            preloaded_data[s_idx], preloaded_labels[s_idx] = cls.load_subject(subject, n_class, ch_names)
+        cls.print_stats(preloaded_labels)
+
         return preloaded_data, preloaded_labels
 
     @classmethod
-    def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):
-        ds_w = BCIC_IV2a_dataset(subjects=[used_subject], n_class=n_class, ch_names=ch_names)
-        preloaded_data, preloaded_labels = ds_w.load_subjects_data(1)
-        preloaded_data = np.squeeze(preloaded_data, 0)
-        preloaded_labels = np.squeeze(preloaded_labels, 0)
-        preloaded_data = cls.check_and_resample(preloaded_data)
+    def load_subject(cls, subject: int, n_class: int, ch_names: List[str] = BCIC.CHANNELS):
+        subject_data, subject_labels = BCIC_IV2a_dataset.get_trials(subject, n_class, ch_names)
+        subject_data, subject_labels = cls.prepare_data_labels(subject_data, subject_labels)
+
+        return subject_data, subject_labels
+
+    @classmethod
+    def create_n_class_loaders_from_subject(cls, used_subject: int, n_class: int, n_test_runs: List[int],
+                                            batch_size: int, ch_names: List[str]):
+        preloaded_data, preloaded_labels = BCIC_IV2a_dataset.get_trials(used_subject, n_class, ch_names)
+        preloaded_data, preloaded_labels = cls.prepare_data_labels(preloaded_data, preloaded_labels)
         preloaded_data = preloaded_data.reshape((preloaded_data.shape[0], 1, preloaded_data.shape[1],
                                                  preloaded_data.shape[2]))
         n_trials_max = 6 * 12 * n_class  # 6 runs with 12 trials per class per subject
@@ -90,12 +96,84 @@ class BCICDataloader(MIDataLoader):
         # Use 80% of the subject's data as Training Data, 20% as Test Data
         training_trials_size = math.floor(4 * valid_trials / 5)
         loader_train = cls.create_loader(preloaded_data[:training_trials_size],
-                                         preloaded_labels[:training_trials_size], device, batch_size)
+                                         preloaded_labels[:training_trials_size], batch_size)
         loader_test = cls.create_loader(preloaded_data[training_trials_size:valid_trials],
-                                        preloaded_labels[training_trials_size:valid_trials], device, batch_size)
+                                        preloaded_labels[training_trials_size:valid_trials], batch_size)
         return loader_train, loader_test
 
     @classmethod
-    def load_live_sim_data(cls, subject, n_class, ch_names):
+    def load_live_sim_data(cls, subject: int, n_class: int, ch_names: List[str]):
         # TODO
         pass
+
+    @staticmethod
+    def print_stats(labels: np.ndarray):
+        """
+        Method: print_stats()
+          Analysis of pl_labels() and extraction of how many trials of each class we have
+          on a per subject basis. Result is printed on the screen.
+        """
+        print("- Some statistics of BCIC_IV2a dataset:")
+
+        all_subjects_counts = [0, 0, 0, 0, 0, 0]
+
+        print()
+        print("  Subject | class1 | class2 | class3 | class4 | artifact | all-legal")
+        print("  --------|--------|--------|--------|--------|----------|----------")
+        for subject in range(labels.shape[0]):
+            class_counts = [0, 0, 0, 0, 0, 0]
+            for trial in range(labels.shape[-1]):
+                if labels[subject, trial] == 0:
+                    class_counts[0] = class_counts[0] + 1
+                elif labels[subject, trial] == 1:
+                    class_counts[1] = class_counts[1] + 1
+                elif labels[subject, trial] == 2:
+                    class_counts[2] = class_counts[2] + 1
+                elif labels[subject, trial] == 3:
+                    class_counts[3] = class_counts[3] + 1
+                elif labels[subject, trial] == -1:
+                    class_counts[4] = class_counts[4] + 1
+                else:
+                    print("print_stats(): Illegal class!!!", labels[subject, trial])
+
+            class_counts[5] = class_counts[0] + class_counts[1] + class_counts[2] \
+                              + class_counts[3]
+
+            for i in range(len(all_subjects_counts)):
+                all_subjects_counts[i] = all_subjects_counts[i] + class_counts[i]
+
+            print("    %3d   |   %3d  |   %3d  |   %3d  |   %3d  |    %3d   |    %3d" % \
+                  (subject, class_counts[0], class_counts[1], class_counts[2], \
+                   class_counts[3], class_counts[4], class_counts[5]))
+
+        print("  --------|--------|--------|--------|--------|----------|----------")
+        print("    All   |   %3d  |   %3d  |   %3d  |   %3d  |    %3d   |   %4d" % \
+              (all_subjects_counts[0], all_subjects_counts[1], all_subjects_counts[2], \
+               all_subjects_counts[3], all_subjects_counts[4], all_subjects_counts[5]))
+        print()
+
+
+########################################################################################
+if __name__ == '__main__':
+    CONFIG.EEG.set_config(BCIC.CONFIG)
+    subjects = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    #    subjects = [1]
+    n_class = 4
+    training = 1
+
+    print(' Generate pl_data and pl_labels and store them in files')
+    preloaded_data, preloaded_labels = BCICDataLoader.load_subjects_data(subjects, n_class)
+    BCICDataLoader.print_stats(preloaded_labels)
+    tmp_folder = f'{Path.home()}/TEMP/'
+    BCIC_IV2a_dataset.save_pl_dataLabels(subjects, n_class, preloaded_data, preloaded_labels, fname="test1.npz",
+                                         path=tmp_folder)
+
+    print('Load pl_data and pl_labels from file and calculate the psds')
+    subjects, n_class, pl_data, pl_labels, n_trials_max = BCIC_IV2a_dataset.load_pl_dataLabels(fname="test1.npz",
+                                                                                               path=tmp_folder)
+    BCICDataLoader.print_stats(pl_labels)
+    BCIC_IV2a_dataset.calc_psds(n_class, subjects, pl_data, pl_labels, path=tmp_folder)
+
+    print(' Plot psds ')
+    plot_psds(path=tmp_folder)
+    print("The End")

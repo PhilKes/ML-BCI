@@ -4,10 +4,13 @@ Miscellaneous Utility Methods
 import errno
 import math
 import os
+import platform
+from typing import List
 
 import numpy as np
 import pandas
 import pandas as pd
+import torch.types
 from scipy import io
 from tabulate import tabulate
 
@@ -185,7 +188,23 @@ def counts_of_list(list):
     return df['data'].value_counts(dropna=False)
 
 
-def to_idxs_of_list(elements, list):
+def save_dataframe(df, save_path):
+    """
+    Stores pandas.DataFrame df to save_path
+    """
+    with open(save_path, 'w') as outfile:
+        df.to_string(outfile)
+
+
+def to_idxs_of_list_str(elements: List[str], list: List[str]):
+    """
+    Returns list of elements' indexes in string List
+    """
+    list_upper = [e.upper() for e in list]
+    return [list_upper.index(el.upper()) for el in elements]
+
+
+def to_idxs_of_list(elements: List[any], list: List[any]):
     """
     Returns list of elements' indexes in list
     """
@@ -221,3 +240,10 @@ def combine_dims(a, i=0, n=1):
     s = list(a.shape)
     combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
     return np.reshape(a, s[:i] + [combined] + s[i + n + 1:])
+
+
+def get_device_name(device: torch.types.Device):
+    # Get Name from torch if CUDA Device
+    if 'cuda' in str(device):
+        return f"CUDA ({torch.cuda.get_device_name(device)})"
+    return f"CPU ({platform.processor()})"

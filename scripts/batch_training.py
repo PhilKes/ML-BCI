@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import sys
 from datetime import datetime
 
 import numpy
@@ -12,9 +13,39 @@ from data.datasets.openBCI.openBCI_dataset import OpenBCI
 from data.datasets.phys.phys_dataset import PHYS
 from main import single_run
 from paths import results_folder, training_results_folder, training_ss_results_folder
-from util.misc import print_pretty_table
+from util.misc import print_pretty_table, save_dataframe, file_write
 
-default_options = ['-train']
+parent_folder = "OpenBCI_Batch_Training"
+"""
+All Batch Configurations to execute Training with in 'confs' Dictionary
+Add new Keys for new Training batches, e.g.:
+    'Example_Batch': {
+      # A Training Config consists of:
+      #   * Command Line params for 'main.py -train' ('params')
+      #   * A name for the result folder of the Config ('names')
+      #   * An initialization Method executed before the Training ('init')
+      # Every Row represents a Training Configuration
+      #   -> e.g. the first Training Config is defined by params[0], names[0], init[0]
+      #   -> 'params', 'names', 'init' have to have same amount of rows
+        'params': [
+            # You can add any available Argument for 'main.py -train'
+            ['--dataset', PHYS.short_name, '--tmin', '2', '--tmax', '4'],
+            ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
+        ],
+        'names': [
+            # Training results will be stored in /results/{parent_folder}/Example_Batch/{names[i]}
+            'phys_tmin_2_tmax_4',
+            'bcic_16_openbci_fmin_4_fmax_60',
+        ],
+        'init': [
+            # Init. Method as single-line lambda (optional, can also just be 'lambda: None' if no init. is necessary)
+            lambda: None,
+            lambda: CONFIG.FILTER.set_filter(4,60),
+        ],
+      # Training Results are summarized per Batch as a Table in:
+      # /results/{parent_folder}/Example_Batch/Example_Batch_training.txt
+    },
+"""
 confs = {
     # 'PHYS': {
     #     'params': [
@@ -49,27 +80,24 @@ confs = {
     }
 }
 
+default_options = ['-train']
+default_n_classes = ['2']
+
 train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
-start = datetime.now()
-
-folder = "OpenBCI_Batch_Training"
-default_n_classes = ['2']
 
 train_ss = False
 live_sim = False
 
 
-# All Configurations to execute Training with
-
-
 # Run Training for every Configuration in confs for all n_classes
 # Returns List of numpy arrays with [conf,run, n_class, (acc/OF))]
-def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
+def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_folder):
     # Loop to execute all Configurations
     # Create .csv and .txt files with all Runs of a batch
     # e.g. /batch_sizes/..._batch_training.txt
     results_list = []
+    errors = []
     for conf_name in configs:
         conf_folder = f"{name}/{conf_name}"
         conf = configs[conf_name]
@@ -82,14 +110,23 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
         # Execute each run consisting of
         # name, params, init(optional)
         for run in range(runs):
+            # Reset Global Config before each run
+            CONFIG.reset()
             if 'init' in conf.keys():
                 conf['init'][run]()
             params = conf['params'][run]
             training_folder = f"{conf_folder}/conf_{conf['names'][run]}"
-            n_classes_accs, n_classes_ofs = single_run(
-                default_options +
-                ['--n_classes'] + n_classes +
-                ['--name', training_folder] + params)
+            try:
+                n_classes_accs, n_classes_ofs = single_run(
+                    default_options +
+                    ['--n_classes'] + n_classes +
+                    ['--name', training_folder] + params)
+            except Exception as e:
+                msg = f"Error occurred during Training for conf '{conf_name}', run '{conf['names'][run]}':\n" + str(e)
+                file_write(os.path.join(results_folder, training_folder, 'error_log.txt'), msg)
+                print(msg, file=sys.stderr)
+                errors.append(msg)
+                continue
             # Store run results (Accuracies/Overfittings)
             for n_class in range(classes):
                 runs_results[run, n_class, 0] = n_classes_accs[n_class]
@@ -106,7 +143,6 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
                     single_run(
                         live_sim_options + [os.path.join(train_ss, x)] +
                         ['--n_classes'] + n_classes)
-
         if 'after' in conf.keys():
             conf['after']()
         results_list.append(runs_results.copy())
@@ -121,11 +157,10 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=folder):
         # Write results into .csv and .txt
         classes_str = ",".join(n_classes)
         df.to_csv(f"{results_folder}/{conf_folder}/{classes_str}_batch_training_results.csv")
-        with open(os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'),
-                  'w') as outfile:
-            df.to_string(outfile)
+        save_dataframe(df,
+                       os.path.join(f"{results_folder}/{conf_folder}", f'{classes_str}_{conf_name}_batch_training.txt'))
         print_pretty_table(df)
-    return results_list
+    return results_list, errors
 
 
 if __name__ == '__main__':

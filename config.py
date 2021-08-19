@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import List
 
 import matplotlib.pyplot as plt
+import torch.types
 
 from util.dot_dict import DotDict
 from util.misc import calc_n_samples
@@ -60,8 +61,11 @@ class FilterConfig(object):
     FREQ_FILTER_HIGHPASS: float = None
     FREQ_FILTER_LOWPASS: float = None
     USE_NOTCH_FILTER: bool = False
+    NORMALIZE: bool = False
 
     def set_filters(self, fmin=None, fmax=None, notch=False):
+        if fmin == 0:
+            fmin = None
         self.FREQ_FILTER_HIGHPASS = fmin
         self.FREQ_FILTER_LOWPASS = fmax
         self.USE_NOTCH_FILTER = notch
@@ -94,15 +98,17 @@ EEGNet Pool Size: {self.POOL_SIZE}
 class EEGConfig(object):
     """
     Object containing all configuration Variables for loading the selected EEG Dataset
+    Values are copied from the selected Dataset's DSConstants class ({Dataset Name}_dataset.py)
+    (see /util/cmd_parser.py 'check_common_arguments()' -> 'CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)')
     """
     # Time Interval per EEG Trial (T=0: start of MI Cue)
     # Trials Slicing (divide every Trial in equally long Slices)
-    TMIN: float = None
-    TMAX: float = None
+    TMIN: float = -1
+    TMAX: float = -1
     CUE_OFFSET: float = None
     TRIALS_SLICES: int = 1
-    SAMPLERATE: float = None
-    SAMPLES: int = None
+    SAMPLERATE: float = -1
+    SAMPLES: int = -1
     # FOR LSMR21:
     # 0 = disallow Trials with Artifacts, 1 = use all Trials
     ARTIFACTS: int = 1
@@ -125,11 +131,12 @@ Trials Slices: {self.TRIALS_SLICES}
 """
 
     def set_cue_offset(self, cue_offset):
-        self.TMIN -= self.CUE_OFFSET
-        self.TMIN += cue_offset
-        self.TMAX -= self.CUE_OFFSET
-        self.TMAX += cue_offset
+        if self.CUE_OFFSET is not None:
+            self.TMIN -= self.CUE_OFFSET
+            self.TMAX -= self.CUE_OFFSET
         self.CUE_OFFSET = cue_offset
+        self.TMIN += self.CUE_OFFSET
+        self.TMAX += self.CUE_OFFSET
         self.SAMPLES = math.floor(
             ((self.TMAX - self.TMIN) * self.SAMPLERATE) / self.TRIALS_SLICES)
 
@@ -139,21 +146,27 @@ Trials Slices: {self.TRIALS_SLICES}
         self.TRIALS_SLICES = slices
         self.SAMPLES = math.floor(((self.TMAX - self.TMIN) * self.SAMPLERATE) / slices)
 
-    def set_times(self, tmin, tmax, cue_offset):
-        self.TMIN = tmin + cue_offset
-        self.TMAX = tmax + cue_offset
-        self.CUE_OFFSET = cue_offset
-        self.SAMPLES = calc_n_samples(tmin, tmax, self.SAMPLERATE)
+    def set_times(self, tmin=None, tmax=None, cue_offset=None):
+        if cue_offset is not None:
+            self.CUE_OFFSET = cue_offset
+        if tmin is not None:
+            self.TMIN = tmin + self.CUE_OFFSET
+        if tmax is not None:
+            self.TMAX = tmax + self.CUE_OFFSET
+        self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
     def set_samplerate(self, sr):
         self.SAMPLERATE = sr
         self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
     def set_config(self, cfg):
-        self.TMIN = cfg.TMIN + cfg.CUE_OFFSET
-        self.TMAX = cfg.TMAX + cfg.CUE_OFFSET
+        # If CUE_OFFSET is manually set with set_cue_offset() before main.py (e.g. in batch_training 'init' methods)
+        # do not overwrite manually set CUE_OFFSET
+        if self.CUE_OFFSET is None:
+            self.CUE_OFFSET = cfg.CUE_OFFSET
+        self.TMIN = cfg.TMIN + self.CUE_OFFSET
+        self.TMAX = cfg.TMAX + self.CUE_OFFSET
         self.TRIALS_SLICES = 1
-        self.CUE_OFFSET = cfg.CUE_OFFSET
         self.SAMPLERATE = cfg.SAMPLERATE
         self.SAMPLES = calc_n_samples(cfg.TMIN, cfg.TMAX, cfg.SAMPLERATE)
         if RESAMPLE:
@@ -175,10 +188,18 @@ class Config(object):
     # to this Samplerate (see training_cv() in machine_learning/modes.py)
     SYSTEM_SAMPLE_RATE: int = 250
 
+    DEVICE: torch.types.Device = torch.device("cpu")
+
     EEG: EEGConfig = EEGConfig()
     NET: ANNConfig = ANNConfig()
     FILTER: FilterConfig = FilterConfig()
     MI: MIConfig = MIConfig()
+
+    def reset(self):
+        self.EEG = EEGConfig()
+        self.NET = ANNConfig()
+        self.FILTER = FilterConfig()
+        self.MI = MIConfig()
 
     def __repr__(self):
         return f"""

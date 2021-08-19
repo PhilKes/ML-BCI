@@ -43,7 +43,7 @@ def get_confusion_matrix(act_labels, pred_labels):
 
 
 # Returns EEGNet model optimized with TensorRT (fp16/32)
-def get_tensorrt_model(model, batch_size, chs, device, fp16):
+def get_tensorrt_model(model, batch_size, chs, fp16, device=CONFIG.DEVICE):
     t = torch.randn((batch_size, 1, chs, CONFIG.EEG.SAMPLES)).to(device)
     # add_constant() TypeError: https://github.com/NVIDIA-AI-IOT/torch2trt/issues/440
     # TensorRT either with fp16 ("half") or fp32
@@ -66,12 +66,12 @@ def gpu_warmup(device, warm_ups, model, batch_size, chs, fp16):
 
 # Return EEGNet model
 # pretrained state will be loaded if present
-def get_model(n_class, chs, device, model_path=None):
+def get_model(n_class, chs, model_path=None):
     model = EEGNet(N=n_class, T=CONFIG.EEG.SAMPLES, C=chs)
     # model = DoseNet(C=chs, n_class=n_class, T=eeg_config.SAMPLES)
     if model_path is not None:
         model.load_state_dict(torch.load(get_trained_model_file(model_path, n_class)))
-    model.to(device)
+    model.to(CONFIG.DEVICE)
     return model
 
 

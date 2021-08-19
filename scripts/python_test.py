@@ -4,20 +4,22 @@ Python script for miscellaneous testing of libraries
 """
 import math
 import os
-from typing import List
 
 import mne
 import numpy as np
-
 import torch
-from scipy import io
-from sympy import pretty_print
-from torch.utils.data import BatchSampler, SequentialSampler, SubsetRandomSampler
+import torch.types
+from mne import Epochs
 
-from data.datasets.lsmr21.lsmr21_data_loading import LSMRSubjectRun, LSMR21DataLoader, LSMRNumpyRun
+from config import CONFIG
+from data.data_utils import slice_trials
+from data.datasets.bcic.bcic_data_loading import BCICDataLoader
+from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader, LSMR21TrialsDataset
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
-from machine_learning.util import SubjectTrialsRandomSampler, get_valid_trials_per_subject
-from util.misc import copy_attrs, to_el_list, print_counts
+from data.datasets.phys.phys_dataset import PHYS
+from machine_learning.util import get_valid_trials_per_subject
+from paths import datasets_folder
+from util.misc import get_device_name
 
 print(F"Torch version:\t{torch.__version__}")
 print(F"Cuda available:\t{torch.cuda.is_available()},\t{torch.cuda.device_count()} Devices found. ")
@@ -30,7 +32,11 @@ if torch.cuda.is_available():
     dev = "cuda:0"
 else:
     dev = "cpu"
-device = torch.device("cpu")
+device: torch.types.Device = torch.device("cpu")
+print(get_device_name(device))
+print("Available CUDA Devices:")
+for i in range(torch.cuda.device_count()):
+    print(f"\tcuda:{i}", f"'{torch.cuda.get_device_name(0)}'")
 
 
 # scale = lambda x: x * 10000
@@ -93,8 +99,6 @@ def check_bad_data(subjects, n_classes):
     print("Min", min, "Max", max)
 
 
-import time
-from config import datasets_folder
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 
 
@@ -147,6 +151,8 @@ if __name__ == '__main__':
     subjects = [1, 26, 46]
     #
     runs = [1, 11]
+
+
     # print_trials_per_tmin(subjects, runs)
 
     # print(time.time() - start)
@@ -192,6 +198,7 @@ if __name__ == '__main__':
         trials = get_valid_trials_per_subject(y, [0], [0], 2000)
         print(trials)
 
+
     # set_eeg_config(LSMR21.CONFIG)
     # LSMR21.set_runs([1,7])
     # for i in range(2):
@@ -199,3 +206,40 @@ if __name__ == '__main__':
     #         print(f"artifacts= {i} + Trial Cat. {j}")
     #         set_eeg_artifacts_trial_category(i, j)
     #         load_sub()
+
+    # raw = PHYSDataLoader.mne_load_subject_raw(1, [8])
+    # events, event_ids = mne.events_from_annotations(raw)
+    # ch_names = PHYS.CHANNELS
+    # picks = mne.pick_channels(raw.info['ch_names'], ch_names)
+    # tmin, tmax = 0, 2
+    # epochs = Epochs(raw, events, event_ids, tmin, tmax - (1 / PHYS.CONFIG.SAMPLERATE), picks=picks,
+    #                 baseline=None, preload=True)
+
+    # data, labels = BCICDataLoader.load_subjects_data([1], 3)
+    # CONFIG.EEG.set_config(LSMR21.CONFIG)
+    # n_class = 2
+    # # failed_subjects = [1, 7, 8, 9, 14, 16, 18, 27, 28, 30, 40, 45, 49, 50, 53, 54, 57]:
+    # used_subjects = LSMR21.ALL_SUBJECTS
+    # preloaded_tuple = LSMR21DataLoader.load_subjects_data(used_subjects, n_class)
+    # ds = LSMR21TrialsDataset(used_subjects, used_subjects, n_class, preloaded_tuple)
+    # LSMR21DataLoader.print_n_class_stats('/home/pkessler/Projects/doc/Trials_stats/')
+    def test_trials_slicing(splits=4):
+        CONFIG.EEG.set_trials_slices(splits)
+        # Generate Random Data with shape (Trials, Channels, Samples)
+        data, labels = np.zeros((10, 64, splits * 120)), np.zeros((10))
+        # Determine Sample length of a Trial Slice
+        trial_slice_length = math.floor(data.shape[-1] / splits)
+        # Fill Slices inside original data Array with Slice number
+        for split in range(splits):
+            data[:, :, (split * trial_slice_length): ((split + 1) * trial_slice_length)] = split
+        data2, labels2 = slice_trials(data, labels, splits)
+        print("data shape before splitting:", data.shape)
+        print("data shape after splitting:", data2.shape)
+        # Check if every Trials Slice contains the correct values
+        for trial_idx in range(data2.shape[0]):
+            if not np.all(data2[trial_idx] == (trial_idx % splits)):
+                raise Exception("data_utils.py split_trials() method does not work as expected")
+        print("data_utils.py split_trials() method works as expected")
+
+
+    test_trials_slicing()

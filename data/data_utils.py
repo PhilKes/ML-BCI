@@ -6,7 +6,9 @@ Contains several utility functions needed during dataset loading.
 History:
   2021-05-15: butterworth bandpass filter from scipy included - ms
 """
+import math
 import os
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -15,7 +17,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from config import CONFIG
 from data.datasets.phys.phys_dataset import PHYS
-from util.misc import print_pretty_table
+from util.misc import print_pretty_table, save_dataframe
 
 '''
 Subroutine: butter_bandpass_definition(lowcut=0.0, highcut=80.0, fs=160, order=3)
@@ -66,6 +68,7 @@ def get_data_from_raw(raw, ch_names=PHYS.CHANNELS):
     # raw1 = raw.copy()
     raw.pick_channels(ch_names)
     data, times = raw[:, :]
+
     return data
 
 
@@ -112,7 +115,7 @@ normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).resh
 
 
 # omit_bl: Omit Baseline Runs (Rest Trials)
-def get_runs_of_n_classes(n_classes, omit_bl=False):
+def get_runs_of_n_classes(n_classes, omit_bl=False) -> List[int]:
     n_runs = []
     for task in PHYS.n_classes_tasks[n_classes]:
         if omit_bl & (task == 0):
@@ -138,8 +141,13 @@ def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
     return (trials_per_class_for_1_runs * n_class) * r
 
 
-# Ensure that same amount of Trials for each class is present
-def get_equal_trials_per_class(data, labels, classes, trials):
+def get_equal_trials_per_class(data: np.ndarray, labels: np.ndarray, classes: int, trials: int):
+    """
+    Ensure that same amount of Trials for each class is present
+    :param classes: Amount of classes present in labels
+    :param trials: Wanted Trials per class
+    :return: data,labels with equal amount of Trials per class
+    """
     trials_idxs = np.zeros(0, dtype=np.int)
     for cl in range(classes):
         cl_idxs = np.where(labels == cl)[0]
@@ -155,18 +163,26 @@ def get_equal_trials_per_class(data, labels, classes, trials):
     return data[trials_idxs], labels[trials_idxs]
 
 
-def split_trials(data, labels, splits, samples):
-    split_size = np.math.floor(data.shape[0] / splits)
+def slice_trials(data: np.ndarray, labels: np.ndarray, slices: int):
+    """
+    Slices given Data + Labels into specified amount of slices
+    :param data: EEG Data as ndarray with shape (Trials, Channels, Samples)
+    :param labels: Trial Labels as ndarray with shape (Trial Labels)
+    :param slices: Every Trial gets split into 'slices'-Slices (equally long, non-overlapping)
+    :return: data, labels with shapes (Trial Slices, Channels, Samples), (Trials Slices Labels)
+    """
+    slice_samples = math.floor(data.shape[-1] / slices)
+    # split_size = np.math.floor(data.shape[0] / splits)
     # data = np.array_split(data, splits, axis=2)
-    data_split = np.zeros((data.shape[0] * splits, data.shape[1], samples))
-    labels_split = np.zeros((data.shape[0] * splits), dtype=np.int)
+    data_slices = np.zeros((data.shape[0] * slices, data.shape[1], slice_samples))
+    labels_slices = np.zeros((data.shape[0] * slices), dtype=np.int)
     for t_idx in range(data.shape[0]):
-        for split in range(splits):
-            data_split[t_idx * splits + split] = data[t_idx, :, (samples * split):(samples * (split + 1))]
-            labels_split[t_idx * splits + split] = labels[t_idx]
+        for slice in range(slices):
+            data_slices[t_idx * slices + slice] = data[t_idx, :, (slice_samples * slice):(slice_samples * (slice + 1))]
+            labels_slices[t_idx * slices + slice] = labels[t_idx]
     # print(collections.Counter(labels))
     # print(collections.Counter(labels_split))
-    return data_split, labels_split
+    return data_slices, labels_slices
 
 
 # Calculates relative area of correct Prediction per Trial
@@ -226,8 +242,6 @@ def save_accs_panda(name, folderName, accs, columns, names, tag=None):
     #     folderName += f'/{tag}'
     # Write results into .csv and .txt
     df.to_csv(f"{folderName}/{tag if tag is not None else 'training'}_{name}.csv")
-    with open(os.path.join(f"{folderName}",
-                           f"{tag if tag is not None else 'training'}_{name}.txt"),
-              'w') as outfile:
-        df.to_string(outfile)
+    save_dataframe(df, os.path.join(f"{folderName}",
+                                    f"{tag if tag is not None else 'training'}_{name}.txt"))
     print_pretty_table(df)

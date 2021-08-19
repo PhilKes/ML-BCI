@@ -90,16 +90,16 @@ def check_common_arguments(parser, args):
 
     # Adjust global parameters which depend on the selected dataset
     if (args.ch_names == None) & (args.ch_motorimg == None):
-        args.ch_names = dataset.channels
+        args.ch_names = dataset.CONSTANTS.CHANNELS
     if ((args.tmin != None) and (args.tmax == None)) or ((args.tmin == None) and (args.tmax != None)):
         parser.error("You have to either set the 'tmax' AND 'tmin' options or none of the two options")
     # Dataset dependent EEG config structure re-initialization
-    CONFIG.EEG.set_config(dataset.eeg_config)
+    CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
     if (args.tmin is not None) and (args.tmax is not None):
         if (args.tmin > args.tmax) or (args.tmin == args.tmax):
             parser.error(f"tmax has to be greater than tmin!")
         else:
-            CONFIG.EEG.set_times(args.tmin, args.tmax, dataset.eeg_config.CUE_OFFSET)
+            CONFIG.EEG.set_times(args.tmin, args.tmax, CONFIG.EEG.CUE_OFFSET)
     if args.trials_slices < 1:
         parser.error(f"Trials slices has to be greater than 0!")
     if (CONFIG.EEG.SAMPLES % args.trials_slices != 0):

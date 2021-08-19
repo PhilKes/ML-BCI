@@ -28,7 +28,7 @@ from machine_learning.util import get_class_accuracies
 # loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
 # best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
 # best_epoch: best_epoch with lowest test_loss if early_stop=True
-def do_train(model, loader_train, loader_valid, epochs=1, device=torch.device("cpu"), early_stop=False):
+def do_train(model, loader_train, loader_valid, epochs=1, device=CONFIG.DEVICE, early_stop=False):
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
@@ -135,7 +135,7 @@ def do_test(model, data_loader):
 
 
 # Benchmarks net on Inference Time in Batches
-def do_benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
+def do_benchmark(model, data_loader, device=CONFIG.DEVICE, fp16=False):
     # TODO Best way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
     # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
@@ -180,7 +180,7 @@ def do_benchmark(model, data_loader, device=torch.device("cpu"), fp16=False):
 
 # Infers on all given samples with time window
 # Returns all class predictions for all samples
-def do_predict_on_samples(model, n_class, samples_data, max_sample, device=torch.device("cpu")):
+def do_predict_on_samples(model, n_class, samples_data, max_sample, device=CONFIG.DEVICE):
     sample_predictions = np.zeros((max_sample, n_class))
     print('Predicting on every sample of run')
 
@@ -196,7 +196,7 @@ def do_predict_on_samples(model, n_class, samples_data, max_sample, device=torch
 
 # Infers on single Trial (SAMPLES)
 # Returns class predictions (with Softmax -> predictions =[0;1])
-def do_predict_single(model, X, device=torch.device("cpu")):
+def do_predict_single(model, X, device=CONFIG.DEVICE):
     with torch.no_grad():
         X = torch.as_tensor(X[None, None, ...], device=device, dtype=torch.float32)
         output = model(X)
