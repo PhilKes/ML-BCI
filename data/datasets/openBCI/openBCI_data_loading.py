@@ -12,7 +12,7 @@ Author: Manfred Strahnen (based on the template given by Philipp Kessler
 History:
   2021-05-10: Getting started - ms (Manfred Strahnen
 """
-from config import CONFIG
+from config import CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.data_utils import butter_bandpass_filt
 from data.datasets.TrialsDataset import TrialsDataset
@@ -20,10 +20,10 @@ from data.datasets.bcic.bcic_dataset import BCIC
 import numpy as np
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from data.datasets.openBCI.openBCI_dataset import OpenBCI
+from data.datasets.openBCI.openBCI_dataset import OpenBCI, OpenBCIConstants
 from machine_learning.util import get_valid_trials_per_subject
 from paths import datasets_folder
-from util.misc import to_idxs_of_list
+from util.misc import to_idxs_of_list, calc_n_samples
 
 
 class OpenBCITrialsDataset(TrialsDataset):
@@ -54,12 +54,7 @@ class OpenBCIDataLoader(MIDataLoader):
     """
     MI_DataLoader implementation for OpenBCI Dataset
     """
-    name = OpenBCI.name
-    name_short = OpenBCI.short_name
-    available_subjects = OpenBCI.ALL_SUBJECTS
-    folds = OpenBCI.cv_folds
-    eeg_config = OpenBCI.CONFIG
-    channels = OpenBCI.CHANNELS
+    CONSTANTS: OpenBCIConstants = OpenBCI
     ds_class = OpenBCITrialsDataset
 
     """
@@ -68,14 +63,19 @@ class OpenBCIDataLoader(MIDataLoader):
     """
 
     @classmethod
-    def load_subjects_data(cls, subjects, n_class, ch_names=OpenBCI.CHANNELS, equal_trials=True,
-                           normalize=False, ignored_runs=[]):
+    def load_subjects_data(cls, subjects, n_class, ch_names=OpenBCI.CHANNELS, equal_trials=True, ignored_runs=[]):
         subjects.sort()
-        samples = int((CONFIG.EEG.TMAX - CONFIG.EEG.TMIN) * CONFIG.EEG.SAMPLERATE)
-
-        preloaded_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), samples))
-        preloaded_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
-        for subject in subjects:
+        # Final subjects_data shape (CONFIG.EEG.SAMPLES = CONFIG.SYSTEM_SAMPLERATE if in config.py RESAMPLE=True)
+        subjects_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), CONFIG.EEG.SAMPLES))
+        subjects_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
+        if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
+            print(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
+        original_samples = calc_n_samples(CONFIG.EEG.TMIN, CONFIG.EEG.TMAX, cls.CONSTANTS.CONFIG.SAMPLERATE)
+        for s_idx, subject in enumerate(subjects):
+            # Loading single Subject Data with original Samplerate
+            subject_data = np.full((OpenBCI.trials_per_subject, len(ch_names), original_samples),
+                                   -1, dtype=np.float32)
+            subject_labels = np.full((OpenBCI.trials_per_subject), -1, dtype=np.int)
             dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_3/Session_' + str(subject) + '/Processed_data.npz'
             print("Loading Dataset " + str(subject) + " from " + dataset_path)
             data = np.load(dataset_path)
@@ -87,18 +87,14 @@ class OpenBCIDataLoader(MIDataLoader):
             # create preloaded_data array
             channel_idxes = to_idxs_of_list(ch_names, OpenBCI.CHANNELS)
             for idx, trial_idx in enumerate(trial_idxes):
-                preloaded_data[subject - 1, idx] = channels[channel_idxes,
-                                                   labels_start[trial_idx][0]:(labels_start[trial_idx][0] + samples)]
+                subject_data[idx] = channels[channel_idxes,
+                                    labels_start[trial_idx][0]:(labels_start[trial_idx][0] + original_samples)]
                 # Trials are 2 and 3
-                preloaded_labels[subject - 1, idx] = labels_start[trial_idx][1] - 2
-
-
-        # optional butterworth bandpass filtering
-        if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
-            preloaded_data = butter_bandpass_filt(preloaded_data, lowcut=CONFIG.FILTER.FREQ_FILTER_HIGHPASS,
-                                                  highcut=CONFIG.FILTER.FREQ_FILTER_LOWPASS,
-                                                  fs=CONFIG.EEG.SAMPLERATE, order=7)
-        return preloaded_data, preloaded_labels
+                subjects_labels[idx] = labels_start[trial_idx][1] - 2
+            subject_data, subject_labels = cls.prepare_data_labels(subject_data, subject_labels)
+            subjects_data[s_idx] = subject_data
+            subjects_labels[s_idx] = subject_labels
+        return subjects_data, subjects_labels
 
     @classmethod
     def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):

@@ -6,26 +6,36 @@ History:
   2021-05-10: Getting started - ms
 """
 from config import EEGConfig
+from data.datasets.DSConstants import DSConstants
 from util.dot_dict import DotDict
 
 
-class OpenBCI:
-    name = 'OpenBCI Dataset'
-    short_name = 'OBCI'
+# Default Constants of the OpenBCI Dataset
+# DO NOT MODIFY FROM ANYWHERE ELSE IN THE CODE
+class OpenBCIConstants(DSConstants):
 
-    trials_per_subject = 50
+    def __init__(self):
+        super().__init__()
+        self.name = 'OpenBCI Dataset'
+        self.short_name = 'OBCI'
 
-    # No excluded subjects
-    ALL_SUBJECTS = [i for i in range(1, 5) if i not in []]
+        self.trials_per_subject = 50
 
-    # Available 16 EEG Channels from OpenBCI Dataset
-    CHANNELS = ['Fp1', 'Fp2', 'C3', 'C4', 'P7', 'P8', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T7', 'T8', 'P3', 'P4']
+        # No excluded subjects
+        self.ALL_SUBJECTS = [i for i in range(1, 5) if i not in []]
 
-    cv_folds = 4
-    # Time Interval per EEG Trial (T=2: start of MI Cue)
-    CONFIG: EEGConfig = EEGConfig(
-        TMIN=0.0,
-        TMAX=4.0,
-        SAMPLERATE=125,
-        CUE_OFFSET=0
-    )
+        # Available 16 EEG Channels from OpenBCI Dataset
+        self.CHANNELS = ['Fp1', 'Fp2', 'C3', 'C4', 'P7', 'P8', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T7', 'T8', 'P3',
+                         'P4']
+
+        self.cv_folds = 4
+        # Time Interval per EEG Trial (T=2: start of MI Cue)
+        self.CONFIG: EEGConfig = EEGConfig(
+            TMIN=0.0,
+            TMAX=4.0,
+            SAMPLERATE=125,
+            CUE_OFFSET=0
+        )
+
+
+OpenBCI = OpenBCIConstants()

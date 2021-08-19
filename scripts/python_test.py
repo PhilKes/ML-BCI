@@ -15,6 +15,8 @@ from config import CONFIG
 from data.data_utils import slice_trials
 from data.datasets.bcic.bcic_data_loading import BCICDataLoader
 from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader, LSMR21TrialsDataset
+from data.datasets.openBCI.openBCI_data_loading import OpenBCIDataLoader
+from data.datasets.openBCI.openBCI_dataset import OpenBCI
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.util import get_valid_trials_per_subject
@@ -242,4 +244,5 @@ if __name__ == '__main__':
         print("data_utils.py split_trials() method works as expected")
 
 
-    test_trials_slicing()
+    # test_trials_slicing()
+    X, y = OpenBCIDataLoader.load_subjects_data(OpenBCI.ALL_SUBJECTS, 2)
