@@ -11,26 +11,21 @@ from util.dot_dict import DotDict
 
 class OpenBCI:
     name = 'OpenBCI Dataset'
-    short_name = 'OpenBCI'
+    short_name = 'OBCI'
 
-    trials_per_subject = 100
+    trials_per_subject = 50
 
     # No excluded subjects
     ALL_SUBJECTS = [i for i in range(1, 5) if i not in []]
 
-    # Available 22 EEG Channels from BCIC Dataset
-    # TODO Channelnamen nach 10-10 system
-    CHANNELS = [
-        'fp1', 'fp2', 'c3', 'c4', 'p7', 'p8', 'o1',
-        'o2', 'f7', 'f8', 'f3', 'f4', 't7', 't8',
-        'p3', 'p4']
+    # Available 16 EEG Channels from OpenBCI Dataset
+    CHANNELS = ['Fp1', 'Fp2', 'C3', 'C4', 'P7', 'P8', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T7', 'T8', 'P3', 'P4']
 
-    # Todo filter
     cv_folds = 4
     # Time Interval per EEG Trial (T=2: start of MI Cue)
     CONFIG: EEGConfig = EEGConfig(
         TMIN=0.0,
-        TMAX=2.0,
+        TMAX=4.0,
         SAMPLERATE=125,
         CUE_OFFSET=0
     )

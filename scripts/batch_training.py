@@ -42,8 +42,8 @@ confs = {
             'default',
         ],
         'init': [
-            # lambda: CONFIG.FILTER.set_filters(),
             lambda: CONFIG.FILTER.set_filters(),
+            # lambda: CONFIG.FILTER.set_filters(),
         ],
         'after': lambda: None
     }

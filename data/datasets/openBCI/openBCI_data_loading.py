@@ -76,7 +76,7 @@ class OpenBCIDataLoader(MIDataLoader):
         preloaded_data = np.zeros((len(subjects), OpenBCI.trials_per_subject, len(ch_names), samples))
         preloaded_labels = np.zeros((len(subjects), OpenBCI.trials_per_subject))
         for subject in subjects:
-            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_2/Session_' + str(subject) + '/Processed_data.npz'
+            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_3/Session_' + str(subject) + '/Processed_data.npz'
             print("Loading Dataset " + str(subject) + " from " + dataset_path)
             data = np.load(dataset_path)
             channels = data["channels"]
@@ -89,8 +89,9 @@ class OpenBCIDataLoader(MIDataLoader):
             for idx, trial_idx in enumerate(trial_idxes):
                 preloaded_data[subject - 1, idx] = channels[channel_idxes,
                                                    labels_start[trial_idx][0]:(labels_start[trial_idx][0] + samples)]
-                # Todo replace 2 when higher 2 class
+                # Trials are 2 and 3
                 preloaded_labels[subject - 1, idx] = labels_start[trial_idx][1] - 2
+
 
         # optional butterworth bandpass filtering
         if CONFIG.FILTER.FREQ_FILTER_HIGHPASS != None or CONFIG.FILTER.FREQ_FILTER_LOWPASS != None:
