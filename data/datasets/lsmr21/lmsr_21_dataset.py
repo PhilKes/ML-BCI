@@ -46,12 +46,16 @@ class LSMR21Constants(DSConstants):
         # Time: 2s blank Screen + 2s Target Presentation + 0-6s Feedback Control + 1s additional = max. 11s
         # TMAX = 7s (0-6s Feedback Control (MI Cue) + 1s additional)
         # These are Constants, DO NOT MODIFY!
+        # TO load LSMR from original Matlab files:
+        # * change SAMPLERATE to 1000 Hz
+        # * change parameter from_matlab to True in LSMR21DataLoader.load_subject_run
+        # * change Return type of LSMR21DataLoader.load_subject_run to LSMRSubjectRun
         self.CONFIG: EEGConfig = EEGConfig(
             TMIN=0.0,
             TMAX=2.0,
-            # SAMPLERATE=1000,
+            SAMPLERATE=1000,
             # TODO KEEP IN SYNC WITH NUMPY DOWNSAMPLING
-            SAMPLERATE=250,
+            # SAMPLERATE=250,
             CUE_OFFSET=2.0
         )
         self.ORIGINAL_SAMPLERATE = 1000

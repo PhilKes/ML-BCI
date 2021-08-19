@@ -135,29 +135,29 @@ class LSMRSubjectRun:
         return [i for i, td in enumerate(self.trialdata) if
                 (td.tasknumber in tasks) and (td.targetnumber != ignore_target)]
 
-    def get_labels(self, trials_idxs: List[int] = None, mi_tmin=CONFIG.EEG.TMAX):
+    def get_labels(self, trials_idxs: List[int] = None, min_trial_time=CONFIG.EEG.TMAX):
         """
         Return int Labels of all Trials as numpy array
-        :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
+        :param min_trial_time: Return only of Trials with minimum MI Cue time of mi_tmin
         :param trials_idxs: Force to return only specified trials
         """
-        trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
+        trials = self.get_trials(min_trial_time=min_trial_time) if trials_idxs is None else trials_idxs
         return np.asarray([trial.targetnumber for trial in [self.trialdata[i] for i in trials]], dtype=np.int)
 
-    def get_data(self, trials_idxs: List[int] = None, mi_tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))):
+    def get_data(self, trials_idxs: List[int] = None, min_trial_time=None, ch_idxs=range(len(LSMR21.CHANNELS))):
         """
         Return float Data of all Trials as numpy array
         :param ch_idxs: Channel Idxs to be used
-        :param mi_tmin: Return only of Trials with minimum MI Cue time of mi_tmin
+        :param min_trial_time: Return only of Trials with minimum MI Cue time of mi_tmin
         :param trials_idxs: Force to return only specified trials
         """
-        if mi_tmin is None:
-            mi_tmin = CONFIG.EEG.TMAX
-        trials = self.get_trials(tmin=mi_tmin) if trials_idxs is None else trials_idxs
+        if min_trial_time is None:
+            min_trial_time = CONFIG.EEG.TMAX
+        trials = self.get_trials(min_trial_time=min_trial_time) if trials_idxs is None else trials_idxs
         # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
         # until after MI Cue + 1s
-        min_sample = math.floor(CONFIG.EEG.TMIN * CONFIG.EEG.SAMPLERATE)
-        max_sample = math.floor(self.srate * (mi_tmin))
+        min_sample = math.floor(CONFIG.EEG.TMIN * self.srate)
+        max_sample = math.floor(self.srate * (min_trial_time))
         # use ndarray.resize()
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
         elapsed = 0.0
@@ -186,11 +186,11 @@ class LSMRSubjectRun:
     #    """
     #     return np.asarray([trial for trial in self.trialdata if trial.tasknumber in tasks], dtype=np.int)
 
-    def get_trials(self, n_class=4, tmin=CONFIG.EEG.TMIN, ignore_target=None):
+    def get_trials(self, n_class=4, min_trial_time=CONFIG.EEG.TMIN, ignore_target=None, artifact=-1, trial_category=-1):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
-        :param t: Minimum MI Cue Time (after 2s blank screen + 2s target presentation)
+        :param min_trial_time: Trial Time
         :return: List of Trials indexes
         """
         # TODO Which Trials for 3class?
@@ -199,12 +199,12 @@ class LSMRSubjectRun:
         trials = self.get_trials_of_tasks(LSMR21.n_classes_tasks[n_class], ignore_target=ignore_target)
         #print("n-class Trials: ",len(trials))
         # Filter out Trials that dont have enough samples (min. mi_tmin * Samplerate)
-        return [i for i in trials if self.data[i].shape[1] >= tmin * self.srate]
+        return [i for i in trials if self.data[i].shape[1] >= min_trial_time * self.srate]
 
     def get_trials_tmin(self, mi_tmins=np.arange(4, 11, 1)):
         s_t = []
         for mi_tmin in mi_tmins:
-            s_t.append(len(self.get_trials(tmin=mi_tmin)))
+            s_t.append(len(self.get_trials(min_trial_time=mi_tmin)))
         return s_t
 
     def print_trials_with_min_mi_time(self, mi_tmins=[4, 5, 6, 7, 8, 9, 10, 11]):

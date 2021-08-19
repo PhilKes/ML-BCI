@@ -66,33 +66,51 @@ class LSMRNumpyRun:
         """
         if tmin is None:
             tmin = CONFIG.EEG.TMAX
-        trials = self.get_trials(tmin=tmin) if trials_idxs is None else trials_idxs
+        trials = self.get_trials(min_trial_time=tmin) if trials_idxs is None else trials_idxs
         # trial_info[0] = label (targetnumber)
         return np.asarray([trial[0] for trial in [self.trial_info[i] for i in trials]], dtype=np.int)
 
-    def get_data(self, trials_idxs: List[int] = None, tmin=None, ch_idxs=range(len(LSMR21.CHANNELS))) -> np.ndarray:
+    def get_data(self, trials_idxs: List[int] = None, min_trial_time=None,
+                 ch_idxs=range(len(LSMR21.CHANNELS))) -> np.ndarray:
         """
         Return float EEG Data of all Trials as numpy array
         :param ch_idxs: Indexes of Channels to be used
-        :param tmin: Return only Data of Trials with Time length of 'tmin' (defaults to CONFIG.EEG.TMAX)
+        :param min_trial_time: Return only Data of Trials with Time length of 'tmin' (defaults to CONFIG.EEG.TMAX)
         :param trials_idxs: Force to return only specified trials
         """
-        if tmin is None:
-            tmin = CONFIG.EEG.TMAX
-        trials = self.get_trials(tmin=tmin) if trials_idxs is None else trials_idxs
-        # Take samples from MI CUE Start (after 2s blank + 2s target pres.)
+        if min_trial_time is None:
+            min_trial_time = CONFIG.EEG.TMAX
+        trials = self.get_trials(min_trial_time=min_trial_time) if trials_idxs is None else trials_idxs
+        # Take samples from MI CUE Start (after 2s blank screen)
         # until after MI Cue + 1s
+        # CUE_OFFSET is already added to CONFIG.EEG.TMIN/TMAX in CONFIG.EEG.set_times()
         min_sample = math.floor(CONFIG.EEG.TMIN * LSMR21.CONFIG.SAMPLERATE)
-        max_sample = math.floor(LSMR21.CONFIG.SAMPLERATE * (tmin))
-        # use ndarray.resize()
+        max_sample = math.floor(LSMR21.CONFIG.SAMPLERATE * (min_trial_time))
         data = np.zeros((0, len(ch_idxs), max_sample - min_sample), dtype=np.float)
+        # Determine if Samples from trial before has to be loaded too (if tmin < -CUE_OFFSET)
+        last_trial_overlap_samples = 0 if min_sample >= 0 else min_sample
+        if last_trial_overlap_samples != 0:
+            min_sample = 0
+        # use ndarray.resize()
         # elapsed = 0.0
         # start = time.time()
         # TODO Slicing takes ~ 0.7-1.5 Seconds for each Subject
         # data = np.resize(self.data[trials], (len(trials), len(ch_idxs), max_sample - min_sample))
         # data= np.vstack(data[:, :,:]).astype(np.float)
-        for d in self.data[trials]:
-            trial_data = d[ch_idxs, min_sample: max_sample]
+
+        for t_idx, trial in enumerate(trials):
+            t_data = self.data[trial]
+            trial_data = t_data[ch_idxs, min_sample: max_sample]
+            # Get samples of Trial before if necessary
+            if last_trial_overlap_samples < 0:
+                if trial > 0:
+                    overlap_samples = self.data[trial - 1][ch_idxs, last_trial_overlap_samples:]
+                    trial_data = np.append(overlap_samples, trial_data, 1)
+                # if there is not Trial before the current Trial but has to load samples from Trial before
+                # skip this Trial
+                else:
+                    fill_data = np.full((len(ch_idxs), (-last_trial_overlap_samples)), -1)
+                    trial_data = np.append(fill_data, trial_data, 1)
             data = np.concatenate(
                 (data, np.reshape(trial_data, (1, trial_data.shape[0], trial_data.shape[1]))))
         # print("Slicing Time: ", f"{time.time() - start:.2f}")
@@ -114,19 +132,20 @@ class LSMRNumpyRun:
             raw = np.append(raw, x, axis=1)
         return raw
 
-    def get_trials(self, n_class=4, tmin=CONFIG.EEG.TMIN, artifact=CONFIG.EEG.ARTIFACTS,
+    def get_trials(self, n_class=4, min_trial_time=CONFIG.EEG.TMIN, artifact=CONFIG.EEG.ARTIFACTS,
                    trial_category=CONFIG.EEG.TRIAL_CATEGORY):
         """
         Get Trials indexes which have a minimum amount of Samples
         for t-seconds of Feedback Control period (Motorimagery Cue)
-        :param tmin: Minimum Trial Time (shorter Trials are omitted)
+        :param min_trial_time: Minimum Trial Time (shorter Trials are omitted)
         :return: List of Trials indexes
         """
         # Get Trial idxs of n_class Trials (correct Tasks)
         n_class_trials_idxs = self.get_n_class_trials(n_class)
         # print("n-class Trials: ", len(trials))
         # Filter out Trials that dont have enough samples (min. tmin * Samplerate)
-        trials_idxs = [i for i in n_class_trials_idxs if self.data[i].shape[1] >= tmin * CONFIG.EEG.SAMPLERATE]
+        trials_idxs = [i for i in n_class_trials_idxs if
+                       self.data[i].shape[1] >= min_trial_time * CONFIG.EEG.SAMPLERATE]
         # Filter out by trial_category (trialdata.result/forcedresult field)
         trials_idxs = [i for i in trials_idxs if self.trial_info[i, 2] >= trial_category]
         # Filter out by artifacts present or not if artifact = 0
@@ -137,7 +156,7 @@ class LSMRNumpyRun:
     def get_trials_tmin(self, tmins=np.arange(4, 11, 1)):
         s_t = []
         for tmin in tmins:
-            s_t.append(len(self.get_trials(tmin=tmin)))
+            s_t.append(len(self.get_trials(min_trial_time=tmin)))
         return s_t
 
     def print_trials_with_tmins(self, tmins=np.arange(4, 11, 1)):
@@ -316,11 +335,14 @@ class LSMR21DataLoader(MIDataLoader):
                 continue
             # Get Trials idxs of correct n_class and minimum Sample size Trials
             trials_idxs = sr.get_trials(n_class, CONFIG.EEG.TMAX, artifact=artifact, trial_category=trial_category)
-            data = sr.get_data(trials_idxs=trials_idxs,
-                               ch_idxs=to_idxs_of_list_str(ch_names, LSMR21.CHANNELS))
+            data = sr.get_data(trials_idxs=trials_idxs, ch_idxs=to_idxs_of_list_str(ch_names, LSMR21.CHANNELS))
             max_data_trial = t_idx + data.shape[0]
             subject_data[t_idx:max_data_trial] = data
             labels = sr.get_labels(trials_idxs=trials_idxs) - 1
+            # Mark 1st Trial as invalid if TMIN is so low that Data from the Trial before has to be used too
+            # since there is no Data available before the 1st Trial
+            if CONFIG.EEG.TMIN < 0:
+                labels[0] = -1
             subject_labels[t_idx:max_data_trial] = labels
             t_idx += data.shape[0]
             elapsed = (time.time() - start)
@@ -340,13 +362,13 @@ class LSMR21DataLoader(MIDataLoader):
         """
         sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
         # Get all Trial idxs of entire Run
-        all_trials_idxs = sr.get_trials(tmin=0.0, n_class=4)
+        all_trials_idxs = sr.get_trials(min_trial_time=0.0, n_class=4)
         subject_run_data = sr.get_data_raw(all_trials_idxs)
         subject_run_labels = sr.get_labels(trials_idxs=all_trials_idxs) - 1
         subject_run_data, subject_run_labels = cls.prepare_data_labels(subject_run_data, subject_run_labels,
                                                                        slicing=False)
         # Get used Trials idxs
-        used_trials_idxs = sr.get_trials(tmin=tmin, n_class=n_class)
+        used_trials_idxs = sr.get_trials(min_trial_time=tmin, n_class=n_class)
         used_trials_idxs = to_idxs_of_list(used_trials_idxs, all_trials_idxs)
         return subject_run_data, subject_run_labels, used_trials_idxs
 
@@ -360,7 +382,7 @@ class LSMR21DataLoader(MIDataLoader):
         return sr.get_data_samples(n_class)
 
     @classmethod
-    def load_subject_run(cls, subject, run, from_matlab=False) -> LSMRNumpyRun:
+    def load_subject_run(cls, subject, run, from_matlab=True) -> LSMRSubjectRun:
         if VERBOSE:
             print("\n", f"Loading Subject {subject} Run {run}")
         try:
