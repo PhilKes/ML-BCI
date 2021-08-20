@@ -47,56 +47,50 @@ Add new Keys for new Training batches, e.g.:
 """
 confs = {
 
-    # 'trials_slicing': {
-    #     'params': [
-    #         ['--dataset', BCIC.short_name, '--trials_slices', '2'],
-    #         ['--dataset', PHYS.short_name, '--trials_slices', '2'],
-    #         ['--dataset', LSMR21.short_name, '--trials_slices', '2'],
-    #     ],
-    #     'names': [
-    #         'bcic_slices_2',
-    #         'phys_slices_2',
-    #         'lsmr21_slices_2',
-    #     ],
-    #     'init': [
-    #         lambda: None,
-    #         lambda: None,
-    #         lambda: None,
-    #
-    #     ],
-    # },
-    'LSMR21_params': {
+    'PHYS_3-4-class': {
         'params': [
-            # ['--dataset', LSMR21.short_name],
-            # ['--dataset', LSMR21.short_name],
-            # ['--dataset', LSMR21.short_name],
-            # ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
-            # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
-            # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4'],
-            ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
-            ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+            ['--dataset', PHYS.short_name, '--n_classes', '4'],
         ],
         'names': [
-            # 'fmin_0_fmax_60',
-            # 'fmin_2_fmax_60',
-            # 'fmin_4_fmax_60',
-            # 'motorimg_16_openbci',
-            # 'tmin_0_tmax_3',
-            # 'tmin_0_tmax_4',
-            'tmin_-1_tmax_1',
-            'tmin_0_tmax_4_slices_4',
+            'phys_4_class',
         ],
         'init': [
-            # lambda: CONFIG.FILTER.set_filters(None, 60),
-            # lambda: CONFIG.FILTER.set_filters(2, 60),
-            # lambda: CONFIG.FILTER.set_filters(4, 60),
-            # lambda: None,
-            # lambda: None,
-            # lambda: None,
-            lambda: None,
             lambda: None,
         ],
     },
+    # 'LSMR21_params': {
+    #     'params': [
+    #         # ['--dataset', LSMR21.short_name],
+    #         # ['--dataset', LSMR21.short_name],
+    #         # ['--dataset', LSMR21.short_name],
+    #         # ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
+    #         # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
+    #         # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4'],
+    #         ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
+    #         ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+    #     ],
+    #     'names': [
+    #         # 'fmin_0_fmax_60',
+    #         # 'fmin_2_fmax_60',
+    #         # 'fmin_4_fmax_60',
+    #         # 'motorimg_16_openbci',
+    #         # 'tmin_0_tmax_3',
+    #         # 'tmin_0_tmax_4',
+    #         'tmin_-1_tmax_1',
+    #         'tmin_0_tmax_4_slices_4',
+    #     ],
+    #     'init': [
+    #         # lambda: CONFIG.FILTER.set_filters(None, 60),
+    #         # lambda: CONFIG.FILTER.set_filters(2, 60),
+    #         # lambda: CONFIG.FILTER.set_filters(4, 60),
+    #         # lambda: None,
+    #         # lambda: None,
+    #         # lambda: None,
+    #         lambda: None,
+    #         lambda: None,
+    #     ],
+    # },
+
 }
 
 default_options = ['-train']

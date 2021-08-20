@@ -78,6 +78,7 @@ class PHYSDataLoader(MIDataLoader):
         subjects.sort()
         trials = get_trials_size(n_class, equal_trials, ignored_runs)
         trials_per_run_class = np.math.floor(trials / n_class)
+        trials_per_run_class = 21
         # n-times the amount of Trials for TRIALS_SLICES = n
         trials = trials * CONFIG.EEG.TRIALS_SLICES
         if n_class > 2:
@@ -98,9 +99,7 @@ class PHYSDataLoader(MIDataLoader):
             #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
             preloaded_data[i] = data
             preloaded_labels[i] = labels
-        print("Trials per class loaded:")
-        print_numpy_counts(preloaded_labels)
-        # print(collections.Counter(preloaded_labels))
+        # print_numpy_counts(preloaded_labels)
         return preloaded_data, preloaded_labels
 
     @classmethod
@@ -166,15 +165,23 @@ class PHYSDataLoader(MIDataLoader):
         if (not PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN) & (0 in tasks):
             tasks.remove(0)
         data, labels = cls.load_task_runs(subject, tasks,
-                                          exclude_bothfists=(n_class == 4),
-                                          exclude_rests=(n_class == 2),
+                                          # if 3/4-class should contain 'rest' trials:
+                                          # exclude_bothfists=(n_class == 4),
+                                          # exclude_rests=(n_class == 2),
+
+                                          # if 3/4-class should not contain 'rest' trials:
+                                          exclude_bothfists=(n_class == 3),
+                                          exclude_rests=True,
                                           ch_names=ch_names, ignored_runs=ignored_runs,
                                           equal_trials=equal_trials,
                                           trials_per_run_class=trials_per_run_class,
                                           n_class=n_class)
-        if n_class == 2:
-            labels = dec_label(labels)
-
+        # if 3/4-class contain 'rest' Trials:
+        # if n_class == 2:
+        #     labels = dec_label(labels)
+        # if 3/4-class do not contain 'rest' Trials:
+        labels = dec_label(labels)
+        # print_numpy_counts(labels)
         return data, labels
 
     event_dict = {'T0': 1, 'T1': 2, 'T2': 3}
@@ -251,10 +258,10 @@ class PHYSDataLoader(MIDataLoader):
                                                     ch_names=ch_names)
                 # Ensure equal amount of trials per class
                 if equal_trials:
-                    classes = n_class
-                    if n_class == 2:
-                        classes = 3
-                    data, labels = get_equal_trials_per_class(data, labels, classes,
+                    # classes = n_class
+                    # if n_class == 2:
+                    #     classes = 3
+                    data, labels = get_equal_trials_per_class(data, labels,
                                                               trials_per_run_class * CONFIG.EEG.TRIALS_SLICES)
                 # Correct labels if multiple tasks are loaded
                 # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
@@ -264,6 +271,7 @@ class PHYSDataLoader(MIDataLoader):
             all_data = np.concatenate((all_data, data))
             all_labels = np.concatenate((all_labels, labels))
         # all_data, all_labels = unison_shuffled_copies(all_data, all_labels)
+        # print_numpy_counts(all_labels)
         return all_data, all_labels
 
     @classmethod

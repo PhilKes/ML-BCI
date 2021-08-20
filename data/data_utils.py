@@ -135,21 +135,26 @@ def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
         return PHYS.trials_for_classes_per_subject_avail[n_class]
     n_class_runs = [run for run in get_runs_of_n_classes(n_class, True) if run not in ignored_runs]
     r = len(n_class_runs)
+    # if 3/4-class contains 'rest':
     # 4class uses Task 4 only for T1 events
-    if n_class == 4:
+    # if n_class == 4:
+    #     r -= 3
+    # if 3/4-class should not contain 'rest':
+    # 3class uses Task 4 only for T1 events
+    if n_class == 3 or (n_class == 4):
         r -= 3
     return (trials_per_class_for_1_runs * n_class) * r
 
 
-def get_equal_trials_per_class(data: np.ndarray, labels: np.ndarray, classes: int, trials: int):
+def get_equal_trials_per_class(data: np.ndarray, labels: np.ndarray, trials: int):
     """
     Ensure that same amount of Trials for each class is present
-    :param classes: Amount of classes present in labels
     :param trials: Wanted Trials per class
     :return: data,labels with equal amount of Trials per class
     """
+    classes = np.unique(labels)
     trials_idxs = np.zeros(0, dtype=np.int)
-    for cl in range(classes):
+    for cl in classes:
         cl_idxs = np.where(labels == cl)[0]
         # Get random Rest Trials from Run
         if cl == 0:

@@ -53,9 +53,9 @@ class LSMR21Constants(DSConstants):
         self.CONFIG: EEGConfig = EEGConfig(
             TMIN=0.0,
             TMAX=2.0,
-            SAMPLERATE=1000,
+            # SAMPLERATE=1000,
             # TODO KEEP IN SYNC WITH NUMPY DOWNSAMPLING
-            # SAMPLERATE=250,
+            SAMPLERATE=250,
             CUE_OFFSET=2.0
         )
         self.ORIGINAL_SAMPLERATE = 1000

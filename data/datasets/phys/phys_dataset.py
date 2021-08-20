@@ -65,7 +65,12 @@ class PHYSConstants(DSConstants):
 
         # Mapping of n_class Classification to correct Tasks
         # e.g. 3class Classification uses Task 0 (Baseline Rest Run) + Task 2 (Left/right Fist)
-        self.n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}
+        # Keep following in Sync with PHYSDataLoader.load_n_classes_tasks() 'exclude_bothfists'
+        # additional changes in phys_data_loading
+        # WITHOUT 'rest' Trials for 3/4-class:
+        self.n_classes_tasks = {1: [0], 2: [2], 3: [2, 4], 4: [2, 4]}
+        # WITH 'rest' Trials for 3/4-class:
+        # self.n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}
 
         # Sample run for n_class live_sim mode
         self.n_classes_live_run = {2: runs_t2[-1], 3: runs_t2[-1], 4: runs_t2[-1]}

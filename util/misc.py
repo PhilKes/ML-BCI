@@ -79,7 +79,7 @@ def unified_shuffle_arr(a, b):
 
 
 # Prints counts of all present values in arr
-def print_numpy_counts(arr):
+def print_numpy_counts(arr: np.ndarray):
     unique, counts = np.unique(arr, return_counts=True)
     print(dict(zip(unique, counts)))
 

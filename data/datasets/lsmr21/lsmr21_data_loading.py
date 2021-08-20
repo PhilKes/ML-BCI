@@ -382,7 +382,7 @@ class LSMR21DataLoader(MIDataLoader):
         return sr.get_data_samples(n_class)
 
     @classmethod
-    def load_subject_run(cls, subject, run, from_matlab=True) -> LSMRSubjectRun:
+    def load_subject_run(cls, subject, run, from_matlab=False) -> LSMRNumpyRun:
         if VERBOSE:
             print("\n", f"Loading Subject {subject} Run {run}")
         try:
