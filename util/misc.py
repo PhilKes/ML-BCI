@@ -42,7 +42,7 @@ def datetime_to_folder_str(datetime):
     return datetime.strftime("%Y-%m-%d_%H_%M_%S")
 
 
-str_n_classes = ["", "", "Left/Right Fist", "Left/Right-Fist / Rest", "Left/Right-Fist / Rest / Both-Feet"]
+str_n_classes = ["", "", "Left/Right", "Left/Right/Down ", "Left/Right/Up/Down"]
 
 
 def get_str_n_classes(n_classes):

@@ -99,8 +99,8 @@ class PHYSConstants(DSConstants):
 
         self.class_labels = {
             2: ['L', 'R'],
-            3: ['Rest', 'L', 'R'],
-            4: ['Rest', 'L', 'R', 'D'],
+            3: ['L', 'R', 'D'],
+            4: ['Rest', 'L', 'R', 'U', 'D'],
         }
 
         self.mne_dataset = eegbci
