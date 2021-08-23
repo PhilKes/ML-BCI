@@ -433,7 +433,7 @@ def calc_time_freq_MT_PSDmap(preloaded_data, preloaded_labels, ds_name, ds_tmin,
     n_channels = preloaded_data.shape[2]
     n_samples = preloaded_data.shape[3]
     ds = np.reshape(preloaded_data, (-1, n_channels, n_samples))
-    # Filter out invalid Trials
+    # TODO Filter out invalid Trials after reshape to (Trial, Channel, Sample)
     if np.any(preloaded_labels == -1):
         ds_labels = np.reshape(preloaded_labels, (-1))
         valid_trial_idxs = np.where(ds_labels != -1)[0]
@@ -841,11 +841,11 @@ if __name__ == '__main__':
     psdMethod = 'MUTAP'  # 'MUTAP' -> multitaper method used for psd calc.
     # 'PUFFT' -> pure FFT method used for psd calc.
     n_class = 2  # number of classes
-    ds_tmin = -2.0  # trial slice start time in s
+    ds_tmin = -3.0  # trial slice start time in s
     # BCIC:   ds_tmin = -2.0
     # PHYS:   ds_tmin = -2.0
     # LSMR21: ds_tmin = -2.0
-    ds_tmax = 6.0  # trial slice stop time in s
+    ds_tmax = 7.0  # trial slice stop time in s
     # BCIC:   ds_tmax = 5.5
     # PHYS:   ds_tmax = 5.8
     # LSMR21: ds_tmyx = 6.0
@@ -862,7 +862,15 @@ if __name__ == '__main__':
     # fname = f"{results_folder}/EEG_data_analysis/LSMR21_Numpy_resampled_MUTAPpsdMap_d20210819-00.npz"
     # fname = f"{results_folder}/EEG_data_analysis/LSMR21_Matlab_resampled_all_subjectsMUTAPpsdMap_d20210820-00.npz"
     # fname = f"{results_folder}/EEG_data_analysis/BCIC_MUTAPpsdMap_d20210820-01.npz"
-    fname = f"{results_folder}/EEG_data_analysis/LSMR21_Numpy_resampled_all_subjects_fixed_invalid_trialsMUTAPpsdMap_d20210820-00.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_Numpy_resampled_all_subjects_fixed_invalid_trialsMUTAPpsdMap_d20210820-00.npz"
+
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_1,2,4_subjects_psdMap_d20210822-01.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_22,34_PpsdMap_d20210822-01.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_22,34,40_PpsdMap_d20210822-01.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_22,34,40,50_PpsdMap_d20210822-01.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_1-8_subjects_MUTAPpsdMap_d20210822-01.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_1,2,3,4_subjects_tmin_-2_tmax_6_psdMap.npz"
+    fname = f"{results_folder}/EEG_data_analysis/LSMR21_1,2,3,4_subjects_tmin_-3_tmax_7_psdMap.npz"
 
     # Set parameters and optionally load the dataset
     if sub_command != 'TF_plot' and sub_command != 'Fb_power' \
@@ -877,6 +885,7 @@ if __name__ == '__main__':
         excluded = []
         available_subjects = [i for i in dataset.CONSTANTS.ALL_SUBJECTS if i not in excluded]
         used_subjects = available_subjects
+        used_subjects = [0, 1, 2, 3]
         validation_subjects = []
         ch_names = dataset.CONSTANTS.CHANNELS
         print("  - Channel names: ", ch_names)
@@ -932,7 +941,7 @@ if __name__ == '__main__':
     ### TF_plot ##########################################################################
     elif sub_command == 'TF_plot':
         print("  - Subcommand '%s': Plot time-frequency map" % sub_command)
-        rest_ts_tmin = -2.8
+        rest_ts_tmin = -1.8
         plot_time_freq_PSDmap(fname, rest_ts_tmin, REST_NORM='false', LOG10='true',
                               tmin=-2.0, tmax=5.8,
                               fmin=1.0, fmax=80.0,

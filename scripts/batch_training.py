@@ -14,7 +14,7 @@ from main import single_run
 from paths import results_folder, training_results_folder, training_ss_results_folder
 from util.misc import print_pretty_table, save_dataframe, file_write
 
-parent_folder = "batch_trainings/params"
+parent_folder = "batch_trainings"
 """
 All Batch Configurations to execute Training with in 'confs' Dictionary
 Add new Keys for new Training batches, e.g.:
@@ -45,56 +45,44 @@ Add new Keys for new Training batches, e.g.:
       # /results/{parent_folder}/Example_Batch/Example_Batch_training.txt
     },
 """
+used_n_classes = ['2']
+
 confs = {
 
-    'PHYS_3-4-class': {
-        'params': [
-            ['--dataset', PHYS.short_name, '--n_classes', '4'],
-        ],
-        'names': [
-            'phys_4_class',
-        ],
-        'init': [
-            lambda: None,
-        ],
-    },
-    # 'LSMR21_params': {
+    # 'PHYS_new_3_4_class': {
     #     'params': [
-    #         # ['--dataset', LSMR21.short_name],
-    #         # ['--dataset', LSMR21.short_name],
-    #         # ['--dataset', LSMR21.short_name],
-    #         # ['--dataset', LSMR21.short_name, '--ch_motorimg', '16_openbci'],
-    #         # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '3'],
-    #         # ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4'],
-    #         ['--dataset', LSMR21.short_name, '--tmin', '-1', '--tmax', '1'],
-    #         ['--dataset', LSMR21.short_name, '--tmin', '0', '--tmax', '4', '--trials_slices', '4'],
+    #         ['--dataset', PHYS.short_name],
     #     ],
     #     'names': [
-    #         # 'fmin_0_fmax_60',
-    #         # 'fmin_2_fmax_60',
-    #         # 'fmin_4_fmax_60',
-    #         # 'motorimg_16_openbci',
-    #         # 'tmin_0_tmax_3',
-    #         # 'tmin_0_tmax_4',
-    #         'tmin_-1_tmax_1',
-    #         'tmin_0_tmax_4_slices_4',
+    #         'phys_without_rest_trials',
     #     ],
     #     'init': [
-    #         # lambda: CONFIG.FILTER.set_filters(None, 60),
-    #         # lambda: CONFIG.FILTER.set_filters(2, 60),
-    #         # lambda: CONFIG.FILTER.set_filters(4, 60),
-    #         # lambda: None,
-    #         # lambda: None,
-    #         # lambda: None,
-    #         lambda: None,
     #         lambda: None,
     #     ],
     # },
+    'LSMR21_MI_params': {
+        'params': [
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
+        ],
+        'names': [
+            'lr_milestones_20,30,70',
+            'lr_milestones_10,30,50',
+            'lr_milestones_20,50,70,90',
+            'lr_milestones_10,30,50,80',
+        ],
+        'init': [
+            lambda: CONFIG.MI.set_lr_milestones([20, 50, 70]),
+            lambda: CONFIG.MI.set_lr_milestones([10, 30, 50]),
+            lambda: CONFIG.MI.set_lr_milestones([20, 50, 70, 90]),
+            lambda: CONFIG.MI.set_lr_milestones([10, 30, 50, 80]),
+        ],
+    },
 
 }
-
 default_options = ['-train']
-default_n_classes = ['2']
 
 train_ss_options = ['-train_ss', '--model']
 live_sim_options = ['-live_sim', '--model']
@@ -105,7 +93,7 @@ live_sim = False
 
 # Run Training for every Configuration in confs for all n_classes
 # Returns List of numpy arrays with [conf,run, n_class, (acc/OF))]
-def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_folder):
+def run_batch_training(configs=confs, n_classes=used_n_classes, name=parent_folder):
     # Loop to execute all Configurations
     # Create .csv and .txt files with all Runs of a batch
     # e.g. /batch_sizes/..._batch_training.txt
@@ -129,11 +117,11 @@ def run_batch_training(configs=confs, n_classes=default_n_classes, name=parent_f
                 conf['init'][run]()
             params = conf['params'][run]
             training_folder = f"{conf_folder}/conf_{conf['names'][run]}"
+            arguments = default_options + ['--name', training_folder] + params
+            if '--n_classes' not in params:
+                arguments += ['--n_classes'] + n_classes
             try:
-                n_classes_accs, n_classes_ofs = single_run(
-                    default_options +
-                    ['--n_classes'] + n_classes +
-                    ['--name', training_folder] + params)
+                n_classes_accs, n_classes_ofs = single_run(arguments)
             except Exception as e:
                 msg = f"Error occurred during Training for conf '{conf_name}', run '{conf['names'][run]}':\n" + str(e)
                 file_write(os.path.join(results_folder, training_folder, 'error_log.txt'), msg)

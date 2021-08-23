@@ -52,6 +52,9 @@ class MIConfig(object):
     # Jetson Nano cant handle bigger Batch Sizes when device='cpu'
     JETSON_CPU_MAX_BS: int = 15
 
+    def set_lr_milestones(self, milestones: List[int]):
+        self.LR.milestones = milestones
+
 
 @dataclass
 class FilterConfig(object):
