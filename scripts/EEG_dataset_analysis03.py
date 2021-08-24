@@ -435,8 +435,11 @@ def calc_time_freq_MT_PSDmap(preloaded_data, preloaded_labels, ds_name, ds_tmin,
     ds = np.reshape(preloaded_data, (-1, n_channels, n_samples))
     # TODO Filter out invalid Trials after reshape to (Trial, Channel, Sample)
     if np.any(preloaded_labels == -1):
+        # Also reshape labels from (Subject, Trial) to (Trial)
         ds_labels = np.reshape(preloaded_labels, (-1))
+        # Find Trial indexes with label != -1
         valid_trial_idxs = np.where(ds_labels != -1)[0]
+        # Only use preloaded_data of the valid Trials
         ds = ds[valid_trial_idxs]
 
     freqs = np.arange(1, sampling_rate / 2, 1)  # frequencies from 0 to Nyquist freq. in steps of 1 Hz
@@ -828,8 +831,8 @@ if __name__ == '__main__':
 
     # Specify what should be done
     # sub_command = 'TF_map'  # Calc time freq. psd map and store it in a file (using pure FFT method)
-    sub_command = 'TF_plot'  # plot time frequency map
-    # sub_command = 'Fb_power'    # Calc. and plot freq. band specific power spectral densities
+    # sub_command = 'TF_plot'  # plot time frequency map
+    sub_command = 'Fb_power'  # Calc. and plot freq. band specific power spectral densities
     #    sub_command = 'PSD01'       # Calc. and plot power spectral density using pure FFT method
     # sub_command = 'MT_PSD01'  # Calc. and plot power spectral density using mne mulittaper method
     # sub_command = 'PSDs_plot'   # Plot PSDs stored in a previously measured time-frequency map
@@ -841,11 +844,11 @@ if __name__ == '__main__':
     psdMethod = 'MUTAP'  # 'MUTAP' -> multitaper method used for psd calc.
     # 'PUFFT' -> pure FFT method used for psd calc.
     n_class = 2  # number of classes
-    ds_tmin = -3.0  # trial slice start time in s
+    ds_tmin = -2.0  # trial slice start time in s
     # BCIC:   ds_tmin = -2.0
     # PHYS:   ds_tmin = -2.0
     # LSMR21: ds_tmin = -2.0
-    ds_tmax = 7.0  # trial slice stop time in s
+    ds_tmax = 6.0  # trial slice stop time in s
     # BCIC:   ds_tmax = 5.5
     # PHYS:   ds_tmax = 5.8
     # LSMR21: ds_tmyx = 6.0
@@ -870,7 +873,8 @@ if __name__ == '__main__':
     # fname = f"{results_folder}/EEG_data_analysis/LSMR21_22,34,40,50_PpsdMap_d20210822-01.npz"
     # fname = f"{results_folder}/EEG_data_analysis/LSMR21_1-8_subjects_MUTAPpsdMap_d20210822-01.npz"
     # fname = f"{results_folder}/EEG_data_analysis/LSMR21_1,2,3,4_subjects_tmin_-2_tmax_6_psdMap.npz"
-    fname = f"{results_folder}/EEG_data_analysis/LSMR21_1,2,3,4_subjects_tmin_-3_tmax_7_psdMap.npz"
+    # fname = f"{results_folder}/EEG_data_analysis/LSMR21_1,2,3,4_subjects_tmin_-3_tmax_7_psdMap.npz"
+    fname = f"{results_folder}/EEG_data_analysis/LSMR21_Numpy_resampled_all_subjects_fixed_invalid_trialsMUTAPpsdMap_d20210820-00.npz"
 
     # Set parameters and optionally load the dataset
     if sub_command != 'TF_plot' and sub_command != 'Fb_power' \
@@ -885,7 +889,7 @@ if __name__ == '__main__':
         excluded = []
         available_subjects = [i for i in dataset.CONSTANTS.ALL_SUBJECTS if i not in excluded]
         used_subjects = available_subjects
-        used_subjects = [0, 1, 2, 3]
+        # used_subjects = [0, 1, 2, 3]
         validation_subjects = []
         ch_names = dataset.CONSTANTS.CHANNELS
         print("  - Channel names: ", ch_names)
@@ -898,6 +902,7 @@ if __name__ == '__main__':
                                                                       ch_names)
         # TODO for LSMR/BCIC: preloaded_data contains invalid Trials (not all subjects ahve same amount of trials)
         #  but preloaded_data has to have a uniform shape?
+        #  -> see calc_time_freq_MT_PSDmap()
         print("  - Shape of preloaded dataset: ", preloaded_data.shape)
 
         num_samples = preloaded_data.shape[3]
@@ -941,9 +946,9 @@ if __name__ == '__main__':
     ### TF_plot ##########################################################################
     elif sub_command == 'TF_plot':
         print("  - Subcommand '%s': Plot time-frequency map" % sub_command)
-        rest_ts_tmin = -1.8
-        plot_time_freq_PSDmap(fname, rest_ts_tmin, REST_NORM='false', LOG10='true',
-                              tmin=-2.0, tmax=5.8,
+        rest_ts_tmin = -1
+        plot_time_freq_PSDmap(fname, rest_ts_tmin, REST_NORM='true', LOG10='true',
+                              tmin=-1.0, tmax=4.8,
                               fmin=1.0, fmax=80.0,
                               vmin=-0.2,  # scale to this min. value
                               vmax=0.42)  # scale to this max. value
@@ -971,7 +976,7 @@ if __name__ == '__main__':
         f_bands = f_bands_wald1
         rest_ts_tmin = -1.0
         tmin = -1.0
-        tmax = 3.8
+        tmax = 4.8
         calc_plot_Fb_psd(fname, rest_ts_tmin, f_bands, tmin=tmin, tmax=tmax,
                          REST_NORM='false', LOG10='false', SUBPLOTS='true')
 

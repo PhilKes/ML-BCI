@@ -16,8 +16,8 @@ class EEGNet(t.nn.Module):
     EEGNet
     """
 
-    def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=0.4, reg_rate=0.25,
-                 kernLength=80, activation='elu', constrain_w=False, dropout_type='dropout',
+    def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=None, reg_rate=0.25,
+                 kernLength=None, activation='elu', constrain_w=False, dropout_type='dropout',
                  permuted_flatten=False):
         """
         F1:           Number of spectral filters
@@ -39,6 +39,10 @@ class EEGNet(t.nn.Module):
         # prepare network constants
         if F2 is None:
             F2 = F1 * D
+        if p_dropout is None:
+            p_dropout = CONFIG.MI.DROPOUT
+        if kernLength is None:
+            kernLength = CONFIG.EEG.SAMPLERATE // 2
 
         # check the activation input
         activation = activation.lower()

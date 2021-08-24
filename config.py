@@ -36,6 +36,8 @@ class MIConfig(object):
     SPLITS: int = 5
     VALIDATION_SUBJECTS: int = 0
     N_CLASSES: List[int] = [2]
+    DROPOUT: float = 0.4
+    KERNLENGTH: int = 80
 
     # Learning Rate Settings
     LR: DotDict = DotDict(
@@ -54,6 +56,12 @@ class MIConfig(object):
 
     def set_lr_milestones(self, milestones: List[int]):
         self.LR.milestones = milestones
+
+    def set_model_params(self, dropout=None, kernlength=None):
+        if dropout is not None:
+            self.DROPOUT = dropout
+        if kernlength is not None:
+            self.KERNLENGTH = kernlength
 
 
 @dataclass
