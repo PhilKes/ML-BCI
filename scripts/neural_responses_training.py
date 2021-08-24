@@ -4,7 +4,7 @@ Script to execute Training to analyze the Frequency bands of neural responses on
 - F2: 8-16Hz
 - F1: 16-28Hz
 For every Frequency Band the impact on different Time Slices (2.0s) are analyzed
-Saves results in ./results/neural_resp_YYYY-mm-dd_HH_MM_SS"
+Saves results in ./results/neural_responses_training/neural_resp_YYYY-mm-dd_HH_MM_SS"
 Uses Cross Validation (--best argument to use only Best-Fold)
 
 EXECUTE AS MODULE:
@@ -18,7 +18,7 @@ import numpy as np
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
-from config import FBS_NAMES, FBS, CONFIG
+from config import CONFIG
 from data.data_utils import save_accs_panda, subtract_first_config_accs
 from paths import results_folder
 from scripts.batch_training import run_batch_training
@@ -26,20 +26,30 @@ from util.misc import datetime_to_folder_str
 from util.plot import matplot
 
 parser = argparse.ArgumentParser(
-    description='Script to analyze influence of Neural Response Frequency Bands (f1/f2/f3)')
+    description='Script to analyze influence of Neural Response Frequency Bands ')
 parser.add_argument('--best_fold', dest='use_cv', action='store_false',
                     help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
 
 args = parser.parse_args()
-ds_used = [LSMR21.short_name]
+ds_used = [BCIC.short_name]
 
-# Folds to use if --best_fold is used (0-base index)
-ds_best_folds = [2, 2]
+# Neural Response Frequency bands (FMIN,FMAX)-Tuples
+#  Also used in best_fold_frequency_test.py
+#    0 - Infinite-> All Frequencies
+#    0 -  7 Hz --> SCP
+#    8 - 12 Hz --> Mu-Des1
+#    12 - 30 Hz --> Beta-Des1
+#    62 - 87 Hz --> Gamma-Syn1
+FBS = [(None, None), (None, 7), (8, 12), (12, 30), (62, 87)]
+FBS_NAMES = ['All', 'SCP', 'Mu-Des1', 'Beta-Des1', 'Gamma-Syn1']
 
-# 2 Second time slices in steps of 0.5 (max t=4.0)
-time_max = 4.0
-time_delta = 2.0
-time_step = 0.5
+# 1 Second time slices in steps of 0.2 (max t=4.5)
+time_max = 4.5
+time_slice = 1.0
+time_step = 0.2
+
+# Best Fold of each Dataset to use if --best_fold is used (0-base index)
+ds_best_folds = [2, 2, 2]
 
 n_classes = ['2']
 
@@ -52,7 +62,8 @@ for ds_idx, ds in enumerate(ds_used):
         'after': lambda: CONFIG.FILTER.set_filters(None, None, False),
     }
 
-tmins = np.arange(0.0, time_max - time_delta + 0.01, time_step)
+tmins = np.arange(0.0, time_max - time_slice, time_step)
+tmins = tmins.round(decimals=1)
 time_slices = []
 
 
@@ -60,7 +71,7 @@ def func(x): return lambda: CONFIG.FILTER.set_filters(*x)
 
 
 for tmin in tmins:
-    tmax = tmin + time_delta
+    tmax = tmin + time_slice
     for ds_idx, ds in enumerate(ds_used):
         for fb_idx, fb_name in enumerate(FBS_NAMES):
             print(f'Training with tmin={tmin}, tmax={tmax} for {fb_name} with {ds}')
@@ -77,7 +88,7 @@ for tmin in tmins:
     time_slices.append(f'{tmin}-{tmax}s')
 
 print(f"Executing Training for Neural Response Frequency bands")
-folderName = f'neural_resp_{datetime_to_folder_str(datetime.now())}_{"CV" if args.use_cv is True else "Best_Fold"}'
+folderName = f'neural_responses_training/neural_resp_{datetime_to_folder_str(datetime.now())}_{"CV" if args.use_cv is True else "Best_Fold"}'
 
 # results shape: [conf,run, n_class, (acc,OF)]
 results, errors = run_batch_training(confs, n_classes, name=folderName)
@@ -86,7 +97,7 @@ for ds_idx, ds in enumerate(ds_used):
     plot_data = np.reshape(plot_data, (len(time_slices), len(FBS))).T
 
     matplot(plot_data, title=f'{ds} Frequency Band Accuracies', fig_size=(8.0, 6.0),
-            xlabel='2s Time Slice Interval', ylabel='Accuracy in %', labels=FBS_NAMES,
+            xlabel=f'{time_slice}s Time Slice Interval', ylabel='Accuracy in %', labels=FBS_NAMES,
             x_values=['-'] + time_slices, min_x=0, marker='o', save_path=f"{results_folder}/{folderName}/{ds}")
 
     ds_acc_diffs = subtract_first_config_accs(results[ds_idx][:, :, 0], len(FBS))

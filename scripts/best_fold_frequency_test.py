@@ -12,17 +12,18 @@ import argparse
 
 import numpy as np
 
-from config import FBS, FBS_NAMES, CONFIG
+from config import CONFIG
 from data.data_utils import save_accs_panda
 from data.datasets.datasets import DATASETS
 from machine_learning.configs_results import load_npz
 from machine_learning.modes import testing
 from machine_learning.util import preferred_device
+from scripts.neural_responses_training import FBS, FBS_NAMES
 from util.misc import makedir, get_subdirs
 from util.plot import matplot
 
 parser = argparse.ArgumentParser(
-    description='Script to Test Accuracy of trained model on f1/f2/f3 Test Data')
+    description='Script to Test Accuracy of trained model on filtered Test Data')
 parser.add_argument('--model', type=str, default=None,
                     help='Relative Folder path of trained model(in ./results/.../training/ folder), used for -benchmark or -train_ss or -live_sim')
 args = parser.parse_args()

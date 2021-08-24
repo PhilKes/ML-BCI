@@ -60,24 +60,18 @@ confs = {
     #         lambda: None,
     #     ],
     # },
-    'LSMR21_MI_params': {
+    'fixed_kernlength': {
         'params': [
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
-            ['--dataset', LSMR21.short_name],
+            ['--dataset', PHYS.short_name],
             ['--dataset', LSMR21.short_name],
         ],
         'names': [
-            'lr_milestones_20,30,70',
-            'lr_milestones_10,30,50',
-            'lr_milestones_20,50,70,90',
-            'lr_milestones_10,30,50,80',
+            'bcic',
+            'lmsr_dropout_0.2',
         ],
         'init': [
-            lambda: CONFIG.MI.set_lr_milestones([20, 50, 70]),
-            lambda: CONFIG.MI.set_lr_milestones([10, 30, 50]),
-            lambda: CONFIG.MI.set_lr_milestones([20, 50, 70, 90]),
-            lambda: CONFIG.MI.set_lr_milestones([10, 30, 50, 80]),
+            lambda: None,
+            lambda: CONFIG.MI.set_model_params(dropout=0.2),
         ],
     },
 

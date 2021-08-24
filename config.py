@@ -348,11 +348,3 @@ MOTORIMG_CHANNELS = {
     '16_bs': MOTORIMG_CHANNELS_16_bs,
     '18': MOTORIMG_CHANNELS_18, '21': MOTORIMG_CHANNELS_21
 }
-
-# Neural Response Frequency bands (FMIN,FMAX)-Tuples
-#  all: no Bandpass
-#   F1: 0-8Hz
-#   F2: 8-16Hz
-#   F1: 16-28Hz
-FBS = [(None, None), (None, 8), (8, 16), (16, 28)]
-FBS_NAMES = ['all', 'f1', 'f2', 'f3']
