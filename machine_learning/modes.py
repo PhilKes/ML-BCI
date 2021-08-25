@@ -242,7 +242,7 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         n_class_results = load_npz(get_results_file(model_path, n_class))
         mi_ds = n_class_results['mi_ds'].item()
         dataset = DATASETS[mi_ds]
-        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
+        CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, dataset.CONSTANTS.CONFIG.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 
@@ -304,7 +304,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds']]
-        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
+        CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, CONFIG.EEG.CUE_OFFSET)
 
         print(f"Loading pretrained model from '{model_path} ({n_class}class)'")
@@ -379,7 +379,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
         dataset = DATASETS[n_class_results['mi_ds'].item()]
-        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
+        CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, dataset.CONSTANTS.CONFIG.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
 

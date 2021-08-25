@@ -94,7 +94,7 @@ def check_common_arguments(parser, args):
     if ((args.tmin != None) and (args.tmax == None)) or ((args.tmin == None) and (args.tmax != None)):
         parser.error("You have to either set the 'tmax' AND 'tmin' options or none of the two options")
     # Dataset dependent EEG config structure re-initialization
-    CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)
+    CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
     if (args.tmin is not None) and (args.tmax is not None):
         if (args.tmin > args.tmax) or (args.tmin == args.tmax):
             parser.error(f"tmax has to be greater than tmin!")

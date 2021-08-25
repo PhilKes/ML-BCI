@@ -36,8 +36,6 @@ class MIConfig(object):
     SPLITS: int = 5
     VALIDATION_SUBJECTS: int = 0
     N_CLASSES: List[int] = [2]
-    DROPOUT: float = 0.4
-    KERNLENGTH: int = 80
 
     # Learning Rate Settings
     LR: DotDict = DotDict(
@@ -56,12 +54,6 @@ class MIConfig(object):
 
     def set_lr_milestones(self, milestones: List[int]):
         self.LR.milestones = milestones
-
-    def set_model_params(self, dropout=None, kernlength=None):
-        if dropout is not None:
-            self.DROPOUT = dropout
-        if kernlength is not None:
-            self.KERNLENGTH = kernlength
 
 
 @dataclass
@@ -95,13 +87,23 @@ class ANNConfig(object):
     """
     # Pool Size of EEGNet
     POOL_SIZE: int = 4
+    DROPOUT: float = 0.4
+    KERNLENGTH: int = 80
 
-    def set_poolsize(self, pool_size):
-        self.POOL_SIZE = pool_size
+    def set_model_params(self, dropout: float = None, kernlength: int = None, pool_size: int = None):
+        if dropout is not None:
+            self.DROPOUT = dropout
+        if kernlength is not None:
+            self.KERNLENGTH = kernlength
+        if pool_size is not None:
+            self.POOL_SIZE = pool_size
 
     def __repr__(self):
         return f"""
-EEGNet Pool Size: {self.POOL_SIZE}
+Model: EEGNet
+Pool Size: {self.POOL_SIZE}
+Dropout: {self.DROPOUT}
+Kernel Length: {self.KERNLENGTH}
 """
 
 
@@ -170,7 +172,7 @@ Trials Slices: {self.TRIALS_SLICES}
         self.SAMPLERATE = sr
         self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
-    def set_config(self, cfg):
+    def _set_config_(self, cfg):
         # If CUE_OFFSET is manually set with set_cue_offset() before main.py (e.g. in batch_training 'init' methods)
         # do not overwrite manually set CUE_OFFSET
         if self.CUE_OFFSET is None:
@@ -211,6 +213,10 @@ class Config(object):
         self.NET = ANNConfig()
         self.FILTER = FilterConfig()
         self.MI = MIConfig()
+
+    def set_eeg_config(self, cfg):
+        self.EEG._set_config_(cfg)
+        self.NET.KERNLENGTH = self.EEG.SAMPLERATE // 2
 
     def __repr__(self):
         return f"""

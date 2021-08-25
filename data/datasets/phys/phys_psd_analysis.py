@@ -43,7 +43,7 @@ def analyze_data(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, f
 
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
-    CONFIG.EEG.set_config(PHYS.CONFIG)
+    CONFIG.set_eeg_config(PHYS.CONFIG)
     CONFIG.EEG.set_trials_slices(1)
 
     start = datetime.now()

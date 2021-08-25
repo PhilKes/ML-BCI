@@ -410,7 +410,7 @@ class LSMR21DataLoader(MIDataLoader):
         Prints all available Trials of all Subjects for n_class=2
         :param save_path: If present, save Stats to .txt files in save_path
         """
-        CONFIG.EEG.set_config(LSMR21.CONFIG)
+        CONFIG.set_eeg_config(LSMR21.CONFIG)
         for tmax in np.arange(1, 10, 1):
             print("Minimum MI Cue Time: ", tmax)
             CONFIG.EEG.set_times(tmax=tmax)

@@ -40,9 +40,9 @@ class EEGNet(t.nn.Module):
         if F2 is None:
             F2 = F1 * D
         if p_dropout is None:
-            p_dropout = CONFIG.MI.DROPOUT
+            p_dropout = CONFIG.NET.DROPOUT
         if kernLength is None:
-            kernLength = CONFIG.EEG.SAMPLERATE // 2
+            kernLength = CONFIG.NET.KERNLENGTH
 
         # check the activation input
         activation = activation.lower()

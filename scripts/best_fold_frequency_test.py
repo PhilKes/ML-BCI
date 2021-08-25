@@ -45,7 +45,7 @@ for slice_idx, time_slices_dir in enumerate(time_slices_dirs):
     tmin = n_class_results['tmin'].item()
     tmax = n_class_results['tmax'].item()
     ch_names = dataset.channels
-    CONFIG.EEG.set_config(dataset.eeg_config)
+    CONFIG.set_eeg_config(dataset.eeg_config)
     testing_folder = f"{training_folder}/testing"
     makedir(testing_folder)
 

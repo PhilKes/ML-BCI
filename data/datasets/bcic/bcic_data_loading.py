@@ -155,7 +155,7 @@ class BCICDataLoader(MIDataLoader):
 
 ########################################################################################
 if __name__ == '__main__':
-    CONFIG.EEG.set_config(BCIC.CONFIG)
+    CONFIG.set_eeg_config(BCIC.CONFIG)
     subjects = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     #    subjects = [1]
     n_class = 4

@@ -894,7 +894,7 @@ if __name__ == '__main__':
         ch_names = dataset.CONSTANTS.CHANNELS
         print("  - Channel names: ", ch_names)
 
-        CONFIG.EEG.set_config(dataset.CONSTANTS.CONFIG)  # Data set specific default initializaion
+        CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)  # Data set specific default initializaion
         CONFIG.EEG.set_times(ds_tmin, ds_tmax)
 
         print("  - ds_tmin, ds_tmax =", ds_tmin, ds_tmax)

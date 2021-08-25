@@ -60,18 +60,17 @@ confs = {
     #         lambda: None,
     #     ],
     # },
-    'fixed_kernlength': {
+    'fixed_kernlength3': {
         'params': [
-            ['--dataset', PHYS.short_name],
+            ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
         ],
         'names': [
-            'bcic',
-            'lmsr_dropout_0.2',
+            'lmsr_pool_size_8',
+            'lmsr_dropout_0.2_pool_size_8',
         ],
         'init': [
-            lambda: None,
-            lambda: CONFIG.MI.set_model_params(dropout=0.2),
+            lambda: CONFIG.NET.set_model_params(dropout=0.2, pool_size=8),
         ],
     },
 
