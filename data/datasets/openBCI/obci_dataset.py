@@ -22,19 +22,19 @@ class OpenBCIConstants(DSConstants):
         self.trials_per_subject = 50
 
         # No excluded subjects
-        self.ALL_SUBJECTS = [i for i in range(1, 5) if i not in []]
+        self.ALL_SUBJECTS = [i for i in range(1, 3) if i not in []]
 
         # Available 16 EEG Channels from OpenBCI Dataset
         self.CHANNELS = ['Fp1', 'Fp2', 'C3', 'C4', 'P7', 'P8', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T7', 'T8', 'P3',
                          'P4']
 
-        self.cv_folds = 4
+        self.cv_folds = 2
         # Time Interval per EEG Trial (T=2: start of MI Cue)
         self.CONFIG: EEGConfig = EEGConfig(
             TMIN=0.0,
             TMAX=4.0,
             SAMPLERATE=125,
-            CUE_OFFSET=0
+            CUE_OFFSET=2
         )
 
 

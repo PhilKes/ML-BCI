@@ -16,11 +16,11 @@ from config import CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.data_utils import butter_bandpass_filt
 from data.datasets.TrialsDataset import TrialsDataset
-from data.datasets.bcic.bcic_dataset import BCIC
+# from data.datasets.bcic.bcic_dataset import BCIC
 import numpy as np
 
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset
-from data.datasets.openBCI.openBCI_dataset import OpenBCI, OpenBCIConstants
+from data.datasets.openBCI.obci_dataset import OpenBCI, OpenBCIConstants
 from machine_learning.util import get_valid_trials_per_subject
 from paths import datasets_folder
 from util.misc import to_idxs_of_list, calc_n_samples
@@ -31,9 +31,9 @@ class OpenBCITrialsDataset(TrialsDataset):
      TrialsDataset class Implementation for openBCI Dataset
     """
 
-    def __init__(self, subjects, used_subjects, n_class, device, preloaded_tuple,
-                 ch_names=BCIC.CHANNELS, equal_trials=True):
-        super().__init__(subjects, used_subjects, n_class, device, preloaded_tuple, ch_names, equal_trials)
+    def __init__(self, subjects, used_subjects, n_class, preloaded_tuple,
+                 ch_names=OpenBCI.CHANNELS, equal_trials=True):
+        super().__init__(subjects, used_subjects, n_class, preloaded_tuple, ch_names, equal_trials)
 
         # max number of trials (which is the same for each subject
         # self.n_trials_max = 6 * 12 * self.n_class  # 6 runs with 12 trials per class per subject
@@ -56,7 +56,6 @@ class OpenBCIDataLoader(MIDataLoader):
     """
     CONSTANTS: OpenBCIConstants = OpenBCI
     ds_class = OpenBCITrialsDataset
-
     """
     preloaded_data = [subject, trial, channel, sample_idx]
     preloaded_labels = [subject, trial]
@@ -75,22 +74,22 @@ class OpenBCIDataLoader(MIDataLoader):
             # Loading single Subject Data with original Samplerate
             subject_data = np.full((OpenBCI.trials_per_subject, len(ch_names), original_samples),
                                    -1, dtype=np.float32)
-            subject_labels = np.full((OpenBCI.trials_per_subject), -1, dtype=np.int)
-            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_3/Session_' + str(subject) + '/Processed_data.npz'
+            subject_labels = np.full(OpenBCI.trials_per_subject, -1, dtype=np.int)
+            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_5/Session_' + str(subject) + '/Processed_data.npz'
             print("Loading Dataset " + str(subject) + " from " + dataset_path)
             data = np.load(dataset_path)
             channels = data["channels"]
             # labels = data["labels"]
             labels_start = data["labels_start"]
-            # Trial indexes for labels 2  or 3
-            trial_idxes = [idx for idx, trial in enumerate(labels_start) if trial[1] == 2 or trial[1] == 3]
+            # Trial indexes in labels_start for labels 1  or 2
+            trial_idxes = [idx for idx, trial in enumerate(labels_start) if trial[1] == 1 or trial[1] == 2]
             # create preloaded_data array
             channel_idxes = to_idxs_of_list(ch_names, OpenBCI.CHANNELS)
             for idx, trial_idx in enumerate(trial_idxes):
                 subject_data[idx] = channels[channel_idxes,
                                     labels_start[trial_idx][0]:(labels_start[trial_idx][0] + original_samples)]
-                # Trials are 2 and 3
-                subjects_labels[idx] = labels_start[trial_idx][1] - 2
+                # Trials are 1 and 2
+                subject_labels[idx] = labels_start[trial_idx][1] - 1
             subject_data, subject_labels = cls.prepare_data_labels(subject_data, subject_labels)
             subjects_data[s_idx] = subject_data
             subjects_labels[s_idx] = subject_labels

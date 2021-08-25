@@ -5,8 +5,8 @@ from data.datasets.bcic.bcic_data_loading import BCICDataLoader
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader
-from data.datasets.openBCI.openBCI_data_loading import OpenBCIDataLoader
-from data.datasets.openBCI.openBCI_dataset import OpenBCI
+from data.datasets.openBCI.obci_data_loading import OpenBCIDataLoader
+from data.datasets.openBCI.obci_dataset import OpenBCI
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from data.datasets.phys.phys_dataset import PHYS
 
