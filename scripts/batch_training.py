@@ -67,10 +67,15 @@ confs = {
         ],
         'names': [
             'lmsr_pool_size_8',
-            'lmsr_dropout_0.2_pool_size_8',
+            'lmsr_pool_size_8_do_0.2',
+            'lmsr_pool_size_4',
+            'lmsr_pool_size_4_do_0.2',
         ],
         'init': [
+            lambda: CONFIG.NET.set_model_params(pool_size=8),
             lambda: CONFIG.NET.set_model_params(dropout=0.2, pool_size=8),
+            lambda: CONFIG.NET.set_model_params(pool_size=4),
+            lambda: CONFIG.NET.set_model_params(dropout=0.2, pool_size=4),
         ],
     },
 

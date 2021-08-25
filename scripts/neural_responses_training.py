@@ -31,7 +31,7 @@ parser.add_argument('--best_fold', dest='use_cv', action='store_false',
                     help=f"Use Best-Fold Accuracies to calculate influence of Frequency Bands instead of Cross Validation")
 
 args = parser.parse_args()
-ds_used = [BCIC.short_name]
+ds_used = [BCIC.short_name, PHYS.short_name, LSMR21.short_name]
 
 # Neural Response Frequency bands (FMIN,FMAX)-Tuples
 #  Also used in best_fold_frequency_test.py
