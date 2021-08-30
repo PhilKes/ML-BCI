@@ -14,13 +14,14 @@ History:
 """
 import os
 from datetime import datetime
-from typing import List
+from typing import List, Type
 
 import numpy as np
 import torch  # noqa
 from sklearn.model_selection import GroupKFold
 
 from config import TEST_OVERFITTING, CONFIG
+from data.MIDataLoader import MIDataLoader
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
@@ -104,60 +105,16 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
         print("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials)
-        print(f"######### {n_class}Class-Classification")
-        cv_split = cv.split(X=used_subjects, groups=groups)
-        run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
-        run_data.start_run()
-
-        # Skip folds until specified fold is reached
-        if only_fold is not None:
-            for f in range(only_fold):
-                next(cv_split)
-
-        # Training of the Folds with the different splits
-        for fold in range(folds):
-            print(f"############ Fold {fold + 1} ############")
-            # Next Splits Combination of Train/Test Datasets + Validation Set Loader
-            loaders = dataset.create_loaders_from_splits(next(cv_split), validation_subjects, n_class,
-                                                         preloaded_data, preloaded_labels, batch_size, ch_names,
-                                                         equal_trials, used_subjects=used_subjects)
-            loader_train, loader_test, loader_valid = loaders
-
-            model = get_model(n_class, len(ch_names))
-
-            train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE, early_stop)
-            run_data.set_train_results(fold, train_results)
-            # Load best model state of this fold to Test global accuracy if using Early Stopping
-            if early_stop:
-                model.load_state_dict(run_data.best_model[fold])
-                best_epoch_loss_test = run_data.best_epoch_loss_test(fold)
-                print(f"""Best Epoch: {run_data.best_epochs_test[fold]} with 
-                loss on Validation Data: {best_epoch_loss_test}""")
-                # Determine Fold with lowest test_loss on best epoch of fold
-                if best_epoch_loss_test < np.min(run_data.best_losses_test):
-                    best_n_class_models[n_class] = run_data.best_model[fold]
-                    run_data.set_best_fold(fold)
-                run_data.best_losses_test[fold] = best_epoch_loss_test
-
-            print("## Testing ##")
-            test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
-            # Test overfitting by testing on Training Dataset
-            if TEST_OVERFITTING:
-                print("## Testing on Training Dataset ##")
-                run_data.accuracies_overfitting[fold], _, __ = do_test(model, loader_train)
-
-            # If not using early stopping, determine which fold has the highest accuracy
-            if (not early_stop) & (test_accuracy > np.max(run_data.fold_accuracies)):
-                best_n_class_models[n_class] = model.state_dict().copy()
-                run_data.set_best_fold(fold, act_labels, pred_labels)
-            run_data.set_test_results(fold, test_accuracy, act_labels, pred_labels)
-        if only_fold is not None:
-            run_data.set_best_fold(only_fold)
-        run_data.end_run()
+        run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, n_class, num_epochs, only_fold,
+                                                      dataset, validation_subjects,
+                                                      preloaded_data, preloaded_labels, batch_size, ch_names,
+                                                      equal_trials=True,
+                                                      early_stop=False)
         res_str = training_result_str(run_data, only_fold,
                                       early_stop=early_stop)
         print(res_str)
 
+        best_n_class_models[n_class] = best_model
         # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
         save_training_results(n_class, res_str, dir_results, tag)
         save_training_numpy_data(run_data, dir_results, n_class, excluded, mi_ds)
@@ -172,6 +129,68 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
         n_class_accuracy[i] = np.average(run_data.fold_accuracies)
         n_class_overfitting_diff[i] = n_class_accuracy[i] - np.average(run_data.accuracies_overfitting)
     return n_class_accuracy, n_class_overfitting_diff
+
+
+def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.ndarray, folds: int, n_class: int,
+                           num_epochs: int, only_fold: int, dataset: Type[MIDataLoader], validation_subjects: List[int],
+                           preloaded_data: np.ndarray, preloaded_labels: np.ndarray, batch_size: int,
+                           ch_names: List[str], equal_trials=True, early_stop=False):
+    """
+    Executes n-class Cross Validation Training based on given parameters + preloaded Data
+    :return: ML_Run_Data, best Fold Model state dict
+    """
+    cv_split = cv.split(X=used_subjects, groups=groups)
+    best_model = None
+    run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
+    run_data.start_run()
+
+    # Skip folds until specified fold is reached
+    if only_fold is not None:
+        for f in range(only_fold):
+            next(cv_split)
+
+    print(f"######### {n_class}Class-Classification")
+    # Training of the Folds with the different splits
+    for fold in range(folds):
+        print(f"############ Fold {fold + 1} ############")
+        # Next Splits Combination of Train/Test Datasets + Validation Set Loader
+        loaders = dataset.create_loaders_from_splits(next(cv_split), validation_subjects, n_class,
+                                                     preloaded_data, preloaded_labels, batch_size, ch_names,
+                                                     equal_trials, used_subjects=used_subjects)
+        loader_train, loader_test, loader_valid = loaders
+
+        model = get_model(n_class, len(ch_names))
+
+        train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE, early_stop)
+        run_data.set_train_results(fold, train_results)
+        # Load best model state of this fold to Test global accuracy if using Early Stopping
+        if early_stop:
+            model.load_state_dict(run_data.best_model[fold])
+            best_epoch_loss_test = run_data.best_epoch_loss_test(fold)
+            print(f"""Best Epoch: {run_data.best_epochs_test[fold]} with 
+            loss on Validation Data: {best_epoch_loss_test}""")
+            # Determine Fold with lowest test_loss on best epoch of fold
+            if best_epoch_loss_test < np.min(run_data.best_losses_test):
+                best_model = run_data.best_model[fold]
+                run_data.set_best_fold(fold)
+            run_data.best_losses_test[fold] = best_epoch_loss_test
+
+        print("## Testing ##")
+        test_accuracy, act_labels, pred_labels = do_test(model, loader_test)
+        # Test overfitting by testing on Training Dataset
+        if TEST_OVERFITTING:
+            print("## Testing on Training Dataset ##")
+            run_data.accuracies_overfitting[fold], _, __ = do_test(model, loader_train)
+
+        # If not using early stopping, determine which fold has the highest accuracy
+        if (not early_stop) & (test_accuracy > np.max(run_data.fold_accuracies)):
+            best_model = model.state_dict().copy()
+            run_data.set_best_fold(fold, act_labels, pred_labels)
+        run_data.set_test_results(fold, test_accuracy, act_labels, pred_labels)
+        if only_fold is not None:
+            run_data.set_best_fold(only_fold)
+        run_data.end_run()
+    return run_data, best_model
 
 
 def testing(n_class, model_path, ch_names):

@@ -60,22 +60,24 @@ confs = {
     #         lambda: None,
     #     ],
     # },
-    'fixed_kernlength3': {
+    'lsmr_dropout': {
         'params': [
+            ['--dataset', LSMR21.short_name],
+            ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
         ],
         'names': [
-            'lmsr_pool_size_8',
-            'lmsr_pool_size_8_do_0.2',
-            'lmsr_pool_size_4',
-            'lmsr_pool_size_4_do_0.2',
+            'lmsr_do_0.2',
+            'lmsr_do_0.3',
+            'lmsr_do_0.4',
+            'lmsr_do_0.5',
         ],
         'init': [
-            lambda: CONFIG.NET.set_model_params(pool_size=8),
-            lambda: CONFIG.NET.set_model_params(dropout=0.2, pool_size=8),
-            lambda: CONFIG.NET.set_model_params(pool_size=4),
-            lambda: CONFIG.NET.set_model_params(dropout=0.2, pool_size=4),
+            lambda: CONFIG.NET.set_model_params(dropout=0.2),
+            lambda: CONFIG.NET.set_model_params(dropout=0.3),
+            lambda: CONFIG.NET.set_model_params(dropout=0.4),
+            lambda: CONFIG.NET.set_model_params(dropout=0.5),
         ],
     },
 
