@@ -19,3 +19,6 @@ class DSConstants(object):
         self.cv_folds: int = -1
         self.CHANNELS: List[str] = []
         self.CONFIG: EEGConfig = EEGConfig()
+        # Maximum possible Trial TMAX/TMIN
+        self.TRIAL_TMAX = -1
+        self.TRIAL_TMIN = -1

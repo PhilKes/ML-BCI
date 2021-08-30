@@ -26,7 +26,6 @@ def create_results_folders(path=None, name=None, datetime=None, mode='train'):
             folder = f"{path}{live_sim_results_folder}{'' if name is None else f'/{name}'}"
         elif mode == 'train_ss':
             folder = f"{path}{training_ss_results_folder}{'' if name is None else f'/{name}'}"
-
     else:
         now_string = datetime_to_folder_str(datetime)
         folder = f"{results_folder}/{now_string}{training_results_folder}"

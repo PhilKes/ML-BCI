@@ -58,6 +58,8 @@ class LSMR21Constants(DSConstants):
             SAMPLERATE=250,
             CUE_OFFSET=2.0
         )
+        self.TRIAL_TMAX = 11.0 - self.CONFIG.CUE_OFFSET
+        self.TRIAL_TMIN = -self.CONFIG.CUE_OFFSET
         self.ORIGINAL_SAMPLERATE = 1000
         # Mapping of n_class Classification to correct Tasks
         # 1: Left/Right, 2: Up/Down, 3: 2D (Left/Right/Up/Down)

@@ -38,6 +38,8 @@ class BCICConstants(DSConstants):
             SAMPLERATE=250,
             CUE_OFFSET=2.0
         )
+        self.TRIAL_TMAX = 7.5 - self.CONFIG.CUE_OFFSET
+        self.TRIAL_TMIN = -self.CONFIG.CUE_OFFSET
 
 
 BCIC = BCICConstants()

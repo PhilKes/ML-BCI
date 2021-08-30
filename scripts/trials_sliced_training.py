@@ -1,0 +1,71 @@
+import argparse
+import sys
+from datetime import datetime
+
+from sklearn.model_selection import GroupKFold
+
+from config import CONFIG
+from data.datasets.bcic.bcic_dataset import BCIC
+from data.datasets.datasets import DATASETS
+from machine_learning.configs_results import save_config, training_config_str, create_results_folders
+from machine_learning.modes import do_n_class_training_cv, save_n_class_results
+from util.dot_dict import DotDict
+from util.misc import groups_labels, datetime_to_folder_str
+
+slice_length = 0.1
+time_step = 1.0
+
+n_class = 2
+num_epochs = 2
+
+
+def trials_sliced_training(argv=sys.argv[1:]):
+    parser = argparse.ArgumentParser(
+        description='Script to execute Training with overlapping Trials slices defined by --slice_length + --time_step')
+    parser.add_argument('--slice_length', type=float, default=slice_length,
+                        help=f'Time Length of 1 Slice (default:{slice_length})')
+    parser.add_argument('--time_step', type=float, default=time_step,
+                        help=f'Time step between 2 Slices (default:{time_step})')
+    parser.add_argument('--dataset', type=str, default=BCIC.short_name,
+                        help=f'Name of the MI dataset (available: {",".join([ds for ds in DATASETS])})')
+    args = parser.parse_args(argv)
+
+    if args.dataset not in DATASETS:
+        parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DATASETS])}))")
+    mi_ds = args.dataset
+    dataset = DATASETS[mi_ds]
+    # Dataset dependent EEG config structure re-initialization
+    CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
+    # Set tmin, tmax to load entire Trial
+    CONFIG.EEG.set_times(dataset.CONSTANTS.TRIAL_TMIN, dataset.CONSTANTS.TRIAL_TMAX)
+    used_subjects = dataset.CONSTANTS.ALL_SUBJECTS
+    ch_names = dataset.CONSTANTS.CHANNELS
+    folds = dataset.CONSTANTS.cv_folds
+    only_fold = None
+    batch_size = CONFIG.MI.BATCH_SIZE
+    dir_results = f'trials_sliced_training/{mi_ds}_slice_length_{args.slice_length}_time_step_{args.time_step}-{datetime_to_folder_str(datetime.now())}'
+    dir_results = create_results_folders(path=dir_results)
+    config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=CONFIG.MI.LR, device=CONFIG.DEVICE,
+                     n_classes=[n_class], ch_names=ch_names, early_stop=False, excluded=[],
+                     mi_ds=mi_ds, only_fold=only_fold)
+    save_config(training_config_str(config), ch_names, dir_results, None)
+
+    preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects, n_class, ch_names)
+    print(preloaded_data.shape)
+    # TODO Slice preloaded_data+preloaded_labels according to args.time_step + args.slice_length
+
+    # Group labels (subjects in same group need same group label)
+    groups = groups_labels(len(used_subjects), folds)
+
+    # Split Data into training + util
+    cv = GroupKFold(n_splits=folds)
+
+    run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, n_class, num_epochs, only_fold,
+                                                  dataset, [],
+                                                  preloaded_data, preloaded_labels, batch_size, ch_names)
+    n_class_accuracy, n_class_overfitting_diff = save_n_class_results(n_class, mi_ds, run_data, folds, only_fold,
+                                                                      batch_size, [], best_model, dir_results)
+
+
+if __name__ == '__main__':
+    trials_sliced_training()

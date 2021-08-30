@@ -101,7 +101,6 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
         folds = 1
 
     for i, n_class in enumerate(n_classes):
-
         print("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials)
@@ -110,24 +109,37 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
                                                       preloaded_data, preloaded_labels, batch_size, ch_names,
                                                       equal_trials=True,
                                                       early_stop=False)
-        res_str = training_result_str(run_data, only_fold,
-                                      early_stop=early_stop)
-        print(res_str)
+        n_class_accuracy[i], n_class_overfitting_diff[i] = save_n_class_results(n_class, mi_ds, run_data, folds,
+                                                                                only_fold, batch_size, excluded,
+                                                                                best_model, dir_results, tag,
+                                                                                save_model)
+    return n_class_accuracy, n_class_overfitting_diff
 
-        best_n_class_models[n_class] = best_model
-        # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
-        save_training_results(n_class, res_str, dir_results, tag)
-        save_training_numpy_data(run_data, dir_results, n_class, excluded, mi_ds)
-        # Plot Statistics and save as .png s
-        plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop)
-        # Save best trained Model state
-        # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
-        # else: Model state after epochs of Fold with the highest accuracy on Training Set
-        if save_model:
-            torch.save(best_n_class_models[n_class], os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
 
-        n_class_accuracy[i] = np.average(run_data.fold_accuracies)
-        n_class_overfitting_diff[i] = n_class_accuracy[i] - np.average(run_data.accuracies_overfitting)
+def save_n_class_results(n_class: int, mi_ds: str, run_data: ML_Run_Data, folds: int, only_fold: int, batch_size: int,
+                         excluded: List[int], best_model, dir_results: str, tag: str = None, early_stop=False,
+                         save_model=True):
+    """
+    Save n-class Cross Validation Results from run_data
+    :return: n_class_accuracy, n_class_overfitting_diff
+    """
+    res_str = training_result_str(run_data, only_fold,
+                                  early_stop=early_stop)
+    print(res_str)
+
+    # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
+    save_training_results(n_class, res_str, dir_results, tag)
+    save_training_numpy_data(run_data, dir_results, n_class, excluded, mi_ds)
+    # Plot Statistics and save as .png s
+    plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop)
+    # Save best trained Model state
+    # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
+    # else: Model state after epochs of Fold with the highest accuracy on Training Set
+    if save_model:
+        torch.save(best_model, os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
+
+    n_class_accuracy = np.average(run_data.fold_accuracies)
+    n_class_overfitting_diff = n_class_accuracy - np.average(run_data.accuracies_overfitting)
     return n_class_accuracy, n_class_overfitting_diff
 
 
