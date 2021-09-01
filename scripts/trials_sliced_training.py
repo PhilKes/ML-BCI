@@ -9,14 +9,15 @@ from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.datasets import DATASETS
 from machine_learning.configs_results import save_config, training_config_str, create_results_folders
 from machine_learning.modes import do_n_class_training_cv, save_n_class_results
+from machine_learning.util import overlapping_trials_slicing, preferred_device
 from util.dot_dict import DotDict
 from util.misc import groups_labels, datetime_to_folder_str
 
-slice_length = 0.1
-time_step = 1.0
+slice_length = 1.0
+time_step = 0.1
 
 n_class = 2
-num_epochs = 2
+num_epochs = 100
 
 
 def trials_sliced_training(argv=sys.argv[1:]):
@@ -32,17 +33,23 @@ def trials_sliced_training(argv=sys.argv[1:]):
 
     if args.dataset not in DATASETS:
         parser.error(f"Dataset '{args.dataset}' does not exist (available: {','.join([ds for ds in DATASETS])}))")
+
+    # Use GPU for model & tensors if available
+    CONFIG.DEVICE = preferred_device("gpu")
+
     mi_ds = args.dataset
     dataset = DATASETS[mi_ds]
     # Dataset dependent EEG config structure re-initialization
     CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
+    trial_tmin, trial_tmax = dataset.CONSTANTS.TRIAL_TMIN, dataset.CONSTANTS.TRIAL_TMAX
     # Set tmin, tmax to load entire Trial
-    CONFIG.EEG.set_times(dataset.CONSTANTS.TRIAL_TMIN, dataset.CONSTANTS.TRIAL_TMAX)
+    CONFIG.EEG.set_times(trial_tmin, trial_tmax)
     used_subjects = dataset.CONSTANTS.ALL_SUBJECTS
     ch_names = dataset.CONSTANTS.CHANNELS
     folds = dataset.CONSTANTS.cv_folds
     only_fold = None
     batch_size = CONFIG.MI.BATCH_SIZE
+    cue_offset = dataset.CONSTANTS.CONFIG.CUE_OFFSET
     dir_results = f'trials_sliced_training/{mi_ds}_slice_length_{args.slice_length}_time_step_{args.time_step}-{datetime_to_folder_str(datetime.now())}'
     dir_results = create_results_folders(path=dir_results)
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=CONFIG.MI.LR, device=CONFIG.DEVICE,
@@ -53,17 +60,24 @@ def trials_sliced_training(argv=sys.argv[1:]):
     preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects, n_class, ch_names)
     print(preloaded_data.shape)
     # TODO Slice preloaded_data+preloaded_labels according to args.time_step + args.slice_length
-
+    preloaded_data, preloaded_labels = overlapping_trials_slicing(preloaded_data, preloaded_labels, slice_length,
+                                                                  time_step, dataset.CONSTANTS.REST_PHASES)
+    print("Sliced Shape:")
+    print(preloaded_data.shape)
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(used_subjects), folds)
 
     # Split Data into training + util
     cv = GroupKFold(n_splits=folds)
-
-    run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, n_class, num_epochs, only_fold,
+    # Sliced Data contains new 'rest' class therefore 2class Data becomes 3class
+    train_n_class = n_class + 1
+    # Set Amount of Samples to Slice Sample Length, so that EEGNet Model is created with correct parameters in Training
+    CONFIG.EEG.set_samples(slice_length * CONFIG.EEG.SAMPLERATE)
+    run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, train_n_class, num_epochs,
+                                                  only_fold,
                                                   dataset, [],
                                                   preloaded_data, preloaded_labels, batch_size, ch_names)
-    n_class_accuracy, n_class_overfitting_diff = save_n_class_results(n_class, mi_ds, run_data, folds, only_fold,
+    n_class_accuracy, n_class_overfitting_diff = save_n_class_results(train_n_class, mi_ds, run_data, folds, only_fold,
                                                                       batch_size, [], best_model, dir_results)
 
 

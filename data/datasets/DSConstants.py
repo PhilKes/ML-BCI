@@ -22,3 +22,4 @@ class DSConstants(object):
         # Maximum possible Trial TMAX/TMIN
         self.TRIAL_TMAX = -1
         self.TRIAL_TMIN = -1
+        self.REST_PHASES = []

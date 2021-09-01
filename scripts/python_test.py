@@ -17,7 +17,7 @@ from data.datasets.bcic.bcic_data_loading import BCICDataLoader
 from data.datasets.lsmr21.lsmr21_data_loading import LSMR21DataLoader, LSMR21TrialsDataset
 from data.datasets.phys.phys_data_loading import PHYSDataLoader
 from data.datasets.phys.phys_dataset import PHYS
-from machine_learning.util import get_valid_trials_per_subject
+from machine_learning.util import get_valid_trials_per_subject, overlap
 from paths import datasets_folder
 from util.misc import get_device_name
 
@@ -242,4 +242,10 @@ if __name__ == '__main__':
         print("data_utils.py split_trials() method works as expected")
 
 
-    test_trials_slicing()
+    # test_trials_slicing()
+    x = np.arange(1, 10)
+    x = np.full((2, 2, 62, 500), 1)
+    print(x.shape)
+    # x= np.lib.strided_tricks.sliding_window_view(x, 3)[::2]
+    x = overlap(x, 250, 25)
+    print(x.shape)

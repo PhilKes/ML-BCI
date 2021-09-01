@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import mne
 import numpy as np
@@ -257,3 +257,89 @@ def resample_eeg_data(data: np.ndarray, or_samplerate: float, dest_samplerate: f
                                    up=dest_samplerate, down=or_samplerate)
         data = data.astype(np.float32)
         return data
+
+
+def overlap(array, len_chunk, len_sep=1):
+    """Returns a matrix of all full overlapping chunks of the input `array`, with a chunk
+    length of `len_chunk` and a separation length of `len_sep`. Begins with the first full
+    chunk in the array.
+    Source: https://stackoverflow.com/a/63651782
+    """
+
+    n_arrays = np.int(np.ceil((array.size - len_chunk + 1) / len_sep))
+
+    array_matrix = np.tile(array, n_arrays).reshape(n_arrays, -1)
+
+    columns = np.array(((len_sep * np.arange(0, n_arrays)).reshape(n_arrays, -1) + np.tile(
+        np.arange(0, len_chunk), n_arrays).reshape(n_arrays, -1)), dtype=np.intp)
+
+    rows = np.array((np.arange(n_arrays).reshape(n_arrays, -1) + np.tile(
+        np.zeros(len_chunk), n_arrays).reshape(n_arrays, -1)), dtype=np.intp)
+
+    return array_matrix[rows, columns]
+
+
+def getOverlap(a, b):
+    """
+    Source: https://stackoverflow.com/a/2953979
+    :param a:
+    :param b:
+    :return:
+    """
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
+
+
+def overlapping_trials_slicing(preloaded_data: np.ndarray, preloaded_labels: np.ndarray, slice_time_length: float,
+                               time_step: float, rest_phases: List[Tuple[float, float]]):
+    """
+
+    :param preloaded_data: np.ndarray with Shape (Subject, Trial, Channel, Sample)
+    :param preloaded_labels:
+    :param slice_length:
+    :param time_step:
+    :param trial_tmax:
+    :param trial_tmin:
+    :return:
+    """
+    slice_sample_length = int(slice_time_length * CONFIG.EEG.SAMPLERATE)
+    # Last Possible Start Sample for Slice is Last Sample - Slice Sample Length
+    max_start_sample = preloaded_data.shape[-1] - slice_sample_length
+    sample_step = int(time_step * CONFIG.EEG.SAMPLERATE)
+
+    slices_per_trial = np.int(np.ceil((preloaded_data.shape[-1] - slice_sample_length + 1) / sample_step))
+    sliced_data = np.zeros(
+        (preloaded_data.shape[0], preloaded_data.shape[1] * slices_per_trial, preloaded_data.shape[2],
+         slice_sample_length), dtype=np.float32)
+    sliced_labels = np.full((preloaded_labels.shape[0], preloaded_labels.shape[1] * slices_per_trial), -1, dtype=np.int)
+
+    # Loop through all Subjects
+    for s_idx in range(preloaded_data.shape[0]):
+        slice_idx = 0
+        # Generate slices from each Trial individually
+        for t_idx in range(preloaded_data.shape[1]):
+            slice_start_sample = 0
+            while slice_start_sample <= max_start_sample:
+                slice_end_sample = (slice_start_sample + slice_sample_length)
+                # Slice goes from [time_step*slice_idx ; (time_step*slice_idx)+slice_sample_length]
+                sliced_data[s_idx, slice_idx] = preloaded_data[s_idx, t_idx, :,
+                                                slice_start_sample:slice_end_sample]
+                # TODO Label 'rest' slices with new Label (3)
+                slice_start_time = slice_start_sample / CONFIG.EEG.SAMPLERATE
+                slice_end_time = slice_start_time + (slice_sample_length / CONFIG.EEG.SAMPLERATE)
+                # If rest_overlap Interval is bigger than majority_margin, slice is given a 'rest'(3) Label
+                # Majority Margin is 50% of Slice Sample Length
+                majority_time_margin = (slice_end_time - slice_start_time) / 2
+                slice_is_rest = False
+                for rest_phase in rest_phases:
+                    rest_overlap = getOverlap(rest_phase, (slice_start_time, slice_end_time))
+                    if rest_overlap > majority_time_margin:
+                        slice_is_rest = True
+                        break
+                if slice_is_rest:
+                    # 'rest' slices are labeled with 2 (for n-class=2)
+                    sliced_labels[s_idx, slice_idx] = 2
+                else:
+                    sliced_labels[s_idx, slice_idx] = preloaded_labels[s_idx, t_idx]
+                slice_start_sample += sample_step
+                slice_idx += 1
+    return sliced_data, sliced_labels

@@ -168,6 +168,9 @@ Trials Slices: {self.TRIALS_SLICES}
             self.TMAX = tmax + self.CUE_OFFSET
         self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
+    def set_samples(self, samples):
+        self.SAMPLES = samples
+
     def set_samplerate(self, sr):
         self.SAMPLERATE = sr
         self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
