@@ -233,6 +233,61 @@ class BCIC_IV2a_dataset:
         return subject_data, subject_labels
 
     @classmethod
+    def get_raw_run_data(cls, subject: int, n_class: int, ch_names: List[str] = BCIC.CHANNELS, training: int = 1):
+        """
+        Loading Raw EEG Data for Live Simulation mode
+        :return:
+        raw_data: np.ndarray with (channel, Sample) of the run,
+        trials_classes: Class Label of each Trial in the Run,
+        trials_start_times: Start Times (in Sec.) of every Trial,
+        trials_start_samples: Start Sample of every Trial,
+        trials_samples_duration: Sample Duration of every Trial
+        """
+        ch_idxs = to_idxs_of_list_str(ch_names, BCIC.CHANNELS)
+        fname = cls.get_subject_fname(subject, training)
+
+        print('  - Load data of subject %d from file: %s' % (subject, fname))
+        data = np.load(fname)
+
+        raw = data['s'].T
+        events_type = data['etyp'].T
+        startrial_code = 768
+        starttrial_events = events_type == startrial_code
+        idxs = [i + 1 for i, x in enumerate(starttrial_events[0]) if x]
+
+        events_position = data['epos'].T[0]
+        events_duration = data['edur'].T[0]
+        events_position = events_position[idxs]
+        events_duration = events_duration[idxs]
+        artifacts = data['artifacts'].T
+
+        trials_classes = cls.map_to_class_labels(events_type[0, idxs])
+
+        trials_start_times = np.asarray([(start_pos / CONFIG.EEG.SAMPLERATE) for start_pos in events_position])
+        trials_start_samples = events_position
+        trials_samples_duration = events_duration
+        # First Trial starts after 5-6 minutes of EOG Influence Test
+        # omit all Samples before first actual Trial starts
+        actual_first_sample = trials_start_samples[0]
+        actual_last_sample = trials_start_samples[-1] + trials_samples_duration[-1]
+        X = raw[ch_idxs, actual_first_sample:actual_last_sample]
+        # t = 0s. is Start Time of first actual Trial (after the 5-6 min. EOG Influence Test)
+        trials_start_times = trials_start_times - trials_start_times[0]
+        trials_start_samples = trials_start_samples - actual_first_sample
+        return X, trials_classes, trials_start_times, trials_start_samples, trials_samples_duration
+
+    @classmethod
+    def map_to_class_labels(cls, events_type: np.ndarray):
+        labels = []
+        for event_type in events_type:
+            if event_type in BCIC.event_type_to_label:
+                labels.append(BCIC.event_type_to_label[event_type])
+            else:
+                labels.append(-1)
+                print("Unknown Event Type: ", event_type)
+        return np.asarray(labels, dtype=np.int)
+
+    @classmethod
     def get_subject_fname(cls, subject: int, training: int = 1):
         if training == 1:
             return cls.orgfiles_path + 'A0' + str(subject) + 'T.npz'

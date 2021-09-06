@@ -60,7 +60,7 @@ confs = {
     #         lambda: None,
     #     ],
     # },
-    'lsmr_dropout': {
+    'lsmr_trial_category3': {
         'params': [
             ['--dataset', LSMR21.short_name],
             ['--dataset', LSMR21.short_name],
@@ -68,20 +68,47 @@ confs = {
             ['--dataset', LSMR21.short_name],
         ],
         'names': [
-            'lmsr_do_0.2',
-            'lmsr_do_0.3',
-            'lmsr_do_0.4',
-            'lmsr_do_0.5',
+            'lmsr_trial_category_0',
+            'lmsr_trial_category_1',
+            'lmsr_trial_category_2',
+            'lmsr_trial_category_2_dropout_0.2',
         ],
         'init': [
-            lambda: CONFIG.NET.set_model_params(dropout=0.2),
-            lambda: CONFIG.NET.set_model_params(dropout=0.3),
-            lambda: CONFIG.NET.set_model_params(dropout=0.4),
-            lambda: CONFIG.NET.set_model_params(dropout=0.5),
+            lambda: CONFIG.EEG.set_artifacts_trial_category(trial_category=0),
+            lambda: CONFIG.EEG.set_artifacts_trial_category(trial_category=1),
+            lambda: CONFIG.EEG.set_artifacts_trial_category(trial_category=2),
+            lambda: set_trial_category_dropout(trial_category=2, dropout=0.2),
         ],
     },
+    # 'lsmr_dropout': {
+    #     'params': [
+    #         ['--dataset', LSMR21.short_name],
+    #         ['--dataset', LSMR21.short_name],
+    #         ['--dataset', LSMR21.short_name],
+    #         ['--dataset', LSMR21.short_name],
+    #     ],
+    #     'names': [
+    #         'lmsr_do_0.2',
+    #         'lmsr_do_0.3',
+    #         'lmsr_do_0.4',
+    #         'lmsr_do_0.5',
+    #     ],
+    #     'init': [
+    #         lambda: CONFIG.NET.set_model_params(dropout=0.2),
+    #         lambda: CONFIG.NET.set_model_params(dropout=0.3),
+    #         lambda: CONFIG.NET.set_model_params(dropout=0.4),
+    #         lambda: CONFIG.NET.set_model_params(dropout=0.5),
+    #     ],
+    # },
 
 }
+
+
+def set_trial_category_dropout(trial_category: int, dropout: float):
+    CONFIG.EEG.set_artifacts_trial_category(trial_category=trial_category)
+    CONFIG.NET.set_model_params(dropout=dropout)
+
+
 default_options = ['-train']
 
 train_ss_options = ['-train_ss', '--model']

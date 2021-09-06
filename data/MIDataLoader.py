@@ -171,6 +171,7 @@ class MIDataLoader:
         slices: Trial Slices
         trials_classes: ndarray with label nr. of every Trial in the Run
         trials_start_times: ndarray with Start Times of every Trial in the Run
-        trial_tdeltas: ndarray with Times of every Slice Timepoint in the Run
+        trials_start_samples: ndarray with Start Samples of every Trial in the Run
+        slice_start_samples: ndarray with Times of every Slice Timepoint in the Run
         """
         raise NotImplementedError('This method is not implemented!')

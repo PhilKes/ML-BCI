@@ -103,8 +103,29 @@ class BCICDataLoader(MIDataLoader):
 
     @classmethod
     def load_live_sim_data(cls, subject: int, n_class: int, ch_names: List[str]):
-        # TODO
-        pass
+        """
+        Load all necessary Data for the Live Simulation Run of subject
+        X: ndarray (channels,Samples) of single Subject's Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trials_start_samples: ndarray with Start Samples of every Trial in the Run
+        slice_start_samples: ndarray with Start Samples of every Slice in the Run
+        """
+        X, trials_classes, trials_start_times, trials_start_samples, trials_samples_duration = BCIC_IV2a_dataset.get_raw_run_data(
+            subject,
+            n_class,
+            ch_names)
+        max_sample = X.shape[-1] - 1
+        slices = CONFIG.EEG.TRIALS_SLICES
+        slice_start_samples = []
+        for trial_start_time, trials_sample_duration in zip(trials_start_times, trials_samples_duration):
+            for slice in range(slices):
+                slice_start_samples.append(
+                    trial_start_time * CONFIG.EEG.SAMPLERATE + (trials_sample_duration / slices) * slice)
+        trials_start_times = trials_start_times.astype(dtype=np.int)
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples
 
     @staticmethod
     def print_stats(labels: np.ndarray):

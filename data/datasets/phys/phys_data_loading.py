@@ -7,6 +7,7 @@ On initial Run MNE downloads the Physionet Dataset into datasets_folder
 Edition History:
 2021-05-31: mne_load_subject_raw(): fmin, fmax explicitely set - ms
 """
+import math
 from typing import List
 
 import mne
@@ -77,8 +78,8 @@ class PHYSDataLoader(MIDataLoader):
                            equal_trials: bool = True, ignored_runs: List[int] = []):
         subjects.sort()
         trials = get_trials_size(n_class, equal_trials, ignored_runs)
-        trials_per_run_class = np.math.floor(trials / n_class)
-        trials_per_run_class = 21
+        # trials_per_run_class = np.math.floor(trials / n_class)
+        # trials_per_run_class = 21
         # n-times the amount of Trials for TRIALS_SLICES = n
         trials = trials * CONFIG.EEG.TRIALS_SLICES
         if n_class > 2:
@@ -93,8 +94,7 @@ class PHYSDataLoader(MIDataLoader):
         print("Preload Shape", preloaded_data.shape)
         for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
             data, labels = cls.load_n_classes_tasks(subject, n_class, ch_names, equal_trials,
-                                                    trials_per_run_class,
-                                                    ignored_runs)
+                                                    ignored_runs=ignored_runs)
             # if data.shape[0] > preloaded_data.shape[1]:
             #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
             preloaded_data[i] = data
@@ -105,21 +105,21 @@ class PHYSDataLoader(MIDataLoader):
     @classmethod
     def load_live_sim_data(cls, subject, n_class, ch_names):
         """
-        Load all neccessary Data for the Live Simulation Run of subject
-        :return:
-        X: ndarray (channels,Samples) of single Subject Run data
+        Load all necessary Data for the Live Simulation Run of subject
+        X: ndarray (channels,Samples) of single Subject's Run data
         max_sample: Maximum sample number of the Run
         slices: Trial Slices
         trials_classes: ndarray with label nr. of every Trial in the Run
-        trials_start_times: ndarray with Start Times of every Trial in the Run in Sec.
-        trial_sample_deltas: ndarray with Sample Nrs. of every Slice Timepoint in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trials_start_samples: ndarray with Start Samples of every Trial in the Run
+        slice_start_samples: ndarray with Start Sample of every Slice in the Run
         """
         # Load Raw Subject Run for n_class
         raw = cls.mne_load_subject_raw(subject, PHYS.n_classes_live_run[n_class], ch_names=ch_names)
         # Get Data from raw Run
         X = get_data_from_raw(raw)
         trials_classes = map_trial_labels_to_classes(raw.annotations.description)
-        X = cls.prepare_data_labels(X, trials_classes)
+        X, _ = cls.prepare_data_labels(X, trials_classes)
 
         max_sample = raw.n_times
         slices = CONFIG.EEG.TRIALS_SLICES
@@ -130,12 +130,12 @@ class PHYSDataLoader(MIDataLoader):
         trials_start_samples = map_times_to_samples(raw, trials_start_times)
 
         trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
-        trial_sample_deltas = []
+        slice_start_samples = []
         for trial_start_time in trials_start_times:
             for i in range(1, slices + 1):
-                trial_sample_deltas.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
+                slice_start_samples.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
 
-        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_sample_deltas
+        return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples
 
     @classmethod
     def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names,
@@ -154,7 +154,6 @@ class PHYSDataLoader(MIDataLoader):
 
     @classmethod
     def load_n_classes_tasks(cls, subject, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
-                             trials_per_run_class=PHYS.TRIALS_PER_SUBJECT_RUN,
                              ignored_runs=[]):
         """
         Loads corresponding tasks for n_class Classification
@@ -174,7 +173,6 @@ class PHYSDataLoader(MIDataLoader):
                                           exclude_rests=True,
                                           ch_names=ch_names, ignored_runs=ignored_runs,
                                           equal_trials=equal_trials,
-                                          trials_per_run_class=trials_per_run_class,
                                           n_class=n_class)
         # if 3/4-class contain 'rest' Trials:
         # if n_class == 2:
@@ -223,7 +221,7 @@ class PHYSDataLoader(MIDataLoader):
 
     @classmethod
     def load_task_runs(cls, subject: int, tasks: List[int], exclude_bothfists=False, ch_names=PHYS.CHANNELS, n_class=3,
-                       equal_trials=True, trials_per_run_class=PHYS.TRIALS_PER_SUBJECT_RUN, exclude_rests=False,
+                       equal_trials=True, exclude_rests=False,
                        ignored_runs=[]):
         """
         Merges runs from different tasks + correcting labels for n_class classification
@@ -238,8 +236,18 @@ class PHYSDataLoader(MIDataLoader):
         load_samples = CONFIG.EEG.SAMPLES
         all_data = np.zeros((0, len(ch_names), load_samples))
         all_labels = np.zeros((0), dtype=np.int)
+        trials_per_run_class = math.inf
+
+        for task in tasks:
+            task_runs = len([run for run in PHYS.runs[task] if run not in ignored_runs])
+            if (task_runs * 7) < trials_per_run_class:
+                trials_per_run_class = 7 * task_runs
+
         # Load Subject Data of all Tasks
         for task_idx, task in enumerate(tasks):
+            used_runs = [run for run in PHYS.runs[task] if run not in ignored_runs]
+            if len(used_runs) == 0:
+                continue
             # Task = 0 -> Rest Trials "T0"
             if PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
                 data, labels = cls.mne_load_rests(subject, trials_per_run_class, ch_names, load_samples)
@@ -253,7 +261,6 @@ class PHYSDataLoader(MIDataLoader):
                 # for 4class classification exclude both fists event of task 4 ("T1")
                 if exclude_bothfists & (task == 4):
                     tasks_event_dict = {'T2': 2}
-                used_runs = [run for run in PHYS.runs[task] if run not in ignored_runs]
                 data, labels = cls.mne_load_subject(subject, used_runs, event_id=tasks_event_dict,
                                                     ch_names=ch_names)
                 # Ensure equal amount of trials per class

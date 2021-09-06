@@ -106,13 +106,11 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
                                                                       ch_names, equal_trials)
         run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, n_class, num_epochs, only_fold,
                                                       dataset, validation_subjects,
-                                                      preloaded_data, preloaded_labels, batch_size, ch_names,
-                                                      equal_trials=True,
-                                                      early_stop=False)
+                                                      preloaded_data, preloaded_labels, batch_size, ch_names)
         n_class_accuracy[i], n_class_overfitting_diff[i] = save_n_class_results(n_class, mi_ds, run_data, folds,
                                                                                 only_fold, batch_size, excluded,
                                                                                 best_model, dir_results, tag,
-                                                                                save_model)
+                                                                                save_model=save_model)
     return n_class_accuracy, n_class_overfitting_diff
 
 
@@ -424,7 +422,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
         model = get_model(n_class, len(ch_names), model_path)
         model.eval()
 
-        X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, trial_tdeltas = dataset.load_live_sim_data(
+        X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples = dataset.load_live_sim_data(
             used_subject, n_class,
             ch_names)
 
@@ -436,7 +434,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
 
         # Highlight Trials and mark the trained on positions of each Trial
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
-        vlines = create_vlines_from_trials_epochs(trial_tdeltas, trials_start_times, slices)
+        vlines = create_vlines_from_trials_epochs(slice_start_samples, trials_start_times, slices)
 
         # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,
         #                                                               trials_start_samples,
@@ -455,8 +453,8 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
         np.save(os.path.join(dir_results, f"{n_class}class_predictions"), sample_predictions)
         # Split into multiple plots, otherwise too long
         plot_splits = 5
-        if max_sample > 100000:
-            plot_splits = 10
+        if max_sample > 100_000:
+            plot_splits = 20
         trials_split_size = int(trials_start_samples.shape[0] / plot_splits)
         n_class_offset = 0
         for i in range(plot_splits):

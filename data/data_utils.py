@@ -141,8 +141,10 @@ def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
     #     r -= 3
     # if 3/4-class should not contain 'rest':
     # 3class uses Task 4 only for T1 events
-    if n_class == 3 or (n_class == 4):
-        r -= 3
+    # do not subtract if no runs of Task 4 are used
+    if r > 3:
+        if n_class == 3 or (n_class == 4):
+            r -= 3
     return (trials_per_class_for_1_runs * n_class) * r
 
 

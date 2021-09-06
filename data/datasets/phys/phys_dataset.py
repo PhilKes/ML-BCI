@@ -50,6 +50,7 @@ class PHYSConstants(DSConstants):
         )
         self.TRIAL_TMAX = 6 - self.CONFIG.CUE_OFFSET
         self.TRIAL_TMIN = -2 - self.CONFIG.CUE_OFFSET
+        self.REST_PHASES = [(0.0, 2.0), (6.0, 8.0)]
 
         # Amount of picked Trials in 1 Run of 1 Subject
         self.TRIALS_PER_SUBJECT_RUN = 21

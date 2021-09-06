@@ -72,7 +72,7 @@ def save_training_numpy_data(run_data, save_path, n_class,
                  actual_labels=run_data.best_fold_act_labels, pred_labels=run_data.best_fold_pred_labels)
 
 
-def training_result_str(run_data, only_fold=None, early_stop=True):
+def training_result_str(run_data, only_fold=None, early_stop=False):
     folds_str = ""
     for fold in range(len(run_data.fold_accuracies)):
         folds_str += f'\tFold {fold + 1 + (only_fold if only_fold is not None else 0)}' \

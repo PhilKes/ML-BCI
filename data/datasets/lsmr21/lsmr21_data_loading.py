@@ -264,14 +264,15 @@ class LSMR21DataLoader(MIDataLoader):
     @classmethod
     def load_live_sim_data(cls, subject: int, n_class: int, ch_names: List[str]):
         """
-                Load all neccessary Data for the Live Simulation Run of subject
-                X: ndarray (channels,Samples) of single Subject Run data
-                max_sample: Maximum sample number of the Run
-                slices: Trial Slices
-                trials_classes: ndarray with label nr. of every Trial in the Run
-                trials_start_times: ndarray with Start Times of every Trial in the Run
-                trial_sample_deltas: ndarray with Times of every Slice Timepoint in the Run
-                """
+        Load all necessary Data for the Live Simulation Run of subject
+        X: ndarray (channels,Samples) of single Subject's Run data
+        max_sample: Maximum sample number of the Run
+        slices: Trial Slices
+        trials_classes: ndarray with label nr. of every Trial in the Run
+        trials_start_times: ndarray with Start Times of every Trial in the Run
+        trials_start_samples: ndarray with Start Samples of every Trial in the Run
+        slice_start_samples: ndarray with Start Sample of every Slice in the Run
+        """
         # Get Data from raw Run
         data, labels, used_trials_idxs = cls.load_subject_run_raw(subject, LSMR21.runs[0], n_class=2,
                                                                   tmin=CONFIG.EEG.TMAX)
@@ -282,7 +283,7 @@ class LSMR21DataLoader(MIDataLoader):
         slices = CONFIG.EEG.TRIALS_SLICES
         # times = raw.times[:max_sample]
         trials_start_times = []
-        trial_sample_deltas = []
+        slice_start_samples = []
         trials_start_samples = []
         samples_before = 0
         for t_idx in range(data.shape[0]):
@@ -293,7 +294,7 @@ class LSMR21DataLoader(MIDataLoader):
                 trials_start_times.append((1 / CONFIG.EEG.SAMPLERATE) * samples_before)
                 # Get Trial Sample Nr. of each Slice Timepoint in the Trial
                 for i in range(1, slices + 1):
-                    trial_sample_deltas.append(trials_start_samples[-1] + (trial_sample_length / slices) * i)
+                    slice_start_samples.append(trials_start_samples[-1] + (trial_sample_length / slices) * i)
             samples_before += trial_sample_length
 
         trials_classes = labels
@@ -302,7 +303,7 @@ class LSMR21DataLoader(MIDataLoader):
         max_sample = X.shape[-1] // 2
 
         return X, max_sample, slices, trials_classes, np.asarray(trials_start_times), np.asarray(
-            trials_start_samples), np.asarray(trial_sample_deltas)
+            trials_start_samples), np.asarray(slice_start_samples)
 
     @classmethod
     def load_subject(cls, subject_idx, n_class, ch_names, runs=None, artifact=-1, trial_category=-1):

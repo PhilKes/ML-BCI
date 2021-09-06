@@ -42,6 +42,13 @@ class BCICConstants(DSConstants):
         self.TRIAL_TMIN = -self.CONFIG.CUE_OFFSET
         # Time Intervals in each Trial when the Subject rests (in seconds)
         self.REST_PHASES = [(0.0, 2.0), (6.0, 7.5)]
+        self.event_type_to_label = {
+            769: 0,
+            770: 1,
+            771: 2,
+            772: 3,
+            783: -1
+        }
 
 
 BCIC = BCICConstants()
