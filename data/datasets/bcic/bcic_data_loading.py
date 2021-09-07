@@ -39,6 +39,7 @@ class BCICTrialsDataset(TrialsDataset):
         # 6 runs with 12 trials per class per subject
         self.n_trials_max = 6 * 12 * self.n_class * CONFIG.EEG.TRIALS_SLICES
 
+        # TODO incorrect trials_per_subject if using trials_sliced_training?
         # number of valid trials per subject is different for each subject, because
         # some trials are marked as artifact
         self.trials_per_subject = get_valid_trials_per_subject(self.preloaded_labels, self.subjects,

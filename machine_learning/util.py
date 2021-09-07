@@ -330,11 +330,13 @@ def overlapping_trials_slicing(preloaded_data: np.ndarray, preloaded_labels: np.
                 # Majority Margin is 50% of Slice Sample Length
                 majority_time_margin = (slice_end_time - slice_start_time) / 2
                 slice_is_rest = False
-                for rest_phase in rest_phases:
-                    rest_overlap = getOverlap(rest_phase, (slice_start_time, slice_end_time))
-                    if rest_overlap > majority_time_margin:
-                        slice_is_rest = True
-                        break
+                # Only check for Rest Phases in valid Trials (label != -1)
+                if preloaded_labels[s_idx, t_idx] != -1:
+                    for rest_phase in rest_phases:
+                        rest_overlap = getOverlap(rest_phase, (slice_start_time, slice_end_time))
+                        if rest_overlap > majority_time_margin:
+                            slice_is_rest = True
+                            break
                 if slice_is_rest:
                     # 'rest' slices are labeled with 2 (for n-class=2)
                     sliced_labels[s_idx, slice_idx] = 2

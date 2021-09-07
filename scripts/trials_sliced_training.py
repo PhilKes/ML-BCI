@@ -11,10 +11,10 @@ from machine_learning.configs_results import save_config, training_config_str, c
 from machine_learning.modes import do_n_class_training_cv, save_n_class_results
 from machine_learning.util import overlapping_trials_slicing, preferred_device
 from util.dot_dict import DotDict
-from util.misc import groups_labels, datetime_to_folder_str
+from util.misc import groups_labels, datetime_to_folder_str, print_numpy_counts
 
-slice_length = 1.0
-time_step = 0.1
+slice_length = 1.5
+time_step = 1.5
 
 n_class = 2
 num_epochs = 100
@@ -59,11 +59,17 @@ def trials_sliced_training(argv=sys.argv[1:]):
 
     preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects, n_class, ch_names)
     print(preloaded_data.shape)
-    # TODO Slice preloaded_data+preloaded_labels according to args.time_step + args.slice_length
+    act_slices = preloaded_data.shape[1]
     preloaded_data, preloaded_labels = overlapping_trials_slicing(preloaded_data, preloaded_labels, slice_length,
                                                                   time_step, dataset.CONSTANTS.REST_PHASES)
     print("Sliced Shape:")
     print(preloaded_data.shape)
+    print("Sliced Labels Stats Subject1:")
+    print_numpy_counts(preloaded_labels[0])
+
+    calced_slices = int(((CONFIG.EEG.TMAX - CONFIG.EEG.TMIN) - slice_length) / time_step) + 1
+    act_slices = preloaded_data.shape[1] / act_slices
+    print("calced_slices:", calced_slices, "actual slices:", act_slices)
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(used_subjects), folds)
 
@@ -71,8 +77,14 @@ def trials_sliced_training(argv=sys.argv[1:]):
     cv = GroupKFold(n_splits=folds)
     # Sliced Data contains new 'rest' class therefore 2class Data becomes 3class
     train_n_class = n_class + 1
+    # Set Trials Slices to amount of slices for a Trial for TrialsDataset's length calculation
+    # Data is loaded with n_class=2 then sliced and then trained with n_class=3
+    # therefore the self.n_trials_max in bcic_data_loading.py has to be calculated correctly with
+    # the Trials Slices
+    CONFIG.EEG.set_trials_slices(calced_slices // train_n_class * n_class)
     # Set Amount of Samples to Slice Sample Length, so that EEGNet Model is created with correct parameters in Training
     CONFIG.EEG.set_samples(slice_length * CONFIG.EEG.SAMPLERATE)
+
     run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, train_n_class, num_epochs,
                                                   only_fold,
                                                   dataset, [],
