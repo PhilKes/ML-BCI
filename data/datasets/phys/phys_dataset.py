@@ -52,11 +52,13 @@ class PHYSConstants(DSConstants):
         self.TRIAL_TMIN = -2 - self.CONFIG.CUE_OFFSET
         self.REST_PHASES = [(0.0, 2.0), (6.0, 8.0)]
 
+        # Every Run contains 7 Trials per Class
+        self.TRIALS_PER_CLASS_PER_RUN = 7
         # Amount of picked Trials in 1 Run of 1 Subject
-        self.TRIALS_PER_SUBJECT_RUN = 21
+        self.TRIALS_PER_SUBJECT_RUN = 3 * self.TRIALS_PER_CLASS_PER_RUN
 
         # Some Subjects are excluded due to differing numbers of Trials in the recordings
-        self.ALL_SUBJECTS = [i for i in range(1, 110) if i not in [88, 92, 100, 104]]
+        self.ALL_SUBJECTS = [i for i in range(1, 110) if i not in [88, 92, 100, 104]][:10]
 
         runs_rest = [1]  # Baseline, eyes open
         runs_t1 = [3, 7, 11]  # Task 1 (open and close left or right fist)
@@ -71,6 +73,7 @@ class PHYSConstants(DSConstants):
         # Keep following in Sync with PHYSDataLoader.load_n_classes_tasks() 'exclude_bothfists'
         # additional changes in phys_data_loading
         # WITHOUT 'rest' Trials for 3/4-class:
+        # Sync with data_utils.py get_trials_size() Method
         self.n_classes_tasks = {1: [0], 2: [2], 3: [2, 4], 4: [2, 4]}
         # WITH 'rest' Trials for 3/4-class:
         # self.n_classes_tasks = {1: [0], 2: [2], 3: [0, 2], 4: [0, 2, 4]}

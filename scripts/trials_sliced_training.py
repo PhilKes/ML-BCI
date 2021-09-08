@@ -13,8 +13,8 @@ from machine_learning.util import overlapping_trials_slicing, preferred_device
 from util.dot_dict import DotDict
 from util.misc import groups_labels, datetime_to_folder_str, print_numpy_counts
 
-slice_length = 1.5
-time_step = 1.5
+slice_length = 1
+time_step = 0.1
 
 n_class = 2
 num_epochs = 100

@@ -131,21 +131,27 @@ trials_per_class_for_3_runs = 21
 
 
 def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
+    """
+    Returns the amount of Trials per Subject for n_class Classification with ignored_runs
+    """
     if not equal_trials:
         return PHYS.trials_for_classes_per_subject_avail[n_class]
-    n_class_runs = [run for run in get_runs_of_n_classes(n_class, True) if run not in ignored_runs]
-    r = len(n_class_runs)
-    # if 3/4-class contains 'rest':
-    # 4class uses Task 4 only for T1 events
-    # if n_class == 4:
-    #     r -= 3
-    # if 3/4-class should not contain 'rest':
-    # 3class uses Task 4 only for T1 events
-    # do not subtract if no runs of Task 4 are used
-    if r > 3:
-        if n_class == 3 or (n_class == 4):
-            r -= 3
-    return (trials_per_class_for_1_runs * n_class) * r
+    trials = n_class * PHYS.TRIALS_PER_SUBJECT_RUN
+    # (trials_per_class_for_1_runs * n_class) * n_runs
+    for ignored_run in ignored_runs:
+        # Determine how many Trials are missing because of the missing run
+        # If ignored_run is from Task 4, subtract 7 Trials (only both fists class is taken from Task 4 for n_class=3)
+        # Every Run contains 21 Trials (7 of each class)
+        if ignored_run in PHYS.runs[4]:
+            if n_class == 3:
+                trials -= PHYS.TRIALS_PER_SUBJECT_RUN // 3
+            elif n_class == 4:
+                # n_class 4 uses both fists + both feet of Task 4
+                trials -= 2 * PHYS.TRIALS_PER_SUBJECT_RUN // 3
+        elif ignored_run in PHYS.runs[2]:
+            trials -= 2 * PHYS.TRIALS_PER_SUBJECT_RUN // 3
+
+    return trials
 
 
 def get_equal_trials_per_class(data: np.ndarray, labels: np.ndarray, trials: int):

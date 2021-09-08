@@ -236,18 +236,11 @@ class PHYSDataLoader(MIDataLoader):
         load_samples = CONFIG.EEG.SAMPLES
         all_data = np.zeros((0, len(ch_names), load_samples))
         all_labels = np.zeros((0), dtype=np.int)
-        trials_per_run_class = math.inf
-
-        for task in tasks:
-            task_runs = len([run for run in PHYS.runs[task] if run not in ignored_runs])
-            if (task_runs * 7) < trials_per_run_class:
-                trials_per_run_class = 7 * task_runs
 
         # Load Subject Data of all Tasks
         for task_idx, task in enumerate(tasks):
             used_runs = [run for run in PHYS.runs[task] if run not in ignored_runs]
-            if len(used_runs) == 0:
-                continue
+            trials_per_run_class = len(used_runs) * PHYS.TRIALS_PER_CLASS_PER_RUN * CONFIG.EEG.TRIALS_SLICES
             # Task = 0 -> Rest Trials "T0"
             if PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
                 data, labels = cls.mne_load_rests(subject, trials_per_run_class, ch_names, load_samples)
@@ -268,8 +261,7 @@ class PHYSDataLoader(MIDataLoader):
                     # classes = n_class
                     # if n_class == 2:
                     #     classes = 3
-                    data, labels = get_equal_trials_per_class(data, labels,
-                                                              trials_per_run_class * CONFIG.EEG.TRIALS_SLICES)
+                    data, labels = get_equal_trials_per_class(data, labels, trials_per_run_class)
                 # Correct labels if multiple tasks are loaded
                 # e.g. in Task 2: "1": left fist, in Task 4: "1": both fists
                 contains_rest_task = (0 in tasks)

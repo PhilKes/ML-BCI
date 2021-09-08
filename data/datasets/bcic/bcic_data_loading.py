@@ -114,6 +114,8 @@ class BCICDataLoader(MIDataLoader):
         trials_start_samples: ndarray with Start Samples of every Trial in the Run
         slice_start_samples: ndarray with Start Samples of every Slice in the Run
         """
+        # TODO Are samples and Trials loaded correctly from raw data?
+        #  -> see end of last Plot of a BCIC Live Simlation -> missing Trials at the end?
         X, trials_classes, trials_start_times, trials_start_samples, trials_samples_duration = BCIC_IV2a_dataset.get_raw_run_data(
             subject,
             n_class,
