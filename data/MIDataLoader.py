@@ -173,5 +173,9 @@ class MIDataLoader:
         trials_start_times: ndarray with Start Times of every Trial in the Run
         trials_start_samples: ndarray with Start Samples of every Trial in the Run
         slice_start_samples: ndarray with Times of every Slice Timepoint in the Run
+                            e.g. for TMIN=0s, TMAX=2s, Trials Slices=1; the slice Timepoints
+                            are 2s after the start of each Trial the data from the previous
+                            2 seconds have been used to train on this Trial and are marked
+                            in the Live Simulation plot as a vertical dotted line
         """
         raise NotImplementedError('This method is not implemented!')

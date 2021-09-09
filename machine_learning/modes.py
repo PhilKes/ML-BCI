@@ -22,6 +22,7 @@ from sklearn.model_selection import GroupKFold
 
 from config import TEST_OVERFITTING, CONFIG
 from data.MIDataLoader import MIDataLoader
+from data.data_utils import get_correctly_predicted_areas
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
@@ -436,22 +437,21 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
         vlines = create_vlines_from_trials_epochs(slice_start_samples, trials_start_times, slices)
 
+        # TODO Evaluation of how good the Live Simulation predictions were
+        trials_correct_areas_relative = np.zeros((len(trials_classes)))
+        # First try to evaluate how good the Live Simulation predictions are
+        # based on the amount of correct sample predictions (highest output for the correct class)
+        # in relation to incorrectly predicted samples
         # trials_correct_areas_relative = get_correctly_predicted_areas(n_class, sample_predictions, trials_classes,
         #                                                               trials_start_samples,
         #                                                               max_sample)
-        trials_correct_areas_relative = np.zeros((len(trials_classes)))
+        #
+        # for trial, trial_correct_area_relative in enumerate(trials_correct_areas_relative):
+        #     print(f"Trial {trial:02d}: {trial_correct_area_relative:.3f} (Class {trials_classes[trial]})")
+        # print(f"Average Correct Area per Trial: {np.average(trials_correct_areas_relative):.3f}")
 
-        for trial, trial_correct_area_relative in enumerate(trials_correct_areas_relative):
-            print(f"Trial {trial:02d}: {trial_correct_area_relative:.3f} (Class {trials_classes[trial]})")
-        print(f"Average Correct Area per Trial: {np.average(trials_correct_areas_relative):.3f}")
-
-        # matplot(sample_predictions,
-        #         f"{n_class}class Live Simulation_S{subject:03d}",
-        #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
-        #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
-        #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
         np.save(os.path.join(dir_results, f"{n_class}class_predictions"), sample_predictions)
-        # Split into multiple plots, otherwise too long
+        # Split into multiple plots, otherwise images become too long
         plot_splits = 5
         if max_sample > 100_000:
             plot_splits = 20
@@ -466,7 +466,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
             else:
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
-                    f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1} Epochs [{CONFIG.EEG.TMIN};{CONFIG.EEG.TMAX}]",
+                    f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1} Epochs [{CONFIG.EEG.TMIN - CONFIG.EEG.CUE_OFFSET};{CONFIG.EEG.TMAX - CONFIG.EEG.CUE_OFFSET}]",
                     'Time in sec.', f'Prediction Outputs', fig_size=(30.0, 8.0),
                     vspans=vspans[first_trial:last_trial + 1],
                     color_offset=n_class_offset, font_size=30.0,

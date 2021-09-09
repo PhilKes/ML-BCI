@@ -23,7 +23,7 @@ from data.MIDataLoader import MIDataLoader
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.bcic.bcic_dataset import BCIC, BCICConstants
 from data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
-from machine_learning.util import get_valid_trials_per_subject
+from machine_learning.util import get_valid_trials_per_subject, calc_slice_start_samples
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -116,7 +116,7 @@ class BCICDataLoader(MIDataLoader):
         """
         # TODO Are samples and Trials loaded correctly from raw data?
         #  -> see end of last Plot of a BCIC Live Simlation -> missing Trials at the end?
-        X, trials_classes, trials_start_times, trials_start_samples, trials_samples_duration = BCIC_IV2a_dataset.get_raw_run_data(
+        X, trials_classes, trials_start_times, trials_start_samples, trials_samples_length = BCIC_IV2a_dataset.get_raw_run_data(
             subject,
             n_class,
             ch_names)
@@ -125,11 +125,7 @@ class BCICDataLoader(MIDataLoader):
         # X, _ = cls.prepare_data_labels(X, trials_classes)
         max_sample = X.shape[-1] - 1
         slices = CONFIG.EEG.TRIALS_SLICES
-        slice_start_samples = []
-        for trial_start_time, trials_sample_duration in zip(trials_start_times, trials_samples_duration):
-            for slice in range(slices):
-                slice_start_samples.append(
-                    trial_start_time * CONFIG.EEG.SAMPLERATE + (trials_sample_duration / slices) * slice)
+        slice_start_samples = calc_slice_start_samples(trials_start_times, trials_samples_length, slices)
         trials_start_times = trials_start_times.astype(dtype=np.int)
         return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples
 

@@ -345,3 +345,16 @@ def overlapping_trials_slicing(preloaded_data: np.ndarray, preloaded_labels: np.
                 slice_start_sample += sample_step
                 slice_idx += 1
     return sliced_data, sliced_labels
+
+
+def calc_slice_start_samples(trials_start_times: np.ndarray, trials_samples_length: any, slices: int):
+    slice_start_samples = []
+    # Calculate the Timepoints (in samples) where the Trial Slices have been trained on
+    # e.g. for TMIN=0s, TMAX=2s, Trials Slices=1; the slice Timepoints are 2s after the start of each Trial
+    # the data from the previous 2 seconds have been used to train on this Trial and are marked in the
+    # Live Simulation plot as a vertical dotted line
+    for trial_start_time, trials_sample_length in zip(trials_start_times, trials_samples_length):
+        for slice in range(1, slices + 1):
+            slice_start_samples.append(
+                trial_start_time * CONFIG.EEG.SAMPLERATE + (trials_sample_length / slices) * slice)
+    return slice_start_samples

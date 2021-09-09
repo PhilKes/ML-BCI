@@ -26,6 +26,7 @@ from data.data_utils import dec_label, increase_label, get_trials_size, \
     map_trial_labels_to_classes
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import PHYS, PHYSConstants
+from machine_learning.util import calc_slice_start_samples
 from paths import datasets_folder, results_folder
 from util.misc import split_np_into_chunks, print_numpy_counts
 from util.plot import matplot
@@ -140,12 +141,8 @@ class PHYSDataLoader(MIDataLoader):
             trials_start_samples[i] = int(trial_start_time * CONFIG.EEG.SAMPLERATE)
 
         trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
-        slice_start_samples = []
-        for trial_start_time in trials_start_times:
-            for i in range(1, slices + 1):
-                slice_time = trial_start_time + (trial_time_length / slices) * i
-                slice_sample = int(slice_time * CONFIG.EEG.SAMPLERATE)
-                slice_start_samples.append(slice_sample)
+        trials_samples_length = np.full(trials_start_times.shape, int(trial_time_length * CONFIG.EEG.SAMPLERATE))
+        slice_start_samples = calc_slice_start_samples(trials_start_times, trials_samples_length, slices)
 
         return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples
 
