@@ -147,8 +147,8 @@ class PHYSDataLoader(MIDataLoader):
         return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples
 
     @classmethod
-    def create_loader_from_subject_runs(cls, subject, n_class, batch_size, ch_names,
-                                        ignored_runs=[]):
+    def create_loader_from_subject_runs(cls, subject: int, n_class: int, batch_size: int, ch_names: List[str],
+                                        ignored_runs: List[int] = []):
         """
         Creates Loader containing all Trials of n_class Runs of subject
         :param ignored_runs: List of Run Nrs. that should not be loaded
@@ -162,8 +162,9 @@ class PHYSDataLoader(MIDataLoader):
         return cls.create_loader(preloaded_data, preloaded_labels, batch_size)
 
     @classmethod
-    def load_n_classes_tasks(cls, subject, n_class, ch_names=PHYS.CHANNELS, equal_trials=True,
-                             ignored_runs=[]):
+    def load_n_classes_tasks(cls, subject: int, n_class: int, ch_names: List[str] = PHYS.CHANNELS,
+                             equal_trials: bool = True,
+                             ignored_runs: List[int] = []):
         """
         Loads corresponding tasks for n_class Classification
         :param ignored_runs: List of Run Nrs. that should not be loaded
@@ -285,7 +286,8 @@ class PHYSDataLoader(MIDataLoader):
         return all_data, all_labels
 
     @classmethod
-    def mne_load_subject(cls, subject, runs, event_id='auto', ch_names=PHYS.CHANNELS, tmin=None,
+    def mne_load_subject(cls, subject: int, runs: List[int], event_id: any = 'auto',
+                         ch_names: List[str] = PHYS.CHANNELS, tmin=None,
                          tmax=None):
         """
         Loads single Subject of Physionet Data with MNE
@@ -316,7 +318,7 @@ class PHYSDataLoader(MIDataLoader):
         return subject_data, subject_labels
 
     @classmethod
-    def mne_load_subject_raw(cls, subject, runs, ch_names=PHYS.CHANNELS):
+    def mne_load_subject_raw(cls, subject: int, runs: List[int], ch_names: List[str] = PHYS.CHANNELS):
         """
         Loads raw Subject run with specified channels
         :return: raw: mne.io.Raw Object containing all Data of given Subject Runs
@@ -334,8 +336,8 @@ class PHYSDataLoader(MIDataLoader):
         return raw
 
 
-def plot_live_sim_subject_run(subject=1, n_class=3, save_path=f"{results_folder}/plots_training",
-                              ch_names=PHYS.CHANNELS):
+def plot_live_sim_subject_run(subject: int = 1, n_class: int = 3, save_path: str = f"{results_folder}/plots_training",
+                              ch_names: List[str] = PHYS.CHANNELS):
     """
     Plots Subject Run with raw EEG Channel data
     :param save_path: Path to location where plot (.png) should be saved

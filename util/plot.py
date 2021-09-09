@@ -3,6 +3,8 @@ Helper functions for Plotting using matplotlib
 """
 import itertools
 import os
+from typing import Tuple, List, Optional
+
 import pylab
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -18,28 +20,48 @@ colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:b
           'skyblue', 'darkorange', 'tab:gray', 'tab:pink', 'black']
 
 
-def get_color(idx):
+def get_color(idx: int):
     return colors[idx % len(colors)]
 
 
-# Plots data with Matplot
-# data: either 1d or 2d datasets
-# labels: if 2d data, provide labels for legend
-# save_path: if plot + data array should be saved, declare save location
-# bar_plot: Plot as bars with average line (for Accuracies)
-# vspans: List of vertical Rectangles to draw
-#         Item Tuple: (X1,X2,color_idx)
-# vlines: List of vertical Lines to draw
-#         Item Tuple: (X,color_idx)
-# hlines: List of horizontal dotted Lines to draw
-#         Item Tuple: (X,color_idx)
-def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_path=None, bar_plot=False,
-            x_values=None, ticks=None, fig_size=None, font_size=17.0,
-            hlines=[], hlines_colors=None, hlines_legends=None,
+def matplot(data: np.ndarray, title='', xlabel='', ylabel='', labels: Optional[List[str]] = None,
+            save_path: str = None, bar_plot=False,
+            x_values=None, ticks: np.ndarray = None, fig_size: Optional[Tuple[float, float]] = None,
+            font_size: float = 17.0,
+            hlines: List[float] = [], hlines_colors: Optional[List[str]] = None,
+            hlines_legends: Optional[List[str]] = None,
             legend_hor=False, legend_loc=None, show_legend=True,
             marker=None,
-            vspans=[], vlines=[], vlines_label=None,
-            min_x=None, max_x=None, color_offset=0):
+            vspans: List[Tuple[float, float, int]] = [], vlines: Optional[List[float]] = [],
+            vlines_label: Optional[str] = None,
+            min_x: float = None, max_x: float = None, color_offset=0):
+    """
+    Plots data with Matplot and saves plot as .png
+    :param data: Data Array to plot (either 1d or 2d)
+    :param title: Title above plot + image file name
+    :param xlabel: X-Axis Label
+    :param ylabel: Y-Axis Label
+    :param labels: If data is 2d, provide labels for legend
+    :param save_path: Path to folder where plot should be saved (save_path/title.png)
+    :param bar_plot: Set if plot should be a Bar Plot instead of regular Plot (only for 1d data)
+    :param x_values: List of Labels for every X-Axis tick
+    :param ticks: Array of Ticks on the X-Axis to be shown
+    :param fig_size: Size of Figure in inches
+    :param font_size: Size of used Font
+    :param hlines: List of Y-values to plot horizontal lines
+    :param hlines_colors: List of colors corresponding to specified hlines
+    :param hlines_legends: List of Labels for corresponding hlines if needed
+    :param legend_hor: Set if the legend should be plotted horizontally(Frue) or vertically(False)
+    :param legend_loc: Set legend position with Tuple of X + Y Coordinates
+    :param show_legend: Set if legend should be shown
+    :param marker: Set type or marker to be used for every samplepoint in the plot (see matplotlib.plot())
+    :param vspans: List of Tuples with X start + X end Values for Vertically Spans to be plotted
+    :param vlines: List of X values for vertical lines to be plotted
+    :param vlines_label: Legend label for the Vertical Lines corresponding to vlines
+    :param min_x: Minimum X-Axis value
+    :param max_x: Maximum X-Axis value
+    :param color_offset: Colors get picked by a predefined list, can set an offset to that color list
+    """
     # use LaTeX fonts in the plot
     plt.rc('font', family='serif')
     if (fig_size is not None):
@@ -136,7 +158,7 @@ def matplot(data, title='', xlabel='', ylabel='', labels=None, max_y=None, save_
 
 
 # Plot only Legend
-def matplot_legend(labels=[], font_size=None, hor=True, save_path=None, title=None):
+def matplot_legend(labels: List[str] = [], font_size: float = None, hor=True, save_path: str = None, title: str = None):
     # use LaTeX fonts in the plot
     plt.rc('font', family='serif')
 
@@ -173,9 +195,11 @@ def matplot_legend(labels=[], font_size=None, hor=True, save_path=None, title=No
 
 
 # Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
-def matplot_grouped_configs(configs_data, batch_sizes, class_idx, title="", ylabel="",
-                            save_path=None, font_size=16.0, fig_size=None, xlabel=None, hor=False,
-                            min_x=None, max_x=None, conf_offset=0,
+def matplot_grouped_configs(configs_data: np.ndarray, batch_sizes: np.ndarray, class_idx: int, title: str = "",
+                            ylabel: str = "",
+                            save_path: str = None, font_size: float = 16.0, fig_size: Tuple[float, float] = None,
+                            xlabel: str = None, hor=False,
+                            min_x: float = None, max_x: float = None, conf_offset=0,
                             legend=False, legend_pos='best', xlabels=[]):
     x = np.arange(len(configs_data))  # the label locations
     width = min(0.6, (1.0 / len(batch_sizes)) - 0.1)  # the width of the bars
