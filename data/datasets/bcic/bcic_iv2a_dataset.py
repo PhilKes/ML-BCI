@@ -5,13 +5,6 @@ Description:
   Contains class BCIC_IV2a_dataset which provides lots of methods to handle
   BCI competition IV 2a motor imagery data set.
 
-ToDo:
-  - Implement n_classes specific loading
-  - Implement save_pl_dataLabels(fname)
-  - Implement load_pl_dataLabels(fname)
-  - Implement bandpass filtering
-  - Implement dataloader creation methods
-
 History:
   2020-05-11: Ongoing version 0.1 implementation - ms
 '''
@@ -31,7 +24,7 @@ from data.data_utils import butter_bandpass_filt
 
 # All total trials per class per n_class-Classification
 from paths import datasets_folder
-from util.misc import to_idxs_of_list_str, calc_n_samples
+from util.misc import to_idxs_of_list_str, calc_n_samples, makedir
 
 BCIC_classes_trials = {
     "2class": {
@@ -436,6 +429,7 @@ class BCIC_IV2a_dataset:
         psd_class2 = psd_class3 / (num_class3_trials)
         psd_class2 = psd_class4 / (num_class4_trials)
 
+        makedir(path)
         # save psd's in files
         fname = os.path.join(path + '/psd_mean_')
 

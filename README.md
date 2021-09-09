@@ -10,6 +10,14 @@
 
 ___
 
+! Datasets ARE NOT INCLUDED in this repository !
+
+- PHYS: Dataset is automatically loaded via the MNE Library
+- BCIC: Has to be downloaded manually (see bcic_data_loading.py main method)
+- LSMR21: Has to be downloaded via the scripts/lsmr21_download_convert.py script
+
+Change the Location of the Datasets in `paths.py`'s `datasets_folder` variable
+
 ### main.py
 
 Main Script to run Training/Benchmarking of EEGNet
