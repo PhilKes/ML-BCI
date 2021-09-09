@@ -58,7 +58,7 @@ class PHYSConstants(DSConstants):
         self.TRIALS_PER_SUBJECT_RUN = 3 * self.TRIALS_PER_CLASS_PER_RUN
 
         # Some Subjects are excluded due to differing numbers of Trials in the recordings
-        self.ALL_SUBJECTS = [i for i in range(1, 110) if i not in [88, 92, 100, 104]][:10]
+        self.ALL_SUBJECTS = [i for i in range(1, 110) if i not in [88, 92, 100, 104]]
 
         runs_rest = [1]  # Baseline, eyes open
         runs_t1 = [3, 7, 11]  # Task 1 (open and close left or right fist)

@@ -296,14 +296,14 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
             "Accuracy in %", min_x=0.5, max_x=accuracies.shape[-1] + 0.5,
             hlines=[np.average(accuracies)],
             save_path=dir_results, show_legend=False,
-            bar_plot=True, max_y=100.0)
+            bar_plot=True)
     highest_acc_fold = np.argmax(accuracies).item()
     class_accuracies = run_data.class_accuracies[highest_acc_fold]
     matplot(class_accuracies, f"{n_class}class Accuracies{'' if tag is None else tag} of best Fold", "Class",
             "Accuracy in %", show_legend=False,
             x_values=['0'] + PHYS.class_labels[n_class],
             save_path=dir_results, hlines=[np.average(class_accuracies)],
-            bar_plot=True, max_y=100.0)
+            bar_plot=True)
     matplot(run_data.epoch_losses_train, f"{n_class}class Training Losses{'' if tag is None else tag}", 'Epoch',
             f'loss per batch (size = {batch_size})', min_x=-5, max_x=run_data.epoch_losses_train.shape[-1] + 5,
             labels=[f"Fold {i + 1}" for i in range(folds)], save_path=dir_results)

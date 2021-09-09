@@ -72,7 +72,7 @@ class PHYSDataLoader(MIDataLoader):
         # For n_class = 2 the Test Dataset only needs 1 Run of Task 2
         else:
             n_class_runs = get_runs_of_n_classes(n_class)
-            test_runs = n_class_runs[-1]
+            test_runs = [n_class_runs[-1]]
 
         train_runs = [run for run in n_class_runs if run not in test_runs]
         loader_train = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
@@ -361,7 +361,7 @@ def plot_live_sim_subject_run(subject: int = 1, n_class: int = 3, save_path: str
 
     # matplot(sample_predictions,
     #         f"{n_class}class Live Simulation_S{subject:03d}",
-    #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0), max_y=100.5,
+    #         'Time in sec.', f'Prediction in %', fig_size=(80.0, 10.0),
     #         vspans=vspans, vlines=vlines, ticks=trials_start_samples, x_values=trials_start_times,
     #         labels=[f"T{i}" for i in range(n_class)], save_path=dir_results)
     # Split into multiple plots, otherwise too long
