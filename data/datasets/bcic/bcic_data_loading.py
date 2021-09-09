@@ -120,6 +120,9 @@ class BCICDataLoader(MIDataLoader):
             subject,
             n_class,
             ch_names)
+        # TODO Resampling not necessary since BCIC and global System SampleRate is the same
+        #  if Samplerates are different, have to resample X nad recalc trial_start_samples + slice_start_samples
+        # X, _ = cls.prepare_data_labels(X, trials_classes)
         max_sample = X.shape[-1] - 1
         slices = CONFIG.EEG.TRIALS_SLICES
         slice_start_samples = []

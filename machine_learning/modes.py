@@ -466,7 +466,7 @@ def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_clas
             else:
                 last_sample = trials_start_samples[last_trial + 1]
             matplot(sample_predictions,
-                    f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1}",
+                    f"{n_class}class Live Simulation_S{used_subject:03d}_R{run:02d}_{i + 1} Epochs [{CONFIG.EEG.TMIN};{CONFIG.EEG.TMAX}]",
                     'Time in sec.', f'Prediction Outputs', fig_size=(30.0, 8.0),
                     vspans=vspans[first_trial:last_trial + 1],
                     color_offset=n_class_offset, font_size=30.0,

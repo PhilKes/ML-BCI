@@ -64,9 +64,16 @@ class PHYSDataLoader(MIDataLoader):
         2/3class: 3 Runs, 4class: 6 Runs
         :return: loader_train: DataLoader, load_test: DataLoader
         """
-        n_class_runs = get_runs_of_n_classes(n_class)
-        train_runs = n_class_runs[:-n_test_runs]
-        test_runs = n_class_runs[-n_test_runs:]
+        # For n_class = 3/4 the Test Dataset needs at least 1 Run of Task 2 and 1 Run of Task 4
+        if n_class > 2:
+            n_class_runs = get_runs_of_n_classes(n_class)
+            test_runs = [PHYS.runs[2][-1], PHYS.runs[4][-1]]
+        # For n_class = 2 the Test Dataset only needs 1 Run of Task 2
+        else:
+            n_class_runs = get_runs_of_n_classes(n_class)
+            test_runs = n_class_runs[-1]
+
+        train_runs = [run for run in n_class_runs if run not in test_runs]
         loader_train = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
                                                            ignored_runs=test_runs)
         loader_test = cls.create_loader_from_subject_runs(used_subject, n_class, batch_size, ch_names,
@@ -121,19 +128,24 @@ class PHYSDataLoader(MIDataLoader):
         trials_classes = map_trial_labels_to_classes(raw.annotations.description)
         X, _ = cls.prepare_data_labels(X, trials_classes)
 
-        max_sample = raw.n_times
+        max_sample = X.shape[-1]
         slices = CONFIG.EEG.TRIALS_SLICES
         # times = raw.times[:max_sample]
         trials_start_times = raw.annotations.onset
 
         # Get samples of Trials Start Times
         trials_start_samples = map_times_to_samples(raw, trials_start_times)
+        trials_start_samples = np.zeros(trials_start_times.shape)
+        for i, trial_start_time in enumerate(trials_start_times):
+            trials_start_samples[i] = int(trial_start_time * CONFIG.EEG.SAMPLERATE)
 
         trial_time_length = CONFIG.EEG.TMAX - CONFIG.EEG.TMIN
         slice_start_samples = []
         for trial_start_time in trials_start_times:
             for i in range(1, slices + 1):
-                slice_start_samples.append(raw.time_as_index(trial_start_time + (trial_time_length / slices) * i))
+                slice_time = trial_start_time + (trial_time_length / slices) * i
+                slice_sample = int(slice_time * CONFIG.EEG.SAMPLERATE)
+                slice_start_samples.append(slice_sample)
 
         return X, max_sample, slices, trials_classes, trials_start_times, trials_start_samples, slice_start_samples
 
@@ -240,6 +252,8 @@ class PHYSDataLoader(MIDataLoader):
         # Load Subject Data of all Tasks
         for task_idx, task in enumerate(tasks):
             used_runs = [run for run in PHYS.runs[task] if run not in ignored_runs]
+            if len(used_runs) == 0:
+                continue
             trials_per_run_class = len(used_runs) * PHYS.TRIALS_PER_CLASS_PER_RUN * CONFIG.EEG.TRIALS_SLICES
             # Task = 0 -> Rest Trials "T0"
             if PHYS.CONFIG.REST_TRIALS_FROM_BASELINE_RUN & (task == 0):
