@@ -5,15 +5,15 @@ import numpy as np
 import torch as t
 import torch.nn.functional as F  # noqa
 
-# Original Source:
-# Tibor Schneider
-# https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
 from config import CONFIG
 
 
 class EEGNet(t.nn.Module):
     """
-    EEGNet
+    PyTorch Implementation of the 'EEGNet' CNN (https://arxiv.org/abs/1611.08024)
+    Original Implementation:
+    Tibor Schneider
+    https://github.com/xiaywang/q-eegnet_torch/blob/0f467e7f0d9e56d606d8f957773067bc89c2b42c/eegnet.py
     """
 
     def __init__(self, F1=8, D=2, F2=None, C=22, T=1125, N=4, p_dropout=None, reg_rate=0.25,
@@ -316,9 +316,12 @@ class PermutedFlatten(t.nn.Flatten):
         return input.permute(0, 2, 3, 1).flatten(self.start_dim, self.end_dim)
 
 
-# Source:
-# https://stackoverflow.com/questions/58307036/is-there-really-no-padding-same-option-for-pytorchs-conv2d
-# Calculates correct Padding for Conv2d Layer for given kernel size
-# -> equivalent to padding='same' of Keras
 def get_padding(kernel_size):
+    """
+    Calculates correct Padding for Conv2d Layer for given kernel size
+    -> equivalent to padding='same' of Keras
+    Source:
+    https://stackoverflow.com/questions/58307036/is-there-really-no-padding-same-option-for-pytorchs-conv2d
+
+    """
     return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])

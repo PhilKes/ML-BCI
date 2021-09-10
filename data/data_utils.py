@@ -114,10 +114,13 @@ scaler = MinMaxScaler(copy=False)
 normalize_data = lambda x: scaler.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
 
 
-# omit_bl: Omit Baseline Runs (Rest Trials)
-def get_runs_of_n_classes(n_classes, omit_bl=False) -> List[int]:
+def get_runs_of_n_class(n_class: int, omit_bl=False) -> List[int]:
+    """
+    Returns List of Runs used for n_class Classification
+    :param omit_bl: Omit Baseline Runs (Rest Trials)
+    """
     n_runs = []
-    for task in PHYS.n_classes_tasks[n_classes]:
+    for task in PHYS.n_classes_tasks[n_class]:
         if omit_bl & (task == 0):
             continue
         n_runs.extend(PHYS.runs[task])
@@ -130,7 +133,7 @@ trials_per_class_for_2_runs = 14
 trials_per_class_for_3_runs = 21
 
 
-def get_trials_size(n_class, equal_trials=True, ignored_runs=[]):
+def get_trials_size(n_class: int, equal_trials=True, ignored_runs=[]) -> int:
     """
     Returns the amount of Trials per Subject for n_class Classification with ignored_runs
     """

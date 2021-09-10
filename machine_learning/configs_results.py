@@ -4,6 +4,7 @@ Saving result strings, etc.
 """
 
 import os
+from typing import List
 
 import numpy as np
 import torch  # noqa
@@ -14,6 +15,7 @@ from paths import training_results_folder, benchmark_results_folder, \
     trained_model_name, chs_names_txt, results_folder, live_sim_results_folder, \
     training_ss_results_folder
 from util.misc import datetime_to_folder_str, get_str_n_classes, makedir, file_write, get_device_name
+from util.plot import plot_training_statistics
 
 
 def create_results_folders(path=None, name=None, datetime=None, mode='train'):
@@ -227,7 +229,7 @@ def get_results_file(model, n_class):
     return os.path.join(model, f"{n_class}class-training.npz")
 
 
-def get_trained_model_file(model, n_class):
+def get_trained_model_file(model, n_class) -> str:
     return os.path.join(model, f"{n_class}class_{trained_model_name}")
 
 
@@ -266,3 +268,30 @@ def get_excluded_if_present(results, subject):
     else:
         raise ValueError(
             f'Training had no excluded Subject, please specify subject to use with --subject')
+
+
+def save_n_class_results(n_class: int, mi_ds: str, run_data, folds: int, only_fold: int, batch_size: int,
+                         excluded: List[int], best_model, dir_results: str, tag: str = None, early_stop=False,
+                         save_model=True):
+    """
+    Save n-class Cross Validation Results from run_data
+    :return: n_class_accuracy, n_class_overfitting_diff
+    """
+    res_str = training_result_str(run_data, only_fold,
+                                  early_stop=early_stop)
+    print(res_str)
+
+    # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
+    save_training_results(n_class, res_str, dir_results, tag)
+    save_training_numpy_data(run_data, dir_results, n_class, excluded, mi_ds)
+    # Plot Statistics and save as .png s
+    plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop)
+    # Save best trained Model state
+    # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
+    # else: Model state after epochs of Fold with the highest accuracy on Training Set
+    if save_model:
+        torch.save(best_model, os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
+
+    n_class_accuracy = np.average(run_data.fold_accuracies)
+    n_class_overfitting_diff = n_class_accuracy - np.average(run_data.accuracies_overfitting)
+    return n_class_accuracy, n_class_overfitting_diff

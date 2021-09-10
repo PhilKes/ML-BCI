@@ -1,6 +1,10 @@
-# Normal Dictionary whose members can be accessed via "."
-# Source:
-# https://stackoverflow.com/a/36968114/9748566
+"""
+Normal Dictionary whose members can be accessed via "."
+Source:
+https://stackoverflow.com/a/36968114/9748566
+"""
+
+
 class DotDict(dict):
     """dot.notation access to dictionary attributes"""
 

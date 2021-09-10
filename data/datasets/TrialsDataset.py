@@ -64,7 +64,7 @@ class TrialsDataset(Dataset):
             return ds_len
         return len(self.subjects) * self.trials_per_subject
 
-    def load_trial(self, trial) -> (np.ndarray, int):
+    def load_trial(self, trial: int) -> (np.ndarray, int):
         """
         Determines corresponding Subject of trial and loads subject's data+labels
         :return: trial data (X) and trial label (y)

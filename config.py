@@ -17,7 +17,7 @@ SHOW_PLOTS = False
 # if True EEG Data is always resampled to CONFIG.SYSTEM_SAMPLE_RATE
 RESAMPLE = True
 
-# Turn interactive plotting off
+# Turn interactive plotting off (window popping up during runtime)
 if SHOW_PLOTS is False:
     plt.ioff()
 else:
@@ -197,7 +197,7 @@ Trials Slices: {self.TRIALS_SLICES}
 
 class Config(object):
     """
-    Singleton Object for all relevant global Config Variables
+    Config class containing all sub configurations (EEGConfig, ANNConfig, FilterConfig,...)
     """
     # Global System Sample Rate
     # after preloading any Dataset the EEG Data gets resampled
@@ -229,6 +229,10 @@ System Sample Rate: {self.SYSTEM_SAMPLE_RATE}
 ## Net Model Config:{self.NET}"""
 
 
+"""
+Singleton Object for all relevant global Config Variables
+! Access/Modify the global parameters only via this Object !
+"""
 CONFIG = Config()
 
 # Selections of Channels for reduced amount of needed EEG Channels
@@ -344,6 +348,8 @@ MOTORIMG_CHANNELS_5 = [
     "C3", "Cz", "C4", "Cp3", "Cp4"
 ]
 
+# Dictionary containg all possible Channel Selections
+# Any Key in the Dict can be used with the '--ch_motorimg' argument
 MOTORIMG_CHANNELS = {
     '5': MOTORIMG_CHANNELS_5, '8': MOTORIMG_CHANNELS_8,
     '8_2': MOTORIMG_CHANNELS_8_2, '8_3': MOTORIMG_CHANNELS_8_3,

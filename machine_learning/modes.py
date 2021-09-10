@@ -18,26 +18,25 @@ from typing import List, Type
 
 import numpy as np
 import torch  # noqa
+import torch.types
 from sklearn.model_selection import GroupKFold
 
 from config import TEST_OVERFITTING, CONFIG
 from data.MIDataLoader import MIDataLoader
-from data.data_utils import get_correctly_predicted_areas
 from data.datasets.datasets import DATASETS
 from data.datasets.phys.phys_dataset import PHYS
 from machine_learning.configs_results import training_config_str, create_results_folders, save_training_results, \
     benchmark_config_str, get_excluded_if_present, load_global_conf_from_results, load_npz, get_results_file, \
     save_benchmark_results, save_training_numpy_data, benchmark_result_str, save_config, \
-    training_result_str, live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
-    live_sim_result_str
+    live_sim_config_str, training_ss_config_str, training_ss_result_str, save_live_sim_results, \
+    live_sim_result_str, save_n_class_results
 from machine_learning.inference_training import do_train, do_test, do_benchmark, do_predict_on_samples
 from machine_learning.util import get_class_accuracies, get_trials_per_class, get_tensorrt_model, gpu_warmup, get_model, \
-    ML_Run_Data
+    MLRunData
 from paths import trained_model_name
 from util.dot_dict import DotDict
 from util.misc import split_list_into_chunks, groups_labels
-from util.plot import plot_training_statistics, matplot, create_plot_vspans, create_vlines_from_trials_epochs
-import torch.types
+from util.plot import matplot, create_plot_vspans, create_vlines_from_trials_epochs
 
 
 def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[int],
@@ -87,6 +86,11 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
         validation_subjects = available_subjects[(len(available_subjects) - CONFIG.MI.VALIDATION_SUBJECTS):]
         print(f"Validation Subjects: [{validation_subjects[0]}-{validation_subjects[-1]}]")
 
+    # Folds are divided by subject, therefore the number of subjects has to be at least the number of folds
+    # otherwise decrease folds
+    if len(used_subjects) < folds:
+        folds = len(used_subjects)
+
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(used_subjects), folds)
 
@@ -115,33 +119,6 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
     return n_class_accuracy, n_class_overfitting_diff
 
 
-def save_n_class_results(n_class: int, mi_ds: str, run_data: ML_Run_Data, folds: int, only_fold: int, batch_size: int,
-                         excluded: List[int], best_model, dir_results: str, tag: str = None, early_stop=False,
-                         save_model=True):
-    """
-    Save n-class Cross Validation Results from run_data
-    :return: n_class_accuracy, n_class_overfitting_diff
-    """
-    res_str = training_result_str(run_data, only_fold,
-                                  early_stop=early_stop)
-    print(res_str)
-
-    # Store config + results in ./results/{datetime}/training/{n_class}class_results.txt
-    save_training_results(n_class, res_str, dir_results, tag)
-    save_training_numpy_data(run_data, dir_results, n_class, excluded, mi_ds)
-    # Plot Statistics and save as .png s
-    plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop)
-    # Save best trained Model state
-    # if early_stop = True: Model state of epoch with the lowest test_loss during Training on small Test Set
-    # else: Model state after epochs of Fold with the highest accuracy on Training Set
-    if save_model:
-        torch.save(best_model, os.path.join(dir_results, f"{n_class}class_{trained_model_name}"))
-
-    n_class_accuracy = np.average(run_data.fold_accuracies)
-    n_class_overfitting_diff = n_class_accuracy - np.average(run_data.accuracies_overfitting)
-    return n_class_accuracy, n_class_overfitting_diff
-
-
 def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.ndarray, folds: int, n_class: int,
                            num_epochs: int, only_fold: int, dataset: Type[MIDataLoader], validation_subjects: List[int],
                            preloaded_data: np.ndarray, preloaded_labels: np.ndarray, batch_size: int,
@@ -152,7 +129,7 @@ def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.
     """
     cv_split = cv.split(X=used_subjects, groups=groups)
     best_model = None
-    run_data = ML_Run_Data(folds, n_class, num_epochs, cv_split)
+    run_data = MLRunData(folds, n_class, num_epochs, cv_split)
     run_data.start_run()
 
     # Skip folds until specified fold is reached
@@ -204,7 +181,7 @@ def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.
     return run_data, best_model
 
 
-def testing(n_class, model_path, ch_names):
+def testing(n_class: int, model_path: str, ch_names: List[str]) -> float:
     """
     Test pretrained model (Best Fold)
     Determines Accuracy on Best-Fold's Test Set
@@ -251,8 +228,10 @@ def testing(n_class, model_path, ch_names):
     return test_accuracy
 
 
-def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE,
-                lr=CONFIG.MI.LR, n_classes=[3], tag=None, ch_names=PHYS.CHANNELS):
+def training_ss(model_path: str, subject: int = None, num_epochs: int = CONFIG.MI.EPOCHS,
+                batch_size: int = CONFIG.MI.BATCH_SIZE,
+                lr: DotDict = CONFIG.MI.LR, n_classes: List[int] = [3], tag: str = None,
+                ch_names: List[str] = PHYS.CHANNELS):
     """
     Runs Subject-specific Training on pretrained model (model_path)
     Supposed to be used before live_sim mode is executed
@@ -285,7 +264,7 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         loader_train, loader_test = dataset.create_n_class_loaders_from_subject(used_subject, n_class, n_test_runs,
                                                                                 batch_size,
                                                                                 ch_names)
-        run_data = ML_Run_Data(1, n_class, num_epochs, None)
+        run_data = MLRunData(1, n_class, num_epochs, None)
         run_data.start_run()
         train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE)
         epoch_losses_train, epoch_losses_test, _, __ = train_results
@@ -305,21 +284,25 @@ def training_ss(model_path, subject=None, num_epochs=CONFIG.MI.EPOCHS, batch_siz
         torch.save(model.state_dict(), f"{dir_results}/{n_class}class_{trained_model_name}")
 
 
-def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_classes=[2], warm_ups=CONFIG.MI.GPU_WARMUPS,
-                 subjects_cs=len(PHYS.ALL_SUBJECTS), tensorRT=False, iters=1, fp16=False, tag=None,
-                 ch_names=PHYS.CHANNELS, equal_trials=True, continuous=False):
+def benchmarking(model_path: str, name: str = None, batch_size: int = CONFIG.MI.BATCH_SIZE, n_classes: List[int] = [2],
+                 warm_ups: int = CONFIG.MI.GPU_WARMUPS,
+                 subjects_cs: int = len(PHYS.ALL_SUBJECTS), tensorRT: bool = False, iters: int = 1, fp16: bool = False,
+                 tag: str = None,
+                 ch_names: List[str] = PHYS.CHANNELS, equal_trials: bool = True, continuous: bool = True) \
+        -> (np.ndarray, np.ndarray):
     """
     Benchmarks pretrained EEGNet (option to use TensorRT optimizations available)
-    with Physionet Dataset
     Returns Batch Latency + Time per EEG Trial inference
     saves results in model_path/benchmark
-    :param model_path: Path to trained_model.pt
+    :param model_path: Path to Folder containing {n_class}_trained_model.pt
     :param warm_ups: Amount of GPU Warm ups before Benchmarking
     :param subjects_cs: Subject Chunk size
     :param tensorRT: Enable TensorRT
     :param iters: Amount of iterations to average Performance
     :param continuous: Benchmark on same Subject Chunk continuously
-    :return: Batch Latencies Averages + Trial Inference Times Averages
+    :return:
+    batch_lat_avgs: Batch Latencies Averages
+    trial_inf_time_avgs: Trial Inference Times Averages
     """
     config = DotDict(batch_size=batch_size, device=CONFIG.DEVICE, n_classes=n_classes, subjects_cs=subjects_cs,
                      trt=tensorRT, iters=iters, fp16=fp16, ch_names=ch_names)
@@ -333,7 +316,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
     for class_idx, n_class in enumerate(n_classes):
         print(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds']]
+        dataset = DATASETS[n_class_results['mi_ds'].item()]
         CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, CONFIG.EEG.CUE_OFFSET)
 
@@ -345,7 +328,7 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
             class_models[n_class] = get_tensorrt_model(class_models[n_class], batch_size, chs, fp16)
 
         # Split ALL_SUBJECTS into chunks according to Subjects Chunk Size Parameter (due to high memory usage)
-        preload_chunks = split_list_into_chunks(PHYS.ALL_SUBJECTS, subjects_cs)
+        preload_chunks = split_list_into_chunks(dataset.CONSTANTS.ALL_SUBJECTS, subjects_cs)
         chunks = len(preload_chunks)
         accuracies = np.zeros((chunks * iters) if not continuous else (iters))
         batch_lats = np.zeros((chunks * iters) if not continuous else (iters))
@@ -393,7 +376,8 @@ def benchmarking(model_path, name=None, batch_size=CONFIG.MI.BATCH_SIZE, n_class
     return batch_lat_avgs, trial_inf_time_avgs
 
 
-def live_sim(model_path, subject=None, name=None, ch_names=PHYS.CHANNELS, n_classes=CONFIG.MI.N_CLASSES, tag=None):
+def live_sim(model_path: str, subject: int = None, name: str = None, ch_names: List[str] = PHYS.CHANNELS,
+             n_classes: List[int] = CONFIG.MI.N_CLASSES, tag: str = None):
     """
     Simulates Live usage
     Loads pretrained model of model_path

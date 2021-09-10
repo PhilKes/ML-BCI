@@ -13,6 +13,7 @@ import pandas as pd
 import torch.types
 from scipy import io
 from tabulate import tabulate
+import functools
 
 from paths import chs_names_txt
 
@@ -28,8 +29,10 @@ def print_subjects_ranges(train, test):
     return
 
 
-# Loads list of ch_names from training results folder
-def load_chs_of_model(model_path):
+def load_chs_of_model(model_path: str):
+    """
+    Loads list of ch_names from training results folder
+    """
     try:
         path = os.path.join(model_path, chs_names_txt)
         chs = np.genfromtxt(path, dtype='str')
@@ -49,14 +52,19 @@ def get_str_n_classes(n_classes):
     return f'Classes: {[str_n_classes[i] for i in n_classes]}'
 
 
-# Split python list into chunks with equal size (last chunk can have smaller size)
-# source: https://stackoverflow.com/questions/24483182/python-split-list-into-n-chunks
-def split_list_into_chunks(p_list, chunk_size):
+def split_list_into_chunks(p_list: List, chunk_size: int) -> List:
+    """
+    Split python list into chunks with equal size (last chunk can have smaller size)
+    Source: https://stackoverflow.com/questions/24483182/python-split-list-into-n-chunks
+    """
     m = int(len(p_list) / int(math.ceil(len(p_list) / chunk_size))) + 1
     return [p_list[i:i + m] for i in range(0, len(p_list), m)]
 
 
-def split_np_into_chunks(arr, chunk_size):
+def split_np_into_chunks(arr: np.ndarray, chunk_size) -> np.ndarray:
+    """
+    Splits numpy array into chunks with equal size
+    """
     chunks = math.ceil(arr.shape[0] / chunk_size)
     arr2 = np.zeros((chunks - 1, chunk_size, arr.shape[1]), dtype=np.float)
     splits = np.split(arr, np.arange(chunk_size, len(arr), chunk_size))
@@ -66,20 +74,24 @@ def split_np_into_chunks(arr, chunk_size):
     return arr2
 
 
-def list_to_str(list):
+def list_to_str(list: List) -> str:
     return ','.join([str(i) for i in list])
 
 
-# Shuffle 2 arrays unified
-# Source: https://stackoverflow.com/a/4602224/9748566
-def unified_shuffle_arr(a, b):
+def unified_shuffle_arr(a: np.ndarray, b: np.ndarray):
+    """
+    Shuffle 2 arrays unified
+    Source: https://stackoverflow.com/a/4602224/9748566
+    """
     assert len(a) == len(b)
     p = np.random.permutation(len(a))
     return a[p], b[p]
 
 
-# Prints counts of all present values in arr
 def print_numpy_counts(arr: np.ndarray):
+    """
+    Prints counts of all present values in arr
+    """
     unique, counts = np.unique(arr, return_counts=True)
     print(dict(zip(unique, counts)))
 
@@ -93,9 +105,11 @@ def makedir(path):
         pass
 
 
-# Returns an array with groups of length (size/groups)
-# All elements in one group have same value
-def groups_labels(size, groups):
+def groups_labels(size: int, groups: int) -> np.ndarray:
+    """
+    Returns an array with groups of length (size/groups)
+    All elements in one group have the same value
+    """
     groups_vals = np.zeros(0, dtype=np.int)
     group_size = math.ceil(size / groups)
     for i in range(groups):
@@ -108,9 +122,11 @@ def groups_labels(size, groups):
     return groups_vals
 
 
-# Returns amount of Trials per class
-# and Accuracies per class
-def get_class_prediction_stats(n_class, class_hits):
+def get_class_prediction_stats(n_class: int, class_hits):
+    """
+    Returns amount of Trials per class
+    and Accuracies per class
+    """
     class_trials, class_accs = np.zeros(n_class), np.zeros(n_class)
     for cl in range(n_class):
         class_trials[cl] = len(class_hits[cl])
@@ -118,8 +134,10 @@ def get_class_prediction_stats(n_class, class_hits):
     return class_trials, class_accs
 
 
-# Calculate average accuracies per class
-def get_class_avgs(n_class, class_accuracies):
+def get_class_avgs(n_class: int, class_accuracies: np.ndarray):
+    """
+    Calculate average accuracies per class
+    """
     avg_class_accs = np.zeros(n_class)
     for cl in range(n_class):
         avg_class_accs[cl] = np.average(
@@ -133,8 +151,10 @@ def file_write(path, data):
     file_result.close()
 
 
-# Get Subdirectories of dir sorted by name
-def get_subdirs(dir):
+def get_subdirs(dir: str):
+    """
+    Get Subdirectories of dir sorted by name
+    """
     return sorted([path for path in os.listdir(dir) if os.path.isdir(os.path.join(dir, path))])
 
 
@@ -226,16 +246,12 @@ def calc_n_samples(tmin: float, tmax: float, samplerate: float):
     return int((tmax - tmin) * samplerate)
 
 
-import functools
-
-
-# Source:
-# https://stackoverflow.com/a/46924437/9748566
 def combine_dims(a, i=0, n=1):
     """
     Combines dimensions of numpy array `a`,
     starting at index `i`,
     and combining `n` dimensions
+    Source: https://stackoverflow.com/a/46924437/9748566
     """
     s = list(a.shape)
     combined = functools.reduce(lambda x, y: x * y, s[i:i + n + 1])
@@ -243,7 +259,9 @@ def combine_dims(a, i=0, n=1):
 
 
 def get_device_name(device: torch.types.Device):
-    # Get Name from torch if CUDA Device
+    """
+    Get Name from torch if CUDA Device
+    """
     if 'cuda' in str(device):
         return f"CUDA ({torch.cuda.get_device_name(device)})"
     return f"CPU ({platform.processor()})"

@@ -22,7 +22,7 @@ from tqdm import tqdm
 from config import VERBOSE, CONFIG, RESAMPLE
 from data.MIDataLoader import MIDataLoader
 from data.data_utils import dec_label, increase_label, get_trials_size, \
-    get_equal_trials_per_class, slice_trials, get_runs_of_n_classes, get_data_from_raw, map_times_to_samples, \
+    get_equal_trials_per_class, slice_trials, get_runs_of_n_class, get_data_from_raw, map_times_to_samples, \
     map_trial_labels_to_classes
 from data.datasets.TrialsDataset import TrialsDataset
 from data.datasets.phys.phys_dataset import PHYS, PHYSConstants
@@ -67,11 +67,11 @@ class PHYSDataLoader(MIDataLoader):
         """
         # For n_class = 3/4 the Test Dataset needs at least 1 Run of Task 2 and 1 Run of Task 4
         if n_class > 2:
-            n_class_runs = get_runs_of_n_classes(n_class)
+            n_class_runs = get_runs_of_n_class(n_class)
             test_runs = [PHYS.runs[2][-1], PHYS.runs[4][-1]]
         # For n_class = 2 the Test Dataset only needs 1 Run of Task 2
         else:
-            n_class_runs = get_runs_of_n_classes(n_class)
+            n_class_runs = get_runs_of_n_class(n_class)
             test_runs = [n_class_runs[-1]]
 
         train_runs = [run for run in n_class_runs if run not in test_runs]
@@ -111,7 +111,7 @@ class PHYSDataLoader(MIDataLoader):
         return preloaded_data, preloaded_labels
 
     @classmethod
-    def load_live_sim_data(cls, subject, n_class, ch_names):
+    def load_live_sim_data(cls, subject: int, n_class: int, ch_names: List[str]):
         """
         Load all necessary Data for the Live Simulation Run of subject
         X: ndarray (channels,Samples) of single Subject's Run data

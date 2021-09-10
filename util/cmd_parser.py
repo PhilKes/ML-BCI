@@ -1,11 +1,12 @@
 """
 File: cmd_parser.py
 
+Helper methods to implement Command Line Interface(CLI)
+providing arguments for all relevant Parameters for every Mode
+
+
 Author:
   Originally developed by Philipp Kessler (May 2021)
-
-ToDo:
-  Passing ch_names does not work as expected
 
 History:
   2021-05-10: Common parameter mi_ds included - ms (Manfred Strahnen)

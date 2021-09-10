@@ -2,9 +2,9 @@
 """
 Script to execute benchmarking of all possible Configurations
 Executes main.py for every Configuration in benchmark mode and
-saves results in a parent folder (./results/benchmark/all_confs-{DateTime})
+saves results in a parent folder (./results/{model}/benchmark/all_confs-{DateTime})
 Creates results.npz file containing all Batch Latency Avgs and Inference Time per Trial Avgs
-results can be visualized with visualize_bench_all.py (provide --folder {parent_folder}
+results are also automatically visualized by visualize_bench_all.py to generate *.png Plots
 """
 import argparse
 import numpy as np
@@ -40,14 +40,14 @@ if (len(args.bs) < 1) | any(bs < 1 for bs in args.bs):
 all_confs = [
     ['--device', 'cpu'],
     ['--device', 'gpu'],
-    ['--device', 'gpu', '--trt'],
-    ['--device', 'gpu', '--trt', '--fp16'],
+    # ['--device', 'gpu', '--trt'],
+    # ['--device', 'gpu', '--trt', '--fp16'],
 ]
 conf_names = [
     'c_cpu',
     'c_gpu',
-    'c_gpu_trt_fp32',
-    'c_gpu_trt_fp16',
+    # 'c_gpu_trt_fp32',
+    # 'c_gpu_trt_fp16',
 ]
 if args.continuous:
     if args.iters == 1:

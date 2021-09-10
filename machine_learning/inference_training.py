@@ -10,25 +10,31 @@ import torch  # noqa
 import torch.optim as optim  # noqa
 from sklearn.metrics import accuracy_score
 from torch import nn  # noqa
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import CONFIG
 from machine_learning.configs_results import benchmark_single_result_str
 from machine_learning.util import get_class_accuracies
+import torch as t
+import torch.types
 
 
-# Training
-# see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
+def do_train(model: t.nn.Module, loader_train: DataLoader, loader_valid: DataLoader, epochs: int = 1,
+             device: t.types.Device = CONFIG.DEVICE, early_stop=False):
+    """
+    Training
+    see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
 
-# In every epoch: After Inference + Calc Loss + Backpropagation on Test Dataset
-# a Test Dataset of 1 Subject is used to calculate test_loss on trained model of current epoch
-# to determine best model with loweset test_loss
-# Return values:
-# loss_values_train: Loss value of every Epoch on Training Dataset (data_loader)
-# loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
-# best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
-# best_epoch: best_epoch with lowest test_loss if early_stop=True
-def do_train(model, loader_train, loader_valid, epochs=1, device=CONFIG.DEVICE, early_stop=False):
+    In every epoch: After Inference + Calc Loss + Backpropagation on Test Dataset
+    a Test Dataset of 1 Subject is used to calculate test_loss on trained model of current epoch
+    to determine best model with loweset test_loss
+    :return:
+    loss_values_train: Loss value of every Epoch on Training Dataset (data_loader)
+    loss_values_valid: Loss value of every Epoch on Test Dataset (loader_test_loss)
+    best_model: state_dict() of epoch model with lowest test_loss if early_stop=True
+    best_epoch: best_epoch with lowest test_loss if early_stop=True
+    """
     model.train()
     # Init Loss Function + Optimizer with Learning Rate Scheduler
     criterion = nn.CrossEntropyLoss()
@@ -98,12 +104,14 @@ def do_train(model, loader_train, loader_valid, epochs=1, device=CONFIG.DEVICE, 
     return loss_values_train, loss_values_valid, best_model, best_epoch
 
 
-# Tests labeled data with trained net
-# Return values:
-# acc: Average accuracy across entire data_loader
-# act_labels: Actual Labels of the Trials
-# pred_labels: Predicted Labels of the Trials
-def do_test(model, data_loader):
+def do_test(model: t.nn.Module, data_loader: DataLoader) -> (float, np.ndarray, np.ndarray):
+    """
+    Tests labeled data with trained net
+    :return:
+    acc: Average accuracy across entire data_loader
+    act_labels: Actual Labels of the Trials
+    pred_labels: Predicted Labels of the Trials
+    """
     print("###### Testing started")
     act_labels = np.zeros((len(data_loader.dataset)), dtype=np.int)
     pred_labels = np.zeros((len(data_loader.dataset)), dtype=np.int)
@@ -134,8 +142,15 @@ def do_test(model, data_loader):
     return acc, act_labels, pred_labels
 
 
-# Benchmarks net on Inference Time in Batches
-def do_benchmark(model, data_loader, device=CONFIG.DEVICE, fp16=False):
+def do_benchmark(model: t.nn.Module, data_loader: DataLoader, device=CONFIG.DEVICE, fp16=False) -> (
+        float, float, float):
+    """
+    Benchmarks model on Inference Time in Batches
+    :return:
+    batch_lat: Batch Latency
+    trial_inf_time: Trial Inference Time
+    acc: Achieved Accuracy
+    """
     # TODO Best way to measure timings? (w/ device= Cuda/Cpu)
     # INIT LOGGERS
     # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
@@ -178,9 +193,14 @@ def do_benchmark(model, data_loader, device=CONFIG.DEVICE, fp16=False):
     return batch_lat, trial_inf_time, acc
 
 
-# Infers on all given samples with time window
-# Returns all class predictions for all samples
-def do_predict_on_samples(model, n_class, samples_data, max_sample, device=CONFIG.DEVICE):
+def do_predict_on_samples(model: t.nn.Module, n_class: int, samples_data: np.ndarray, max_sample: int,
+                          device=CONFIG.DEVICE):
+    """
+    Infers on all given samples with time window
+    Returns all class predictions for all samples
+    :param samples_data: Numpy Array containing EEG Samples with Shape (Channel, Sample)
+    :param max_sample: Number of last sample to predict up to
+    """
     sample_predictions = np.zeros((max_sample, n_class))
     print('Predicting on every sample of run')
 
@@ -194,9 +214,12 @@ def do_predict_on_samples(model, n_class, samples_data, max_sample, device=CONFI
     return sample_predictions
 
 
-# Infers on single Trial (SAMPLES)
-# Returns class predictions (with Softmax -> predictions =[0;1])
-def do_predict_single(model, X, device=CONFIG.DEVICE):
+def do_predict_single(model: t.nn.Module, X: np.ndarray, device=CONFIG.DEVICE):
+    """
+    Infers on single Trial (SAMPLES)
+    Returns class predictions (with Softmax -> predictions =[0;1])
+    :param X: Single Trial Data Array with Shape (Channel, Sample)
+    """
     with torch.no_grad():
         X = torch.as_tensor(X[None, None, ...], device=device, dtype=torch.float32)
         output = model(X)

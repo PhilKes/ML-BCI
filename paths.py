@@ -1,4 +1,6 @@
-# Project'sath
+"""
+Important Path Constants
+"""
 import os
 import sys
 
@@ -16,7 +18,8 @@ training_ss_results_folder = '/training_ss'
 trained_model_name = "trained_model.pt"
 trained_ss_model_name = "trained_ss_model.pt"
 chs_names_txt = "ch_names.txt"
-# Folder where MNE downloads Physionet Dataset to
-# on initial Run MNE needs to download the Dataset
 
+# Folder path where all Datasets are stored
+# on initial Run MNE downloads the Physionet
+# Dataset to that location automatically
 datasets_folder = '/opt/datasets'

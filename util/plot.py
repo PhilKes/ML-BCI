@@ -157,8 +157,10 @@ def matplot(data: np.ndarray, title='', xlabel='', ylabel='', labels: Optional[L
         plt.show(block=True)
 
 
-# Plot only Legend
 def matplot_legend(labels: List[str] = [], font_size: float = None, hor=True, save_path: str = None, title: str = None):
+    """
+     Plot a single Legend without actual Graph
+    """
     # use LaTeX fonts in the plot
     plt.rc('font', family='serif')
 
@@ -194,13 +196,15 @@ def matplot_legend(labels: List[str] = [], font_size: float = None, hor=True, sa
             figlegend.savefig(f"{save_path}/{title}.pdf", bbox_inches='tight')
 
 
-# Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
 def matplot_grouped_configs(configs_data: np.ndarray, batch_sizes: np.ndarray, class_idx: int, title: str = "",
                             ylabel: str = "",
                             save_path: str = None, font_size: float = 16.0, fig_size: Tuple[float, float] = None,
                             xlabel: str = None, hor=False,
                             min_x: float = None, max_x: float = None, conf_offset=0,
                             legend=False, legend_pos='best', xlabels=[]):
+    """
+    Plots Benchmarking (Batch Latencies) for given configurations data (config_idx,batch_size_idx)
+    """
     x = np.arange(len(configs_data))  # the label locations
     width = min(0.6, (1.0 / len(batch_sizes)) - 0.1)  # the width of the bars
     x = x + (width - 0.1)
@@ -275,9 +279,11 @@ def matplot_grouped_configs(configs_data: np.ndarray, batch_sizes: np.ndarray, c
         plt.show(block=False)
 
 
-# Create Plot from numpy file
-# if save = True save plot as .png
 def plot_numpy(np_file_path, xlabel, ylabel, save):
+    """
+    Create Plot from numpy file
+    if save = True save plot as .png
+    """
     data = np.load(np_file_path)
     labels = []
     if data.ndim > 1:
@@ -288,8 +294,10 @@ def plot_numpy(np_file_path, xlabel, ylabel, save):
     return data
 
 
-# Plots Losses, Accuracies of Training, Validation, Testing
 def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, early_stop):
+    """
+    Plots Losses, Accuracies of Training, Validation, Testing
+    """
     n_class = run_data.n_class
     accuracies = run_data.fold_accuracies
     matplot(np.append(np.roll(accuracies, 1), accuracies[-1]), f"{n_class}class Cross Validation", "Fold",
@@ -323,8 +331,10 @@ def plot_training_statistics(dir_results, tag, run_data, batch_size, folds, earl
             labels=['Training Loss', 'Testing Loss'], save_path=dir_results)
 
 
-# Load previous training results and replot all statistics
 def load_and_plot_training(model_path):
+    """
+    Load previous training results and replot all statistics
+    """
     # -> have to manually tell which was best fold from results.txt
     best_folds = {2: 2, 3: 2, 4: 2}
     for n_class in CONFIG.MI.N_CLASSES:
@@ -348,14 +358,16 @@ def load_and_plot_training(model_path):
                                  )
 
 
-# Plot 2,3,4class Accuracy values in 1 plot for a Parameter Testing
-# e.g. for Trials slicing:
-# accs_2cl = [acc no_slices, acc 2_slices, acc 4_slices,...]
-# defaults: 2,3,4 class accuracies of defaults configuration
-# will be plotted as dotted lines
 def plot_accuracies(accs_2cl, accs_3cl, accs_4cl, title,
                     x_values, save_path, defaults=[],
                     xlabel=None):
+    """
+    Plot 2,3,4class Accuracy values in 1 plot for a Parameter Testing
+    e.g. for Trials slicing:
+    accs_2cl = [acc no_slices, acc 2_slices, acc 4_slices,...]
+    defaults: 2,3,4 class accuracies of defaults configuration
+    will be plotted as dotted lines
+    """
     labels = ['2class', '3class', '4class']
     x = np.zeros((3, accs_2cl.shape[-1]))
     x[0], x[1], x[2], = accs_2cl, accs_3cl, accs_4cl
@@ -375,8 +387,10 @@ def plot_accuracies(accs_2cl, accs_3cl, accs_4cl, title,
             )
 
 
-# Generate consecutives Rectangles (vspans) to highlight Areas in plot
 def create_plot_vspans(vspan_start_xs, color_idx, max_x):
+    """
+    Generate consecutives Rectangles (vspans) to highlight Areas in plot
+    """
     vspans = []
     for vspan in range(vspan_start_xs.shape[0]):
         if vspan == vspan_start_xs.shape[0] - 1:
@@ -386,9 +400,11 @@ def create_plot_vspans(vspan_start_xs, color_idx, max_x):
     return vspans
 
 
-# Generate vertical Lines (vlines) for plot
-# Of Trials where interval of Training is highlighted
 def create_vlines_from_trials_epochs(trial_tdeltas, vline_xs, slices):
+    """
+    Generate vertical Lines (vlines) for plot
+    Of Trials where interval of Training is highlighted
+    """
     vlines = []
     for idx, trial_start_time in enumerate(vline_xs):
         s = range(1, slices + 1)
@@ -403,8 +419,7 @@ def plot_confusion_matrix(cm, classes, recalls, precisions, acc,
                           normalize=False,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues,
-                          save_path=None
-                          ):
+                          save_path=None):
     plt.rc('font', family='serif')
     plt.rcParams.update({'font.size': 15})
 
@@ -478,8 +493,10 @@ def plot_confusion_matrix(cm, classes, recalls, precisions, acc,
         plt.show(block=False)
 
 
-# Plot n_classes Confusion Matrices of Training Results
 def plot_confusion_matrices(model_path, n_classes=CONFIG.MI.N_CLASSES):
+    """
+    Plot n_classes Confusion Matrices of Training Results
+    """
     for n_class in n_classes:
         actual_predicted = np.load(os.path.join(model_path, f"{n_class}class_training_actual_predicted.npz"))
         y_true, y_pred = actual_predicted['actual_labels'], actual_predicted['pred_labels']

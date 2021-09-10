@@ -33,7 +33,8 @@ class MIDataLoader:
     def create_loaders_from_splits(cls, splits, validation_subjects: List[int], n_class: int,
                                    preloaded_data: np.ndarray = None, preloaded_labels: np.ndarray = None,
                                    bs: int = CONFIG.MI.BATCH_SIZE, ch_names: List[str] = [],
-                                   equal_trials: bool = True, used_subjects: List[int] = []):
+                                   equal_trials: bool = True, used_subjects: List[int] = []) \
+            -> (DataLoader, DataLoader, DataLoader):
         """
         Function: create_loaders_from_splits(...)
 
@@ -69,7 +70,6 @@ class MIDataLoader:
                                                       bs, ch_names, equal_trials)
         return loader_train, loader_test, loader_valid
 
-    # Creates DataLoader with Random Sampling from subject list
     @classmethod
     def create_loader_from_subjects(cls, subjects, used_subjects, n_class, preloaded_data, preloaded_labels,
                                     bs=CONFIG.MI.BATCH_SIZE, ch_names=[], equal_trials=True) -> DataLoader:
@@ -133,7 +133,7 @@ class MIDataLoader:
         print(f"Preloading Subjects [{subjects[0]}-{subjects[-1]}] Data in memory")
         preloaded_data, preloaded_labels = cls.load_subjects_data(subjects, n_class, ch_names,
                                                                   equal_trials=equal_trials)
-        return cls.create_loader_from_subjects(subjects, n_class, preloaded_data,
+        return cls.create_loader_from_subjects(subjects, subjects, n_class, preloaded_data,
                                                preloaded_labels, batch_size, equal_trials=equal_trials)
 
     @classmethod

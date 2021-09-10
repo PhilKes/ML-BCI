@@ -1,6 +1,6 @@
 """
 Script to check if default Training Routine works for all Datasets
-with all available n_classes and only 3 Epochs
+with all available n_classes and only 3 Epochs + Trials Slicing
 Stores results in './results/datasets_training_tests_{DateTime}'
 """
 import os.path

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """
-Main Python script to execute either Training with Cross Validation on Physionet Dataset (-train)
-Subject-specific Training (-train-ss)
+Main Python script to execute either Training with Cross Validation on any available Dataset (-train)
+Subject-specific Training on previously trained model (-train-ss)
 Benchmarking of Inference (Batch Latency + Inference time per Trial) (-benchmark)
 Live-Simulation of a single Subject Run (-live_sim)
 Configuration Parameters for Number of Epochs, TensorRT Optimizations,... (see main.py --help)
