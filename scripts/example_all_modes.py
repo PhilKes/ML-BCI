@@ -9,10 +9,15 @@ from subprocess import call
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
+from paths import to_path
 
 excluded_subject = 1
 n_classes = ['2', '3', '4']
 datasets = [BCIC.short_name, PHYS.short_name, LSMR21.short_name]
+
+# Get Relative path to main.py in Project Root Directory
+main_py_relative = to_path('main.py')
+
 for ds in datasets:
     train_name = f"example/{ds}"
     """
@@ -26,7 +31,7 @@ for ds in datasets:
     - ch_names.txt containing list of used EEG Channel names
     . *.png Plots of achieved Accuracies, Epoch Losses, etc.
     """
-    call(["python3", "../main.py",
+    call(["python3", main_py_relative,
           "-train",
           "--n_classes"] + n_classes +
          ["--dataset", f"{ds}",
@@ -45,7 +50,7 @@ for ds in datasets:
     - n_class_training.npz containing all important parameters and results of the Training process
     - ch_names.txt containing list of used EEG Channel names
     """
-    call(["python3", "../main.py",
+    call(["python3", main_py_relative,
           "-train_ss",
           "--n_classes"] + n_classes +
          ["--model", f"../results/{train_name}/training"])
@@ -56,7 +61,7 @@ for ds in datasets:
     - *.png Plots of Live Simulation run with predictions for every sample in the Subject's Run
     - n_class_predictions.npz with the actual_labels + predicted_labels arrays
     """
-    call(["python3", "../main.py",
+    call(["python3", main_py_relative,
           "-live_sim",
           "--n_classes"] + n_classes +
          ["--model", f"../results/{train_name}/training/training_ss/S00{excluded_subject}"])
@@ -65,7 +70,7 @@ for ds in datasets:
     Results can be found in ../results/{train_name}/training/benchmark/:
     - n_class_benchmark.txt of Inference Performance (default without using TensorRT/Floating Point16)
     """
-    call(["python3", "../main.py",
+    call(["python3", main_py_relative,
           "-benchmark",
           "--n_classes"] + n_classes +
          ["--model", f"../results/{train_name}/training/"])
