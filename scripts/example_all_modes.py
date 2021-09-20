@@ -3,6 +3,7 @@ Script to showcase usage of all available modes via Terminal
     1. Cross Validation Training (-train)
     2. Subject-specific Training (-train_ss)
     3. Live Simulation Run (-live_sim)
+    4. Benchmarking (-benchmark)
 """
 from subprocess import call
 
