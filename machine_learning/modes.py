@@ -421,6 +421,9 @@ def live_sim(model_path: str, subject: int = None, name: str = None, ch_names: L
         vspans = create_plot_vspans(trials_start_samples, trials_classes, max_sample)
         vlines = create_vlines_from_trials_epochs(slice_start_samples, trials_start_times, slices)
 
+        # Round Start Times to 1 decimal place
+        trials_start_times = np.round(trials_start_times, 1)
+
         # TODO Evaluation of how good the Live Simulation predictions were
         trials_correct_areas_relative = np.zeros((len(trials_classes)))
         # First try to evaluate how good the Live Simulation predictions are

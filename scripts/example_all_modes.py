@@ -9,13 +9,13 @@ from subprocess import call
 from data.datasets.bcic.bcic_dataset import BCIC
 from data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from data.datasets.phys.phys_dataset import PHYS
-from paths import to_path
+from paths import to_path, results_folder
 
 excluded_subject = 1
 n_classes = ['2', '3', '4']
 datasets = [BCIC.short_name, PHYS.short_name, LSMR21.short_name]
 
-# Get Relative path to main.py in Project Root Directory
+# Get Relative path to 'main.py' in Project Root Directory
 main_py_relative = to_path('main.py')
 
 for ds in datasets:
@@ -50,10 +50,11 @@ for ds in datasets:
     - n_class_training.npz containing all important parameters and results of the Training process
     - ch_names.txt containing list of used EEG Channel names
     """
+
     call(["python3", main_py_relative,
           "-train_ss",
           "--n_classes"] + n_classes +
-         ["--model", f"../results/{train_name}/training"])
+         ["--model", f"{results_folder}/{train_name}/training"])
 
     """
     Executes Live Simulation predictions on subject-specific trained Model
@@ -64,7 +65,7 @@ for ds in datasets:
     call(["python3", main_py_relative,
           "-live_sim",
           "--n_classes"] + n_classes +
-         ["--model", f"../results/{train_name}/training/training_ss/S00{excluded_subject}"])
+         ["--model", f"{results_folder}/{train_name}/training/training_ss/S00{excluded_subject}"])
     """
     Execute Benchmarking on globally trained model
     Results can be found in ../results/{train_name}/training/benchmark/:
@@ -73,4 +74,4 @@ for ds in datasets:
     call(["python3", main_py_relative,
           "-benchmark",
           "--n_classes"] + n_classes +
-         ["--model", f"../results/{train_name}/training/"])
+         ["--model", f"{results_folder}/{train_name}/training/"])
