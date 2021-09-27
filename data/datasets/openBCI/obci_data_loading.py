@@ -2,7 +2,7 @@
 File: bcic_data_loading.py
 
 Description:
-  Handles all EEG-Data loading of BCI competition IV 2a Motor Imagery Dataset.
+  Handles all EEG-Data loading of an OpenBCI Dataset.
   Software structure and architecture is taken from file 'data_loading.pc'
   developed by P. Kessler.
 
@@ -73,22 +73,22 @@ class OpenBCIDataLoader(MIDataLoader):
         for s_idx, subject in enumerate(subjects):
             # Loading single Subject Data with original Samplerate
             subject_data = np.full((OpenBCI.trials_per_subject, len(ch_names), original_samples),
-                                   -1, dtype=np.float32)
+                                   -1, dtype=np.float64)
             subject_labels = np.full(OpenBCI.trials_per_subject, -1, dtype=np.int)
-            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_5/Session_' + str(subject) + '/Processed_data.npz'
+            dataset_path = f'{datasets_folder}/OpenBCI/Sub_1/Test_6/Session_' + str(subject) + '/Processed_data.npz'
             print("Loading Dataset " + str(subject) + " from " + dataset_path)
             data = np.load(dataset_path)
             channels = data["channels"]
             # labels = data["labels"]
             labels_start = data["labels_start"]
-            # Trial indexes in labels_start for labels 1  or 2
+            # Get indexes of label_start where the label is 1 or 2
             trial_idxes = [idx for idx, trial in enumerate(labels_start) if trial[1] == 1 or trial[1] == 2]
             # create preloaded_data array
             channel_idxes = to_idxs_of_list(ch_names, OpenBCI.CHANNELS)
             for idx, trial_idx in enumerate(trial_idxes):
                 subject_data[idx] = channels[channel_idxes,
-                                    labels_start[trial_idx][0]:(labels_start[trial_idx][0] + original_samples)]
-                # Trials are 1 and 2
+                                             labels_start[trial_idx][0]:(labels_start[trial_idx][0] + original_samples)]
+                # Trials are labelled 1 and 2 and need to be labelled 0 and 1
                 subject_labels[idx] = labels_start[trial_idx][1] - 1
             subject_data, subject_labels = cls.prepare_data_labels(subject_data, subject_labels)
             subjects_data[s_idx] = subject_data
@@ -96,7 +96,7 @@ class OpenBCIDataLoader(MIDataLoader):
         return subjects_data, subjects_labels
 
     @classmethod
-    def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names, device):
+    def create_n_class_loaders_from_subject(cls, used_subject, n_class, n_test_runs, batch_size, ch_names):
         # TODO
         raise NotImplementedError('This method is not implemented!')
 
