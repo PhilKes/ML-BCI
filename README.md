@@ -1,4 +1,5 @@
 # ML-BCI
+This repo contains the implementation for my bachelor thesis ["Deep Learning based Motor Imagery Brain Computer Interface"](doc//Deep_Learning_based_Motor-Imagery.pdf)
 
 ## Machine Learning based Brain-Computer Interface Framework
 
