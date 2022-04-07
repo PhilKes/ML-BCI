@@ -1,0 +1,39 @@
+description:
+  name:  'BCI competition IV 2A MI dataset'
+  short_name:  'BCIC'
+metadata:
+  available_subjects:  [0,10]
+  runs:  []
+  trials_per_class_per_sr:  -1
+  cv_folds:  9
+  channels: [
+    'c01', 'c02', 'c03', 'c04', 'c05', 'c06', 'c07',
+    'c08', 'c09', 'c10', 'c11', 'c12', 'c13', 'c14',
+    'c15', 'c16', 'c17', 'c18', 'c19', 'c20', 'c21',
+    'c22']
+  # Maximum possible Trial TMAX/TMIN
+  trial_tmax: 5.5
+  trial_tmin: -2.0
+  rest_phases: [(0.0, 2.0), (6.0, 7.5)]
+  event_type_to_label: [(769, 0),(770,1),(771,2),(772,3),(783,-1)]
+
+eeg:
+  cue:
+    tmin:  0.0
+    tmax:  2.0
+    offset:  2.0
+  trials_slices:  1
+  samplerate:  250
+  samples:  -1
+  # for lsmr21:
+  # 0 = disallow trials with artifacts, 1 = use all trials
+  artifacts:  1
+
+  # 0 = use all trials
+  # 1 = use only trials with forcedresult = 1
+  # 2 = use only trials with results = 1
+  trial_category:  0
+
+  # only used for 'phys' dataset
+  rest_trials_from_baseline_run:  true
+  rest_trials_less:  0

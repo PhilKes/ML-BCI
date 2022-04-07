@@ -176,13 +176,6 @@ Python Playground for testing, has no further use
 
 ---
 
-## Cuda/PyTorch setup
-* CUDA v10.1 used
-* install correct pytorch version with:
-  ```
-  
-  ```
-
 ## Libraries
 
 Use `python3 -m pip install -r requirements.txt` to ensure all necessary libraries are installed
