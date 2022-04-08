@@ -20,6 +20,7 @@ from app.machine_learning.util import get_valid_trials_per_subject
 from app.paths import datasets_folder
 from app.util.misc import print_pretty_table, counts_of_list, save_dataframe, calc_n_samples, to_idxs_of_list_str, \
     to_idxs_of_list, load_matlab
+from app.util.progress_wrapper import ProgressWrapper
 
 
 class LSMRNumpyRun:
@@ -236,7 +237,7 @@ class LSMR21DataLoader(MIDataLoader):
         subjects_labels = np.zeros((len(subjects), subject_max_trials), dtype=np.int)
         if RESAMPLE & (cls.CONSTANTS.CONFIG.SAMPLERATE != CONFIG.SYSTEM_SAMPLE_RATE):
             logging.info(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
-        for i, subject in enumerate(tqdm(subjects)):
+        for i, subject in enumerate(ProgressWrapper(subjects)):
             s_data, s_labels = cls.load_subject(subject, n_class, ch_names)
             subjects_data[i] = s_data
             subjects_labels[i] = s_labels

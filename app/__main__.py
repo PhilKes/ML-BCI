@@ -1,4 +1,3 @@
-import argparse
 import logging
 import sys
 import traceback
@@ -28,7 +27,7 @@ def main(argv=sys.argv[1:]):
         # Init and Show GUI
         logging.info("Running GUI")
         from PyQt5.QtWidgets import QApplication
-        from app.gui import MainWindow
+        from app.ui.gui import MainWindow
         qapp = QApplication(sys.argv)
         gui = MainWindow(None)
         gui.show()

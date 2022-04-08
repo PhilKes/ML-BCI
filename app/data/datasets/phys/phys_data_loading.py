@@ -31,6 +31,7 @@ from app.machine_learning.util import calc_slice_start_samples
 from app.paths import datasets_folder, results_folder
 from app.util.misc import split_np_into_chunks
 from app.util.plot import matplot
+from app.util.progress_wrapper import ProgressWrapper
 
 mne.set_log_level('WARNING')
 
@@ -100,7 +101,7 @@ class PHYSDataLoader(MIDataLoader):
             logging.info(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
 
         logging.info("Preload Shape %s", preloaded_data.shape)
-        for i, subject in tqdm(enumerate(subjects), total=len(subjects)):
+        for i, subject in ProgressWrapper(enumerate(subjects), total=len(subjects)):
             data, labels = cls.load_n_classes_tasks(subject, n_class, ch_names, equal_trials,
                                                     ignored_runs=ignored_runs)
             # if data.shape[0] > preloaded_data.shape[1]:
