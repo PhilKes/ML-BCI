@@ -2,7 +2,7 @@ import logging
 import sys
 import traceback
 
-from app.main import single_run
+from app.cli import single_run
 from app.util.cmd_parser import create_parser, parse_and_check
 
 

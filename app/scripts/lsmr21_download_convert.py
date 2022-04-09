@@ -20,7 +20,7 @@ from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from app.machine_learning.util import resample_eeg_data
 from app.paths import datasets_folder
 from app.util import misc
-from app.util.progress_wrapper import ProgressWrapper
+from app.util.progress_wrapper import TqdmProgressBar
 
 
 def subject_run_to_numpy(sr: LSMRSubjectRun, path, ds_factor=None):
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         logging.info(f"Downloading all {LSMR21.short_name} Matlab Files from Figshare.com into '{args.origin_path}'")
         with urllib.request.urlopen("https://api.figshare.com/v2/articles/13123148/files") as url:
             files_list = json.loads(url.read().decode())
-            for file in ProgressWrapper(files_list):
+            for file in TqdmProgressBar(files_list):
                 dl_path = os.path.join(args.origin_path, file['name'])
                 # Skips Files that are already present in origin_path
                 if os.path.exists(dl_path):
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     matlab_files = sorted([f for f in os.listdir(args.origin_path) if f.endswith('.mat')])
     logging.info(f"Converting all {len(matlab_files)} .mat Files from '{args.origin_path}'"
           f" to minimal .npz Files in '{args.dest_path}' with Resampling to {CONFIG.SYSTEM_SAMPLE_RATE}Hz Samplerate")
-    for file in ProgressWrapper(matlab_files):
+    for file in TqdmProgressBar(matlab_files):
         mat_file_name, mat_file_ext = os.path.splitext(file)
         npz_file = os.path.join(args.dest_path, f"{mat_file_name}.npz")
         if os.path.exists(npz_file):

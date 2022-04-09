@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """
 Script to execute benchmarking of all possible Configurations
-Executes main.py for every Configuration in benchmark mode and
+Executes cli.py for every Configuration in benchmark mode and
 saves results in a parent folder (./results/{model}/benchmark/all_confs-{DateTime})
 Creates results.npz file containing all Batch Latency Avgs and Inference Time per Trial Avgs
 results are also automatically visualized by visualize_bench_all.py to generate *.png Plots

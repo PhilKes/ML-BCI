@@ -9,7 +9,7 @@ import pandas as pd
 
 from app.config import CONFIG
 from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21
-from app.main import single_run
+from app.cli import single_run
 from app.paths import results_folder, training_results_folder, training_ss_results_folder
 from app.util.misc import file_write, save_dataframe, print_pretty_table
 
@@ -19,14 +19,14 @@ All Batch Configurations to execute Training with in 'confs' Dictionary
 Add new Keys for new Training batches, e.g.:
     'Example_Batch': {
       # A Training Config consists of:
-      #   * Command Line params for 'main.py -train' ('params')
+      #   * Command Line params for 'cli.py -train' ('params')
       #   * A name for the result folder of the Config ('names')
       #   * An initialization Method executed before the Training ('init')
       # Every Row represents a Training Configuration
       #   -> e.g. the first Training Config is defined by params[0], names[0], init[0]
       #   -> 'params', 'names', 'init' have to have same amount of rows
         'params': [
-            # You can add any available Argument for 'main.py -train'
+            # You can add any available Argument for 'cli.py -train'
             ['--dataset', PHYS.short_name, '--tmin', '2', '--tmax', '4'],
             ['--dataset', BCIC.short_name, '--ch_motorimg', '16_openbci'],
         ],

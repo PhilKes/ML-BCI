@@ -16,8 +16,8 @@ excluded_subject = 1
 n_classes = ['2', '3', '4']
 datasets = [BCIC.short_name, PHYS.short_name, LSMR21.short_name]
 
-# Get Relative path to 'main.py' in Project Root Directory
-main_py_relative = to_path('main.py')
+# Get Relative path to 'cli.py' in Project Root Directory
+main_py_relative = to_path('cli.py')
 
 for ds in datasets:
     train_name = f"example/{ds}"

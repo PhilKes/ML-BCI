@@ -1,17 +1,15 @@
 import logging
-import time
-from typing import List
 
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
-from tqdm import tqdm
 
 from app.defaults import DEFAULT_PARAMS, RunParams
-from app.main import single_run
-from app.progress import long_operation
+from app.cli import single_run
+from app.ui.long_operation import long_operation
 from app.ui.app import Ui_MainWindow
 from app.ui.widgets.multi_combo_box import MultiComboBox
+from app.ui.widgets.progress_bar import ProgressBar
 from app.ui.widgets.q_edit_logger import QPlainTextEditLogger
-from app.util.progress_wrapper import ProgressWrapper
+from app.util.progress_wrapper import TqdmProgressBar, ProgressWrapper
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -61,13 +59,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logging.getLogger().addHandler(log_handler)
         self.logListView.deleteLater()
         self.logListView = log_handler.widget
-        ProgressWrapper.file = log_handler
+
+        # Progress Bar in statusbar
+        self.progressBar = ProgressBar(self.statusbar)
+        self.statusbar.addWidget(self.progressBar)
+
+        ProgressWrapper.setParent(self)
+        # Do not log tqdm except through ProgressBar
+        ProgressWrapper.file = None
+        ProgressWrapper.progress.connect(self.progressBar.update_progress)
+        ProgressWrapper.max_val.connect(self.progressBar.init_task)
+
         pass
 
-    def test(self):
-        logging.info("THIS IS A TEST")
-
     def load_default_values(self):
+        """
+        Fill UI Inputs with default values
+        """
         self.nameInput.setText(DEFAULT_PARAMS.name)
         self.datasetInput.setCurrentText(DEFAULT_PARAMS.dataset)
         self.nclassesInput.selectItemsByData(DEFAULT_PARAMS.n_classes)
@@ -82,6 +90,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         pass
 
     def current_config(self):
+        """
+        Get RunParams from current Input values
+        """
         run_params = RunParams()
         run_params.name = self.nameInput.text()
         run_params.dataset = self.datasetInput.currentText()
@@ -98,7 +109,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def current_cli_args(self):
         """
-        Returns current parameters as ready-to-use CLI args
+        Returns RunParams from current Input values as ready-to-use CLI args
         """
         run_params = self.current_config()
         cli_params = []
@@ -119,7 +130,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QMessageBox.information(self, "Message Box", text)
 
     @long_operation("Run")
-    def run(self, test):
+    def run(self):
         cli_args = ['-train'] + self.current_cli_args()
         logging.info("RUN %s", cli_args)
         single_run(cli_args)
@@ -128,3 +139,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @long_operation("Calculation")
     def operation(self):
         return self.app.calculation(3)
+
+    def start_task(self):
+        self.mainWidget.setDisabled(True)
+
+    def stop_task(self):
+        self.mainWidget.setDisabled(False)

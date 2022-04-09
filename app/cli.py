@@ -4,7 +4,7 @@ Main Python script to execute either Training with Cross Validation on any avail
 Subject-specific Training on previously trained model (-train-ss)
 Benchmarking of Inference (Batch Latency + Inference time per Trial) (-benchmark)
 Live-Simulation of a single Subject Run (-live_sim)
-Configuration Parameters for Number of Epochs, TensorRT Optimizations,... (see main.py --help)
+Configuration Parameters for Number of Epochs, TensorRT Optimizations,... (see cli.py --help)
 
 History:
   2021-05-06: Version 0.7 from P. Kessler

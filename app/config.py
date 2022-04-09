@@ -176,7 +176,7 @@ Trials Slices: {self.TRIALS_SLICES}
         self.SAMPLES = calc_n_samples(self.TMIN, self.TMAX, self.SAMPLERATE)
 
     def _set_config_(self, cfg):
-        # If CUE_OFFSET is manually set with set_cue_offset() before main.py (e.g. in batch_training 'init' methods)
+        # If CUE_OFFSET is manually set with set_cue_offset() before cli.py (e.g. in batch_training 'init' methods)
         # do not overwrite manually set CUE_OFFSET
         if self.CUE_OFFSET is None:
             self.CUE_OFFSET = cfg.CUE_OFFSET

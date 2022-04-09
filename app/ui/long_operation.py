@@ -4,7 +4,8 @@ from functools import wraps
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import QEventLoop, pyqtSlot
-from PyQt5.QtWidgets import QProgressDialog, QProgressBar
+
+import app.ui.gui
 
 
 def long_operation(window_title=" ", label_text="Processing...", disable=True, is_qt_method=True, is_slot=True):
@@ -22,49 +23,48 @@ def long_operation(window_title=" ", label_text="Processing...", disable=True, i
                     needed, set to False.
     :return: function decorator
     """
+
     def wrapper(func):
         if is_slot:
             func = pyqtSlot()(func)
 
         @wraps(func)
         def decorator(*args, **kwargs):
-            logging.info("ARGS %s",args)
-            qobj = args[0] if is_qt_method else None
+            logging.info("ARGS %s", args)
+            qobj: app.ui.gui.MainWindow = args[0] if is_qt_method else None
             result, exception = None, None
             loop = QEventLoop()
-            progress = ProgressWindow(parent=qobj, window_title=window_title, label_text=label_text)
 
             class Thread(QtCore.QThread):
                 def run(self):
                     nonlocal result, exception
                     try:
-                        result = func(*args, **kwargs)
+                        result = func(*args[:-1], **kwargs)
                     except Exception as e:
                         exception = e
 
             task = Thread()
-            task.finished.connect(progress.close)
+            task.started.connect(qobj.start_task)
             task.finished.connect(loop.exit)
+            task.finished.connect(qobj.stop_task)
 
             nonlocal disable
             disable = disable and qobj is not None
 
-            with disabled(qobj, enable=disable, except_objs=[progress]):
-                progress.show()
-                task.start()
-                loop.exec()
-            
+            task.start()
+            loop.exec()
             if exception is not None:
                 raise exception
-                
+
             return result
-            
+
         return decorator
+
     return wrapper
 
 
 @contextmanager
-def disabled(qobj, state=True, enable=True, except_objs=None):
+def disabled(qobjs, state=True, enable=True):
     """
     Temporarily enables/disables the passed QWidget.
 
@@ -77,31 +77,13 @@ def disabled(qobj, state=True, enable=True, except_objs=None):
     if not enable:
         yield
         return
-
-    if except_objs is None:
-        except_objs = []
-
-    original_state = not qobj.isEnabled()
-    qobj.setDisabled(state)
+    original_states = []
+    for qobj in qobjs:
+        original_states.append(not qobj.isEnabled())
+        qobj.setDisabled(state)
     with ExitStack() as stack:
-        for exc in except_objs:
-            stack.enter_context(disabled(exc, state=not state))
+        for qobj in qobjs:
+            stack.enter_context(disabled([qobj], state=not state))
         yield
-    qobj.setDisabled(original_state)
-
-
-class ProgressWindow(QProgressDialog):
-    def __init__(self, parent=None, window_title=None, label_text=None, min_value=0, max_value=0):
-        super().__init__(label_text, None, min_value, max_value, parent)
-        pbar = QProgressBar(self)
-        pbar.setRange(min_value, max_value)
-        pbar.setTextVisible(not (min_value == max_value == 0))
-        self.setBar(pbar)
-        # Also interesting option: QtCore.Qt.FramelessWindowHint
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.WindowTitleHint | QtCore.Qt.CustomizeWindowHint)
-        self.setWindowTitle(window_title)
-        self.setModal(True)
-        self.setFixedSize(self.sizeHint())
-
-    def keyPressEvent(self, *args, **kwargs):
-        pass
+    for qobj, original_state in zip(qobjs, original_states):
+        qobj.setDisabled(original_state)

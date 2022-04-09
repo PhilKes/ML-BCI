@@ -19,7 +19,7 @@ from app.data.datasets.phys.phys_data_loading import PHYSDataLoader
 from app.data.datasets.phys.phys_dataset import PHYS
 from app.util.dot_dict import DotDict
 from app.util.misc import groups_labels
-from app.util.progress_wrapper import ProgressWrapper
+from app.util.progress_wrapper import TqdmProgressBar
 
 
 def psd_calc(in_data):
@@ -87,7 +87,7 @@ def analyze_data(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, f
     num_class0_trials = 0
     num_class1_trials = 0
 
-    pbar = ProgressWrapper(loader_train)
+    pbar = TqdmProgressBar(loader_train)
     # Training in batches from the DataLoader
     for idx_batch, (inputs, labels) in enumerate(pbar):
         # Convert inputs, labels tensors to np array
@@ -111,7 +111,7 @@ def analyze_data(num_epochs=CONFIG.MI.EPOCHS, batch_size=CONFIG.MI.BATCH_SIZE, f
             else:
                 logging.info("ERROR: Illegal label")
 
-    pbar = ProgressWrapper(loader_test)
+    pbar = TqdmProgressBar(loader_test)
     # Training in batches from the DataLoader
     for idx_batch, (inputs, labels) in enumerate(pbar):
         # Convert inputs, labels tensors to np array

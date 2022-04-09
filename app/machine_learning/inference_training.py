@@ -20,7 +20,7 @@ import torch.types
 from app.config import CONFIG
 from app.machine_learning.configs_results import benchmark_single_result_str
 from app.machine_learning.util import get_class_accuracies
-from app.util.progress_wrapper import ProgressWrapper
+from app.util.progress_wrapper import TqdmProgressBar
 
 
 def do_train(model: t.nn.Module, loader_train: DataLoader, loader_valid: DataLoader, epochs: int = 1,
@@ -53,7 +53,7 @@ def do_train(model: t.nn.Module, loader_train: DataLoader, loader_valid: DataLoa
         model.train()
         running_loss_train, running_loss_valid = 0.0, 0.0
         # Wrap in tqdm for Progressbar in Console
-        pbar = ProgressWrapper(loader_train)
+        pbar = TqdmProgressBar(loader_train)
         # Training in batches from the DataLoader
         for idx_batch, (inputs, labels) in enumerate(pbar):
             # Convert to correct types + put on GPU
@@ -207,7 +207,7 @@ def do_predict_on_samples(model: t.nn.Module, n_class: int, samples_data: np.nda
     sample_predictions = np.zeros((max_sample, n_class))
     logging.info('Predicting on every sample of run')
 
-    pbar = ProgressWrapper(range(max_sample))
+    pbar = TqdmProgressBar(range(max_sample))
     for now_sample in pbar:
         if now_sample < CONFIG.EEG.SAMPLES:
             continue
