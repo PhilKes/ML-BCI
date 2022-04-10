@@ -37,7 +37,7 @@ class PHYSConstants(DSConstants):
             'O1', 'Oz', 'O2',
             'Iz']
 
-        self.cv_folds = 5
+        self.cv_folds = 2
         # Time Interval per EEG Trial (T=0: start of MI Cue)
         # These are Constants, DO NOT MODIFY!
         self.CONFIG: EEGConfig = EEGConfig(

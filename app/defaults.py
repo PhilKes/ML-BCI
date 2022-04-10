@@ -4,6 +4,9 @@ from app.data.datasets.phys.phys_dataset import PHYS
 
 
 class RunParams:
+    """
+    All Params for the ML-BCI Command-Line-Interface
+    """
     def __init__(self):
         self.n_classes: List[int] = [3]
         self.name: Union[str, None] = None

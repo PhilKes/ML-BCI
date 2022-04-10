@@ -1,15 +1,13 @@
 #!/usr/bin/python3
 import logging
 import os
-import sys
-from datetime import datetime
 
 import numpy
 import pandas as pd
 
+from app.cli.cli import single_run
 from app.config import CONFIG
 from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21
-from app.cli import single_run
 from app.paths import results_folder, training_results_folder, training_ss_results_folder
 from app.util.misc import file_write, save_dataframe, print_pretty_table
 

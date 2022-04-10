@@ -18,11 +18,10 @@ import sys
 import mne
 
 from app.config import CONFIG
-from machine_learning.modes import training_cv, benchmarking, live_sim, \
-    training_ss, testing
-from machine_learning.util import preferred_device
-from util.cmd_parser import create_parser, parse_and_check
-from util.misc import load_chs_of_model
+from app.machine_learning.modes import training_cv, training_ss, benchmarking, live_sim, testing
+from app.machine_learning.util import preferred_device
+from app.cli.args_parser import create_parser, parse_and_check
+from app.util.misc import load_chs_of_model
 
 
 def single_run(argv=sys.argv[1:]):

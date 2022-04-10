@@ -1,5 +1,5 @@
 """
-File: cmd_parser.py
+File: args_parser.py
 
 Helper methods to implement Command Line Interface(CLI)
 providing arguments for all relevant Parameters for every Mode

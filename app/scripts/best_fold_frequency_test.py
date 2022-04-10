@@ -21,6 +21,7 @@ from app.machine_learning.modes import testing
 from app.machine_learning.util import preferred_device
 from app.scripts.neural_responses_training import FBS, FBS_NAMES
 from app.util.misc import get_subdirs, makedir
+from app.util.plot import matplot
 
 parser = argparse.ArgumentParser(
     description='Script to Test Accuracy of trained model on filtered Test Data')

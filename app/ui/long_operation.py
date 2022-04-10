@@ -5,10 +5,10 @@ from functools import wraps
 from PyQt5 import QtCore
 from PyQt5.QtCore import QEventLoop, pyqtSlot
 
-import app.ui.gui
+import app.ui.main_window
 
 
-def long_operation(window_title=" ", label_text="Processing...", disable=True, is_qt_method=True, is_slot=True):
+def long_operation(window_title=" ", label_text="Processing...", disable=True, is_slot=True):
     """
     Shows an infinite progress bar and does the actual work inside a QThread. This keeps the GUI responsive while
     showing that some operation is currently running.
@@ -30,12 +30,14 @@ def long_operation(window_title=" ", label_text="Processing...", disable=True, i
 
         @wraps(func)
         def decorator(*args, **kwargs):
-            logging.info("ARGS %s", args)
-            qobj: app.ui.gui.MainWindow = args[0] if is_qt_method else None
+            main_window: app.ui.main_window.MainWindow = args[0]
             result, exception = None, None
             loop = QEventLoop()
 
             class Thread(QtCore.QThread):
+                def __init__(self, parent=None):
+                    QtCore.QThread.__init__(self, parent)
+
                 def run(self):
                     nonlocal result, exception
                     try:
@@ -43,15 +45,16 @@ def long_operation(window_title=" ", label_text="Processing...", disable=True, i
                     except Exception as e:
                         exception = e
 
-            task = Thread()
-            task.started.connect(qobj.start_task)
+            task = Thread(main_window)
+            task.setTerminationEnabled(True)
+            task.started.connect(main_window.start_task)
             task.finished.connect(loop.exit)
-            task.finished.connect(qobj.stop_task)
+            task.finished.connect(main_window.stop_task)
 
             nonlocal disable
-            disable = disable and qobj is not None
-
-            task.start()
+            disable = disable and main_window is not None
+            main_window.task_thread = task
+            main_window.task_thread.start()
             loop.exec()
             if exception is not None:
                 raise exception

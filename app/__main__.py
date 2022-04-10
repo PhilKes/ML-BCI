@@ -2,8 +2,8 @@ import logging
 import sys
 import traceback
 
-from app.cli import single_run
-from app.util.cmd_parser import create_parser, parse_and_check
+from app.cli.args_parser import create_parser, parse_and_check
+from app.cli.cli import single_run
 
 
 def new_excepthook(type, value, tb):
@@ -15,6 +15,9 @@ sys.excepthook = new_excepthook
 
 
 def main(argv=sys.argv[1:]):
+    """
+    Execute ML-BCI either with gui or via cli (--no-gui)
+    """
     parser = create_parser()
     args = parse_and_check(parser, argv, check=False)
     init()
@@ -27,7 +30,7 @@ def main(argv=sys.argv[1:]):
         # Init and Show GUI
         logging.info("Running GUI")
         from PyQt5.QtWidgets import QApplication
-        from app.ui.gui import MainWindow
+        from app.ui.main_window import MainWindow
         qapp = QApplication(sys.argv)
         gui = MainWindow(None)
         gui.show()
@@ -35,6 +38,9 @@ def main(argv=sys.argv[1:]):
 
 
 def init():
+    """
+    Initialize logging
+    """
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
