@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QMainWindow, QMessageBox, QStyle
 
 from app.cli.cli import single_run
 from app.defaults import DEFAULT_PARAMS, RunParams
-from app.ui.long_operation import long_operation
+from app.ui.long_operation import long_operation, run_task
 from app.ui.app import Ui_MainWindow
 from app.ui.widgets.multi_combo_box import MultiComboBox
 from app.ui.widgets.progress_bar import ProgressBar
@@ -70,11 +70,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.progressBar = ProgressBar(self.statusbar)
         self.statusbar.addWidget(self.progressBar)
 
-        #ProgressWrapper.setParent(self)
+        # ProgressWrapper.setParent(self)
         # Do not log tqdm except through ProgressBar
-        #ProgressWrapper.file = None
-        #ProgressWrapper.progress.connect(self.progressBar.update_progress)
-        #ProgressWrapper.max_val.connect(self.progressBar.init_task)
+        # ProgressWrapper.file = None
+        # ProgressWrapper.progress.connect(self.progressBar.update_progress)
+        # ProgressWrapper.max_val.connect(self.progressBar.init_task)
 
         pass
 
@@ -142,16 +142,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.task_thread.requestInterruption()
                 self.task_thread.quit()
                 self.task_thread.exit()
+                self.task_thread.terminate()
             pass
         else:
-            self.run('run')
+            self.run()
         pass
 
-    @long_operation("Run")
+    # @long_operation("Run")
     def run(self):
         cli_args = ['-train'] + self.current_cli_args()
         logging.info("RUN %s", cli_args)
-        single_run(cli_args)
+        run_task(self, single_run, cli_args)
 
     def start_task(self):
         self.task_active = True

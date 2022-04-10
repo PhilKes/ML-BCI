@@ -4,8 +4,36 @@ from functools import wraps
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import QEventLoop, pyqtSlot
+from PyQt5.QtWidgets import QWidget
 
 import app.ui.main_window
+
+
+def run_task(main_window: QWidget, func, *args):
+    result, exception = None, None
+
+    class Thread(QtCore.QThread):
+        def __init__(self, parent=None):
+            QtCore.QThread.__init__(self, parent)
+
+        def run(self):
+            nonlocal result, exception
+            try:
+                result = func(*args)
+            except Exception as e:
+                exception = e
+
+    task = Thread(main_window)
+    task.setTerminationEnabled(True)
+    task.started.connect(main_window.start_task)
+    task.finished.connect(main_window.stop_task)
+
+    main_window.task_thread = task
+    main_window.task_thread.start()
+    if exception is not None:
+        raise exception
+
+    return result
 
 
 def long_operation(window_title=" ", label_text="Processing...", disable=True, is_slot=True):
