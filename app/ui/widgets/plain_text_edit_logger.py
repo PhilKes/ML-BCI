@@ -1,14 +1,12 @@
 import logging
 
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QPlainTextEdit
 
 
 class PlainTextEditLogger(logging.StreamHandler):
-    def __init__(self, parent):
+    def __init__(self, widget):
         super(PlainTextEditLogger, self).__init__()
-
-        self.widget = QPlainTextEdit(parent)
+        self.widget = widget
         self.widget.setReadOnly(True)
 
     def emit(self, record):
@@ -23,4 +21,5 @@ class PlainTextEditLogger(logging.StreamHandler):
         #     formatted_msg = str_replace(msg, '#', amt_blocks.regs[0][0]+2)
 
         self.widget.appendPlainText(formatted_msg)
-        self.widget.moveCursor(QtGui.QTextCursor.End)
+        # self.widget.moveCursor(QtGui.QTextCursor.End)
+        # self.widget.verticalScrollBar().setValue(self.widget.verticalScrollBar().maximum())

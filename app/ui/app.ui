@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>818</width>
-    <height>598</height>
+    <width>820</width>
+    <height>603</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
       <x>0</x>
       <y>429</y>
       <width>821</width>
-      <height>121</height>
+      <height>131</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -30,13 +30,13 @@
      <attribute name="title">
       <string>Log</string>
      </attribute>
-     <widget class="QListView" name="logListView">
+     <widget class="QPlainTextEdit" name="logTextEdit">
       <property name="geometry">
        <rect>
-        <x>-10</x>
-        <y>0</y>
+        <x>0</x>
+        <y>-1</y>
         <width>811</width>
-        <height>91</height>
+        <height>96</height>
        </rect>
       </property>
      </widget>
@@ -433,7 +433,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>818</width>
+     <width>820</width>
      <height>22</height>
     </rect>
    </property>

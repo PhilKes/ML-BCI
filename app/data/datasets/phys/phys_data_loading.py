@@ -8,19 +8,17 @@ Edition History:
 2021-05-31: mne_load_subject_raw(): fmin, fmax explicitely set - ms
 """
 import logging
-import math
 from typing import List
 
 import mne
 import numpy as np
 import torch  # noqa
+from PyQt5.QtCore import QThread
 from mne import Epochs
 from mne.io import concatenate_raws, read_raw_edf
 from torch.utils.data import Dataset, DataLoader, RandomSampler  # noqa
 from torch.utils.data.dataset import TensorDataset  # noqa
-from tqdm import tqdm
 
-# Dont print MNE loading logs
 from app.config import CONFIG, RESAMPLE, VERBOSE
 from app.data.MIDataLoader import MIDataLoader
 from app.data.data_utils import get_trials_size, get_runs_of_n_class, get_data_from_raw, map_trial_labels_to_classes, \
@@ -29,10 +27,12 @@ from app.data.datasets.TrialsDataset import TrialsDataset
 from app.data.datasets.phys.phys_dataset import PHYS, PHYSConstants
 from app.machine_learning.util import calc_slice_start_samples
 from app.paths import datasets_folder, results_folder
+from app.ui.long_operation import is_thread_running
 from app.util.misc import split_np_into_chunks
 from app.util.plot import matplot
 from app.util.progress_wrapper import TqdmProgressBar
 
+# Dont print MNE loading logs
 mne.set_log_level('WARNING')
 
 
@@ -84,7 +84,7 @@ class PHYSDataLoader(MIDataLoader):
 
     @classmethod
     def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = PHYS.CHANNELS,
-                           equal_trials: bool = True, ignored_runs: List[int] = []):
+                           equal_trials: bool = True, ignored_runs: List[int] = [], qthread: QThread = None):
         subjects.sort()
         trials = get_trials_size(n_class, equal_trials, ignored_runs)
         # trials_per_run_class = np.math.floor(trials / n_class)
@@ -108,6 +108,9 @@ class PHYSDataLoader(MIDataLoader):
             #     data, labels = data[:preloaded_data.shape[1]], labels[:preloaded_labels.shape[1]]
             preloaded_data[i] = data
             preloaded_labels[i] = labels
+            # Check if thread was stopped
+            if is_thread_running(qthread):
+                return preloaded_data, preloaded_labels
         # print_numpy_counts(preloaded_labels)
         return preloaded_data, preloaded_labels
 

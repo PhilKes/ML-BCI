@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List
 
 import numpy as np
+from PyQt5.QtCore import QThread
 
 from app.config import CONFIG, RESAMPLE
 from app.data.MIDataLoader import MIDataLoader
@@ -25,6 +26,7 @@ from app.data.datasets.TrialsDataset import TrialsDataset
 from app.data.datasets.bcic.bcic_dataset import BCIC, BCICConstants
 from app.data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
 from app.machine_learning.util import get_valid_trials_per_subject, calc_slice_start_samples
+from app.ui.long_operation import is_thread_running
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -63,7 +65,7 @@ class BCICDataLoader(MIDataLoader):
 
     @classmethod
     def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = BCIC.CHANNELS,
-                           equal_trials: bool = True, ignored_runs: List[int] = []):
+                           equal_trials: bool = True, ignored_runs: List[int] = [], qthread: QThread = None):
         subjects.sort()
         # preloaded_data, preloaded_labels = ds_w.load_subjects_data(training)
         subject_trials_max = 6 * 12 * n_class * CONFIG.EEG.TRIALS_SLICES
@@ -74,6 +76,9 @@ class BCICDataLoader(MIDataLoader):
             logging.info(f"RESAMPLING from {cls.CONSTANTS.CONFIG.SAMPLERATE}Hz to {CONFIG.SYSTEM_SAMPLE_RATE}Hz")
         for s_idx, subject in enumerate(subjects):
             preloaded_data[s_idx], preloaded_labels[s_idx] = cls.load_subject(subject, n_class, ch_names)
+            # Check if thread was stopped
+            if is_thread_running(qthread):
+                return preloaded_data, preloaded_labels
         cls.print_stats(preloaded_labels)
 
         return preloaded_data, preloaded_labels
@@ -167,13 +172,13 @@ class BCICDataLoader(MIDataLoader):
                 all_subjects_counts[i] = all_subjects_counts[i] + class_counts[i]
 
             logging.info("    %3d   |   %3d  |   %3d  |   %3d  |   %3d  |    %3d   |    %3d" % \
-                  (subject, class_counts[0], class_counts[1], class_counts[2], \
-                   class_counts[3], class_counts[4], class_counts[5]))
+                         (subject, class_counts[0], class_counts[1], class_counts[2], \
+                          class_counts[3], class_counts[4], class_counts[5]))
 
         logging.info("  --------|--------|--------|--------|--------|----------|----------")
         logging.info("    All   |   %3d  |   %3d  |   %3d  |   %3d  |    %3d   |   %4d" % \
-              (all_subjects_counts[0], all_subjects_counts[1], all_subjects_counts[2], \
-               all_subjects_counts[3], all_subjects_counts[4], all_subjects_counts[5]))
+                     (all_subjects_counts[0], all_subjects_counts[1], all_subjects_counts[2], \
+                      all_subjects_counts[3], all_subjects_counts[4], all_subjects_counts[5]))
         logging.info()
 
 

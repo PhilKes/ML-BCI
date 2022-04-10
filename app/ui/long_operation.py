@@ -3,8 +3,8 @@ from contextlib import contextmanager, ExitStack
 from functools import wraps
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import QEventLoop, pyqtSlot
-from PyQt5.QtWidgets import QWidget
+from PyQt5.QtCore import QEventLoop, pyqtSlot, QThread
+from PyQt5.QtWidgets import QWidget, QApplication
 
 import app.ui.main_window
 
@@ -18,10 +18,8 @@ def run_task(main_window: QWidget, func, *args):
 
         def run(self):
             nonlocal result, exception
-            try:
-                result = func(*args)
-            except Exception as e:
-                exception = e
+            result = func(*args, qthread=main_window.task_thread)
+
 
     task = Thread(main_window)
     task.setTerminationEnabled(True)
@@ -34,6 +32,16 @@ def run_task(main_window: QWidget, func, *args):
         raise exception
 
     return result
+
+
+def is_thread_running(qthread: QThread):
+    """
+    If qthread is not None check if Thread was interrupted/stopped, else return True
+    """
+    if qthread is not None:
+        QApplication.processEvents()
+        return qthread.isInterruptionRequested() or not qthread.isRunning()
+    return True
 
 
 def long_operation(window_title=" ", label_text="Processing...", disable=True, is_slot=True):

@@ -5,6 +5,7 @@ from typing import List, Callable
 import mne.filter
 import numpy as np
 import torch
+from PyQt5.QtCore import QThread
 from torch.utils.data import RandomSampler, DataLoader, TensorDataset
 
 from app.config import CONFIG, RESAMPLE
@@ -140,13 +141,14 @@ class MIDataLoader:
     @classmethod
     @abstractmethod
     def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = [], equal_trials: bool = True,
-                           ignored_runs: List[int] = []):
+                           ignored_runs: List[int] = [], qthread: QThread = None):
         """
         Loads and returns n_class data of subjects
         Can lead to high memory usage depending on the Dataset
         :param subjects: Subjects to be loaded
         :param equal_trials: Load equal amount of Trials for each class?
         :param ignored_runs: Runs to ignore (MNE with PHYS)
+        :param qthread: PyQt Thread (optional)
         :return: preloaded_data, preloaded_labels of specified subjects
         """
         raise NotImplementedError('This method is not implemented!')

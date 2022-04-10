@@ -16,17 +16,18 @@ import logging
 import sys
 
 import mne
+from PyQt5.QtCore import QThread
 
 from app.config import CONFIG
 from app.machine_learning.modes import training_cv, training_ss, benchmarking, live_sim, testing
 from app.machine_learning.util import preferred_device
-from app.cli.args_parser import create_parser, parse_and_check
+import app.cli.args_parser as CliArgsParser
 from app.util.misc import load_chs_of_model
 
 
-def single_run(argv=sys.argv[1:]):
-    parser = create_parser()
-    args = parse_and_check(parser, argv)
+def single_run(argv=sys.argv[1:], qthread: QThread = None):
+    parser = CliArgsParser.create_parser()
+    args = CliArgsParser.parse_and_check(parser, argv)
 
     # Dont print MNE loading logs
     mne.set_log_level('WARNING')
@@ -39,7 +40,7 @@ def single_run(argv=sys.argv[1:]):
         return training_cv(num_epochs=args.epochs, n_classes=args.n_classes,
                            name=args.name, batch_size=args.batch_size, tag=args.tag, ch_names=args.ch_names,
                            equal_trials=(not args.all_trials), early_stop=args.early_stop,
-                           excluded=args.excluded, mi_ds=args.dataset, only_fold=args.only_fold)
+                           excluded=args.excluded, mi_ds=args.dataset, only_fold=args.only_fold, qthread=qthread)
     elif args.train_ss:
         args.ch_names = load_chs_of_model(args.model)
         training_ss(args.model, args.subject, num_epochs=args.epochs, n_classes=args.n_classes,

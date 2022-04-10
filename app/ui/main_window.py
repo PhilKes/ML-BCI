@@ -4,14 +4,14 @@ from typing import Union
 from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QStyle
 
-from app.cli.cli import single_run
+import app.cli.cli
 from app.defaults import DEFAULT_PARAMS, RunParams
-from app.ui.long_operation import long_operation, run_task
 from app.ui.app import Ui_MainWindow
+import app.ui.long_operation as LongOperation
 from app.ui.widgets.multi_combo_box import MultiComboBox
-from app.ui.widgets.progress_bar import ProgressBar
 from app.ui.widgets.plain_text_edit_logger import PlainTextEditLogger
-from app.util.progress_wrapper import TqdmProgressBar, ProgressWrapper
+from app.ui.widgets.progress_bar import ProgressBar
+from app.util.progress_wrapper import ProgressWrapper
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -59,22 +59,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Logger
         # Set up logging to use your widget as a handler
-        log_handler = PlainTextEditLogger(self.logTab)
-        log_handler_widget = log_handler.widget
-        log_handler_widget.setFixedSize(self.logListView.size())
+        log_handler = PlainTextEditLogger(self.logTextEdit)
         logging.getLogger().addHandler(log_handler)
-        self.logListView.deleteLater()
-        self.logListView = log_handler.widget
 
         # Progress Bar in statusbar
         self.progressBar = ProgressBar(self.statusbar)
         self.statusbar.addWidget(self.progressBar)
 
-        # ProgressWrapper.setParent(self)
+        ProgressWrapper.setParent(self)
         # Do not log tqdm except through ProgressBar
-        # ProgressWrapper.file = None
-        # ProgressWrapper.progress.connect(self.progressBar.update_progress)
-        # ProgressWrapper.max_val.connect(self.progressBar.init_task)
+        ProgressWrapper.file = None
+        ProgressWrapper.progress.connect(self.progressBar.update_progress)
+        ProgressWrapper.max_val.connect(self.progressBar.init_task)
 
         pass
 
@@ -137,12 +133,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def run_button_click(self):
         if self.task_active:
-            self.stop_task()
             if self.task_thread is not None:
                 self.task_thread.requestInterruption()
-                self.task_thread.quit()
-                self.task_thread.exit()
-                self.task_thread.terminate()
+                # self.task_thread.terminate()
             pass
         else:
             self.run()
@@ -152,7 +145,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def run(self):
         cli_args = ['-train'] + self.current_cli_args()
         logging.info("RUN %s", cli_args)
-        run_task(self, single_run, cli_args)
+        LongOperation.run_task(self, app.cli.cli.single_run, cli_args)
 
     def start_task(self):
         self.task_active = True
@@ -162,6 +155,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def stop_task(self):
         self.task_active = False
+        self.task_thread.deleteLater()
+        self.task_thread = None
         self.runButton.setText("Run")
         self.runButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.mainWidget.setDisabled(False)

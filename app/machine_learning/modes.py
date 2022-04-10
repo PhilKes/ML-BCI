@@ -20,11 +20,12 @@ from typing import List, Type
 import numpy as np
 import torch  # noqa
 import torch.types
+from PyQt5.QtCore import QThread
 from sklearn.model_selection import GroupKFold
 
 from app.config import CONFIG, TEST_OVERFITTING
 from app.data.MIDataLoader import MIDataLoader
-from app.data.datasets.datasets import DATASETS
+import app.data.datasets.datasets as DS
 from app.data.datasets.phys.phys_dataset import PHYS
 from app.machine_learning.configs_results import training_config_str, create_results_folders, save_config, \
     save_n_class_results, get_results_file, load_npz, training_ss_config_str, load_global_conf_from_results, \
@@ -35,6 +36,7 @@ from app.machine_learning.inference_training import do_train, do_test, do_benchm
 from app.machine_learning.util import MLRunData, get_model, get_trials_per_class, get_class_accuracies, \
     get_tensorrt_model, gpu_warmup
 from app.paths import trained_model_name
+import app.ui.long_operation as LongOperation
 from app.util.dot_dict import DotDict
 from app.util.misc import groups_labels, split_list_into_chunks
 from app.util.plot import create_vlines_from_trials_epochs, create_plot_vspans, matplot
@@ -42,7 +44,7 @@ from app.util.plot import create_vlines_from_trials_epochs, create_plot_vspans, 
 
 def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[int],
                 name: str, tag: str, ch_names: List[str], equal_trials=True, early_stop=False, excluded=[],
-                only_fold=None, save_model=True, lr: DotDict = CONFIG.MI.LR):
+                only_fold=None, save_model=True, lr: DotDict = CONFIG.MI.LR, qthread: QThread = None):
     """
     Runs Training + Testing
     Cross Validation
@@ -53,7 +55,7 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
     :param only_fold: Specify single Fold to be trained on if only 1 Fold should be trained on
     :return: n_class Accuracies + n_class Overfittings
     """
-    dataset = DATASETS[mi_ds]
+    dataset = DS.DATASETS[mi_ds]
     folds = dataset.CONSTANTS.cv_folds
 
     config = DotDict(num_epochs=num_epochs, batch_size=batch_size, folds=folds, lr=lr, device=CONFIG.DEVICE,
@@ -109,10 +111,16 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
     for i, n_class in enumerate(n_classes):
         logging.info("PRELOADING ALL DATA IN MEMORY")
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
-                                                                      ch_names, equal_trials)
+                                                                      ch_names, equal_trials, qthread=qthread)
+        # Check if thread was stopped
+        if LongOperation.is_thread_running(qthread):
+            return n_class_accuracy, n_class_overfitting_diff
         run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, n_class, num_epochs, only_fold,
                                                       dataset, validation_subjects,
-                                                      preloaded_data, preloaded_labels, batch_size, ch_names)
+                                                      preloaded_data, preloaded_labels, batch_size, ch_names, qthread)
+        # Check if thread was stopped
+        if LongOperation.is_thread_running(qthread):
+            return n_class_accuracy, n_class_overfitting_diff
         n_class_accuracy[i], n_class_overfitting_diff[i] = save_n_class_results(n_class, mi_ds, run_data, folds,
                                                                                 only_fold, batch_size, excluded,
                                                                                 best_model, dir_results, tag,
@@ -123,7 +131,7 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
 def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.ndarray, folds: int, n_class: int,
                            num_epochs: int, only_fold: int, dataset: Type[MIDataLoader], validation_subjects: List[int],
                            preloaded_data: np.ndarray, preloaded_labels: np.ndarray, batch_size: int,
-                           ch_names: List[str], equal_trials=True, early_stop=False):
+                           ch_names: List[str], qthread=None, equal_trials=True, early_stop=False):
     """
     Executes n-class Cross Validation Training based on given parameters + preloaded Data
     :return: ML_Run_Data, best Fold Model state dict
@@ -150,7 +158,10 @@ def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.
 
         model = get_model(n_class, len(ch_names))
 
-        train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE, early_stop)
+        train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE, early_stop, qthread)
+        # Check if thread was stopped
+        if LongOperation.is_thread_running(qthread):
+            return run_data, best_model
         run_data.set_train_results(fold, train_results)
         # Load best model state of this fold to Test global accuracy if using Early Stopping
         if early_stop:
@@ -191,14 +202,14 @@ def testing(n_class: int, model_path: str, ch_names: List[str]) -> float:
     """
     n_class_results = load_npz(get_results_file(model_path, n_class))
     ds_short_name = n_class_results['mi_ds'].item()
-    dataset = DATASETS[ds_short_name]
+    dataset = DS.DATASETS[ds_short_name]
     # Get Best Fold Nr. of trained model
     # best_fold = np.argmax(n_class_results['test_accs']).item()
     best_fold = n_class_results['best_fold'].item()
 
     logging.info(f"Testing '{model_path}' {n_class}-classification of Best Fold ({best_fold + 1})")
     logging.info(f"TMIN: {n_class_results['tmin']}, TMAX: {n_class_results['tmax']}"
-          f" FMIN: {CONFIG.FILTER.FREQ_FILTER_HIGHPASS},  FMAX: {CONFIG.FILTER.FREQ_FILTER_LOWPASS}")
+                 f" FMIN: {CONFIG.FILTER.FREQ_FILTER_HIGHPASS},  FMAX: {CONFIG.FILTER.FREQ_FILTER_LOWPASS}")
 
     # Group labels (subjects in same group need same group label)
     groups = groups_labels(len(dataset.CONSTANTS.ALL_SUBJECTS), dataset.CONSTANTS.cv_folds)
@@ -251,7 +262,7 @@ def training_ss(model_path: str, subject: int = None, num_epochs: int = CONFIG.M
         test_accuracy, test_class_hits = np.zeros(1), []
         n_class_results = load_npz(get_results_file(model_path, n_class))
         mi_ds = n_class_results['mi_ds'].item()
-        dataset = DATASETS[mi_ds]
+        dataset = DS.DATASETS[mi_ds]
         CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, dataset.CONSTANTS.CONFIG.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)
@@ -317,7 +328,7 @@ def benchmarking(model_path: str, name: str = None, batch_size: int = CONFIG.MI.
     for class_idx, n_class in enumerate(n_classes):
         logging.info(f"######### {n_class}Class-Classification Benchmarking")
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds'].item()]
+        dataset = DS.DATASETS[n_class_results['mi_ds'].item()]
         CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, CONFIG.EEG.CUE_OFFSET)
 
@@ -393,7 +404,7 @@ def live_sim(model_path: str, subject: int = None, name: str = None, ch_names: L
     for class_idx, n_class in enumerate(n_classes):
         start = datetime.now()
         n_class_results = load_npz(get_results_file(model_path, n_class))
-        dataset = DATASETS[n_class_results['mi_ds'].item()]
+        dataset = DS.DATASETS[n_class_results['mi_ds'].item()]
         CONFIG.set_eeg_config(dataset.CONSTANTS.CONFIG)
         load_global_conf_from_results(n_class_results, dataset.CONSTANTS.CONFIG.CUE_OFFSET)
         used_subject = get_excluded_if_present(n_class_results, subject)

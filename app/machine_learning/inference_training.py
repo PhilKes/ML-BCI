@@ -9,6 +9,8 @@ import time
 import numpy as np
 import torch  # noqa
 import torch.optim as optim  # noqa
+from PyQt5.QtCore import QThread
+from PyQt5.QtWidgets import QApplication
 from sklearn.metrics import accuracy_score
 from torch import nn  # noqa
 from torch.utils.data import DataLoader
@@ -24,7 +26,7 @@ from app.util.progress_wrapper import TqdmProgressBar
 
 
 def do_train(model: t.nn.Module, loader_train: DataLoader, loader_valid: DataLoader, epochs: int = 1,
-             device: t.types.Device = CONFIG.DEVICE, early_stop=False):
+             device: t.types.Device = CONFIG.DEVICE, early_stop=False, qthread : QThread=None):
     """
     Training
     see https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#train-the-network
@@ -69,6 +71,11 @@ def do_train(model: t.nn.Module, loader_train: DataLoader, loader_valid: DataLoa
 
             running_loss_train += loss.item()
         pbar.close()
+        # Check if thread was stopped
+        if qthread is not None:
+            QApplication.processEvents()
+            if qthread.isInterruptionRequested() or not qthread.isRunning():
+                return loss_values_train, loss_values_valid, best_model, best_epoch
         # Loss of entire epoch / amount of batches
         epoch_loss_train = (running_loss_train / len(loader_train))
         if loader_valid is not None:

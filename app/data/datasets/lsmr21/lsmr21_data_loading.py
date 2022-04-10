@@ -9,6 +9,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+from PyQt5.QtCore import QThread
 from tqdm import tqdm
 
 from app.config import CONFIG, RESAMPLE, VERBOSE
@@ -18,6 +19,7 @@ from app.data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21, LSMR21Constants
 from app.machine_learning.util import get_valid_trials_per_subject
 from app.paths import datasets_folder
+from app.ui.long_operation import is_thread_running
 from app.util.misc import print_pretty_table, counts_of_list, save_dataframe, calc_n_samples, to_idxs_of_list_str, \
     to_idxs_of_list, load_matlab
 from app.util.progress_wrapper import TqdmProgressBar
@@ -229,7 +231,7 @@ class LSMR21DataLoader(MIDataLoader):
 
     @classmethod
     def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = LSMR21.CHANNELS,
-                           equal_trials: bool = True, ignored_runs: List[int] = []):
+                           equal_trials: bool = True, ignored_runs: List[int] = [], qthread: QThread= None):
         # 11 Runs, 62 Subjects, 75 Trials per Class
         subject_max_trials = cls.get_subject_max_trials(n_class) * CONFIG.EEG.TRIALS_SLICES
         subjects_data = np.zeros((len(subjects), subject_max_trials, len(ch_names), CONFIG.EEG.SAMPLES),
@@ -241,6 +243,9 @@ class LSMR21DataLoader(MIDataLoader):
             s_data, s_labels = cls.load_subject(subject, n_class, ch_names)
             subjects_data[i] = s_data
             subjects_labels[i] = s_labels
+            # Check if thread was stopped
+            if is_thread_running(qthread):
+                return subjects_data, subjects_labels
         return subjects_data, subjects_labels
 
     @classmethod
