@@ -70,7 +70,7 @@ class MultiComboBox(QComboBox):
                 return True
         return False
 
-    def selectItemsByText(self, itemTexts: List[str]):
+    def selectItemsByTexts(self, itemTexts: List[str]):
         """
         Select array of items identified by their text
         """

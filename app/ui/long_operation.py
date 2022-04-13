@@ -6,7 +6,6 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QEventLoop, pyqtSlot, QThread
 from PyQt5.QtWidgets import QWidget, QApplication
 
-import app.ui.main_window
 
 
 def run_task(main_window: QWidget, func, *args):
@@ -66,7 +65,7 @@ def long_operation(window_title=" ", label_text="Processing...", disable=True, i
 
         @wraps(func)
         def decorator(*args, **kwargs):
-            main_window: app.ui.main_window.MainWindow = args[0]
+            main_window = args[0]
             result, exception = None, None
             loop = QEventLoop()
 

@@ -1,10 +1,15 @@
 import logging
 from typing import Union
 
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QStyle
+from superqt import QLabeledRangeSlider
+from superqt.sliders._labeled import LabelPosition
 
 import app.cli.cli
+from app.data.MIDataLoader import MIDataLoader
+from app.data.datasets.datasets import DATASETS
 from app.defaults import DEFAULT_PARAMS, RunParams
 from app.ui.app import Ui_MainWindow
 import app.ui.long_operation as LongOperation
@@ -18,6 +23,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
+        self.dataset: MIDataLoader = DATASETS[DEFAULT_PARAMS.available_datasets[0]]
         self.setupUi(self)
         self.init_ui()
         self.load_default_values()
@@ -27,6 +33,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.btn_thebutton.pressed.connect(self.button_press)
 
     def init_ui(self):
+        # Dataset Selection
+        self.datasetInput.addItems(DEFAULT_PARAMS.available_datasets)
+        self.datasetInput.currentIndexChanged.connect(self.dataset_changed)
+
         # N-Classes Selection
         nclassesMultiSelect = MultiComboBox()
         nclassesMultiSelect.setObjectName("nclassesInput")
@@ -47,8 +57,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Excluded Subjects Selection
         excludedMultiSelect = MultiComboBox()
         excludedMultiSelect.setObjectName("excludedInput")
-        excludedMultiSelect.addItems(list(map(str, DEFAULT_PARAMS.available_subjects)),
-                                     DEFAULT_PARAMS.available_subjects)
+        excludedMultiSelect.addItems(list(map(str, self.dataset.CONSTANTS.ALL_SUBJECTS)),
+                                     self.dataset.CONSTANTS.ALL_SUBJECTS)
         self.tabGridLayout.replaceWidget(self.excludedInput, excludedMultiSelect)
         self.excludedInput.deleteLater()
         self.excludedInput = excludedMultiSelect
@@ -72,23 +82,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         ProgressWrapper.progress.connect(self.progressBar.update_progress)
         ProgressWrapper.max_val.connect(self.progressBar.init_task)
 
+        # TMIN;TMAX Slider
+        tminTmaxSlider = QLabeledRangeSlider()
+        # tminTmaxSlider.setFixedSize(self.intervalSlider.size())
+        tminTmaxSlider.setMinimum(self.dataset.CONSTANTS.TRIAL_TMIN)
+        tminTmaxSlider.setMaximum(self.dataset.CONSTANTS.TRIAL_TMAX)
+        tminTmaxSlider.setParent(self)
+        tminTmaxSlider.setOrientation(QtCore.Qt.Horizontal)
+        tminTmaxSlider.setValue([self.dataset.CONSTANTS.CONFIG.TMIN, self.dataset.CONSTANTS.CONFIG.TMAX])
+        tminTmaxSlider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        tminTmaxSlider.setTickInterval(0.5)
+        tminTmaxSlider.setHandleLabelPosition(LabelPosition.LabelsLeft)
+        self.gridLayout.replaceWidget(self.intervalSlider, tminTmaxSlider)
+        self.intervalSlider.deleteLater()
+        self.intervalSlider = tminTmaxSlider
+
         pass
 
     def load_default_values(self):
         """
         Fill UI Inputs with default values
         """
+        self.datasetInput.setCurrentIndex(0)
         self.nameInput.setText(DEFAULT_PARAMS.name)
         self.datasetInput.setCurrentText(DEFAULT_PARAMS.dataset)
         self.nclassesInput.selectItemsByData(DEFAULT_PARAMS.n_classes)
         self.epochsInput.setValue(DEFAULT_PARAMS.epochs)
         self.batchsizeInput.setValue(DEFAULT_PARAMS.batch_size)
-        self.channelsInput.selectItemsByText(DEFAULT_PARAMS.available_channels)
         self.tagInput.setText(DEFAULT_PARAMS.tag)
-        self.excludedInput.selectItemsByText(DEFAULT_PARAMS.excluded)
         self.onlyfoldInput.setCurrentText(str(DEFAULT_PARAMS.only_fold) if DEFAULT_PARAMS.only_fold is not None else '')
         self.equaltrialsInput.setChecked(DEFAULT_PARAMS.equal_trials)
         self.earlystopInput.setChecked(DEFAULT_PARAMS.early_stop)
+
+        self.update_dataset_config()
         pass
 
     def current_config(self):
@@ -107,6 +133,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         run_params.only_fold = self.onlyfoldInput.currentText()
         run_params.equal_trials = self.equaltrialsInput.isChecked()
         run_params.early_stop = self.earlystopInput.isChecked()
+        run_params.tmin= self.intervalSlider.value()[0]
+        run_params.tmax= self.intervalSlider.value()[1]
         return run_params
 
     def current_cli_args(self):
@@ -160,3 +188,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.runButton.setText("Run")
         self.runButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.mainWidget.setDisabled(False)
+
+    def dataset_changed(self, idx):
+        print("Changed Dataset to", self.datasetInput.currentText(), idx)
+        self.dataset = DATASETS[self.datasetInput.currentText()]
+        self.update_dataset_config()
+
+    def update_dataset_config(self):
+        # Update available Channels
+        self.channelsInput.clear()
+        self.channelsInput.addItems(self.dataset.CONSTANTS.CHANNELS)
+        self.channelsInput.selectItemsByTexts(self.dataset.CONSTANTS.CHANNELS)
+        self.excludedInput.clear()
+        self.excludedInput.addItems(list(map(str, self.dataset.CONSTANTS.ALL_SUBJECTS)),
+                                    self.dataset.CONSTANTS.ALL_SUBJECTS)
+        self.excludedInput.setCurrentIndex(-1)
+
+        # Update Time Interval
+        self.intervalSlider.setMinimum(self.dataset.CONSTANTS.TRIAL_TMIN)
+        self.intervalSlider.setMaximum(self.dataset.CONSTANTS.TRIAL_TMAX)
+        self.intervalSlider.setValue([self.dataset.CONSTANTS.CONFIG.TMIN, self.dataset.CONSTANTS.CONFIG.TMAX])
+
+        # self.tminLabel.setText(str(self.intervalSlider.minimum()))
+        # self.tmaxLabel.setText(str(self.intervalSlider.maximum()))

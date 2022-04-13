@@ -1,5 +1,7 @@
 from typing import List, Union
 
+from app.data.datasets.bcic.bcic_dataset import BCIC
+from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from app.data.datasets.phys.phys_dataset import PHYS
 
 
@@ -33,9 +35,11 @@ class RunParams:
         self.all: bool = True
         self.equal_trials: bool = True
 
+        self.available_datasets = [PHYS.short_name, BCIC.short_name, LSMR21.short_name]
         self.available_channels = PHYS.CHANNELS
         self.available_subjects = PHYS.ALL_SUBJECTS
         self.available_n_classes = [2, 3, 4]
+
 
 
 DEFAULT_PARAMS = RunParams()
