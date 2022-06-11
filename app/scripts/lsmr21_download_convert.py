@@ -8,10 +8,12 @@ import json
 import logging
 import os
 import re
+import sys
 import urllib.request
 from pathlib import Path
 
 import numpy as np
+from PyQt5.QtCore import QThread
 from tqdm import tqdm
 
 from app.config import CONFIG
@@ -19,8 +21,9 @@ from app.data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun, LSMRTrialData
 from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21
 from app.machine_learning.util import resample_eeg_data
 from app.paths import datasets_folder
+from app.ui.long_operation import is_thread_interrupted
 from app.util import misc
-from app.util.progress_wrapper import TqdmProgressBar
+from app.util.progress_wrapper import TqdmProgressBar, ProgressWrapper
 
 
 def subject_run_to_numpy(sr: LSMRSubjectRun, path, ds_factor=None):
@@ -65,8 +68,7 @@ def get_trial_category(trialdata: LSMRTrialData) -> int:
     return 0
 
 
-if __name__ == '__main__':
-
+def main(argv=sys.argv[1:], qthread: QThread = None):
     parser = argparse.ArgumentParser(
         description=f"Script to download/convert original '{LSMR21.name}'")
     parser.add_argument('--ds_factor', type=float, default=None,
@@ -80,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('-download', action='store_true', required=False,
                         help="If present, downloads all Matlab Files of the Dataset from Figshare.com into"
                              " --origin_path before converting to numpy")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.download & (args.origin_path is None):
         parser.error("You need to specify a destination path for the Matlab Files (--origin_path)!")
 
@@ -98,6 +100,9 @@ if __name__ == '__main__':
                     continue
                 # Download and store file in origin_path
                 urllib.request.urlretrieve(file['download_url'], dl_path)
+                # Check if thread was stopped
+                if is_thread_interrupted(qthread):
+                    return
         logging.info(f"Finished downloading all Matlab Files into '{args.origin_path}'")
 
     if not os.path.exists(args.origin_path):
@@ -112,7 +117,7 @@ if __name__ == '__main__':
     # Get Matlab Files in origin_path
     matlab_files = sorted([f for f in os.listdir(args.origin_path) if f.endswith('.mat')])
     logging.info(f"Converting all {len(matlab_files)} .mat Files from '{args.origin_path}'"
-          f" to minimal .npz Files in '{args.dest_path}' with Resampling to {CONFIG.SYSTEM_SAMPLE_RATE}Hz Samplerate")
+                 f" to minimal .npz Files in '{args.dest_path}' with Resampling to {CONFIG.SYSTEM_SAMPLE_RATE}Hz Samplerate")
     for file in TqdmProgressBar(matlab_files):
         mat_file_name, mat_file_ext = os.path.splitext(file)
         npz_file = os.path.join(args.dest_path, f"{mat_file_name}.npz")
@@ -125,3 +130,10 @@ if __name__ == '__main__':
         sr = LSMRSubjectRun(subject, matlab_data)
         # Convert Subject Run to necessary numpy data and store in .npz file
         subject_run_to_numpy(sr, npz_file, ds_factor=args.ds_factor)
+        # Check if thread was stopped
+        if is_thread_interrupted(qthread):
+            return
+
+
+if __name__ == '__main__':
+    main()

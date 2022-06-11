@@ -1,7 +1,7 @@
 import logging
 from typing import Union
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QStyle
 from superqt import QLabeledRangeSlider
@@ -9,7 +9,7 @@ from superqt.sliders._labeled import LabelPosition
 
 import app.cli.cli
 from app.data.MIDataLoader import MIDataLoader
-from app.data.datasets.datasets import DATASETS
+from app.data.datasets.datasets import DATASETS, download_dataset
 from app.defaults import DEFAULT_PARAMS, RunParams
 from app.ui.app import Ui_MainWindow
 import app.ui.long_operation as LongOperation
@@ -23,6 +23,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def __init__(self, app, parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QtGui.QIcon('../../ml-bci-logo.png'))
+        self.setWindowTitle('ML-BCI')
         self.dataset: MIDataLoader = DATASETS[DEFAULT_PARAMS.available_datasets[0]]
         self.setupUi(self)
         self.init_ui()
@@ -97,6 +99,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.intervalSlider.deleteLater()
         self.intervalSlider = tminTmaxSlider
 
+        # Setup Dataset Menu ACtions
+        self.actionPHYS.triggered.connect(lambda: self.dataset_action('PHYS'))
+        self.actionBCIC.triggered.connect(lambda: self.dataset_action('BCIC'))
+        self.actionLSMR21.triggered.connect(lambda: self.dataset_action('LSMR21'))
+
         pass
 
     def load_default_values(self):
@@ -133,8 +140,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         run_params.only_fold = self.onlyfoldInput.currentText()
         run_params.equal_trials = self.equaltrialsInput.isChecked()
         run_params.early_stop = self.earlystopInput.isChecked()
-        run_params.tmin= self.intervalSlider.value()[0]
-        run_params.tmax= self.intervalSlider.value()[1]
+        run_params.tmin = self.intervalSlider.value()[0]
+        run_params.tmax = self.intervalSlider.value()[1]
         return run_params
 
     def current_cli_args(self):
@@ -188,6 +195,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.runButton.setText("Run")
         self.runButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.mainWidget.setDisabled(False)
+        self.progressBar.reset()
 
     def dataset_changed(self, idx):
         print("Changed Dataset to", self.datasetInput.currentText(), idx)
@@ -211,3 +219,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # self.tminLabel.setText(str(self.intervalSlider.minimum()))
         # self.tmaxLabel.setText(str(self.intervalSlider.maximum()))
+
+
+    def dataset_action(self, ds: str):
+        LongOperation.run_task(self, download_dataset, ds)

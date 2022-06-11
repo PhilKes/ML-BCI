@@ -11,7 +11,7 @@ from typing import List
 import numpy as np
 import pandas
 import pandas as pd
-import torch.types
+import torch
 from scipy import io
 from tabulate import tabulate
 import functools

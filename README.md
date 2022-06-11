@@ -202,3 +202,8 @@ For usage of `-benchmark` also ensure TensorRT is correctly setup on the system
 [Matplotlib](https://matplotlib.org/)
 
 [Pandas](https://pandas.pydata.org/)
+
+
+## Attributions
+
+<a href="https://www.flaticon.com/free-icons/brain" title="brain icons">Brain icons created by Freepik - Flaticon</a>

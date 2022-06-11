@@ -11,7 +11,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>ML-BCI</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../../ml-bci-logo.png</normaloff>../../ml-bci-logo.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QTabWidget" name="bottomWidget">
@@ -461,8 +465,18 @@
     <property name="title">
      <string>Settings</string>
     </property>
+    <widget class="QMenu" name="menuDatasets">
+     <property name="title">
+      <string>Datasets</string>
+     </property>
+     <addaction name="separator"/>
+     <addaction name="separator"/>
+     <addaction name="actionPHYS"/>
+     <addaction name="actionBCIC"/>
+     <addaction name="actionLSMR21"/>
+    </widget>
     <addaction name="actionPreferences"/>
-    <addaction name="actionDatasets"/>
+    <addaction name="menuDatasets"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
@@ -478,9 +492,19 @@
     <string>Preferences</string>
    </property>
   </action>
-  <action name="actionDatasets">
+  <action name="actionPHYS">
    <property name="text">
-    <string>Datasets</string>
+    <string>PHYS</string>
+   </property>
+  </action>
+  <action name="actionBCIC">
+   <property name="text">
+    <string>BCIC</string>
+   </property>
+  </action>
+  <action name="actionLSMR21">
+   <property name="text">
+    <string>LSMR21</string>
    </property>
   </action>
  </widget>

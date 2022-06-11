@@ -14,19 +14,23 @@ History:
 """
 import logging
 import math
+import os
 from pathlib import Path
 from typing import List
 
 import numpy as np
+import requests
 from PyQt5.QtCore import QThread
 
 from app.config import CONFIG, RESAMPLE
 from app.data.MIDataLoader import MIDataLoader
 from app.data.datasets.TrialsDataset import TrialsDataset
 from app.data.datasets.bcic.bcic_dataset import BCIC, BCICConstants
-from app.data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds
+from app.data.datasets.bcic.bcic_iv2a_dataset import BCIC_IV2a_dataset, plot_psds, orgfiles_path
 from app.machine_learning.util import get_valid_trials_per_subject, calc_slice_start_samples
-from app.ui.long_operation import is_thread_running
+from app.ui.long_operation import is_thread_interrupted
+from app.util.misc import makedir
+from app.util.progress_wrapper import  TqdmProgressBar
 
 
 class BCICTrialsDataset(TrialsDataset):
@@ -77,7 +81,7 @@ class BCICDataLoader(MIDataLoader):
         for s_idx, subject in enumerate(subjects):
             preloaded_data[s_idx], preloaded_labels[s_idx] = cls.load_subject(subject, n_class, ch_names)
             # Check if thread was stopped
-            if is_thread_running(qthread):
+            if is_thread_interrupted(qthread):
                 return preloaded_data, preloaded_labels
         cls.print_stats(preloaded_labels)
 
@@ -180,6 +184,28 @@ class BCICDataLoader(MIDataLoader):
                      (all_subjects_counts[0], all_subjects_counts[1], all_subjects_counts[2], \
                       all_subjects_counts[3], all_subjects_counts[4], all_subjects_counts[5]))
         logging.info()
+
+    @classmethod
+    def download_dataset(cls, qthread: QThread = None):
+        response = requests.get("https://api.github.com/repos/bregydoc/bcidatasetIV2a/git/trees/master?recursive=0")
+        files: List[any] = list(filter(lambda file: '.npz' in file['path'], response.json()['tree']))
+        for file in TqdmProgressBar(files):
+            url = f"https://github.com/bregydoc/bcidatasetIV2a/raw/master/{file['path']}"
+            makedir(orgfiles_path)
+            file_path = os.path.join(orgfiles_path, file['path'])
+            if os.path.exists(file_path) and  os.path.getsize(file_path) == file['size']:
+                logging.info(f"Skipping '{file['path']}' since it is already download")
+                continue
+            r = requests.get(url)
+            if r.ok:
+                logging.info(f"Downloading '{file['path']}' to '{os.path.abspath(file_path)}'")
+                with open(file_path, "wb") as new_file:
+                    new_file.write(r.content)
+            else:  # HTTP status code 4XX/5XX
+                logging.error("Download failed: status code {}\n{}".format(r.status_code, r.text))
+            # Check if thread was stopped
+            if is_thread_interrupted(qthread):
+                return
 
 
 ########################################################################################

@@ -19,7 +19,7 @@ from app.data.datasets.lsmr21.lmsr21_matlab import LSMRSubjectRun
 from app.data.datasets.lsmr21.lmsr_21_dataset import LSMR21, LSMR21Constants
 from app.machine_learning.util import get_valid_trials_per_subject
 from app.paths import datasets_folder
-from app.ui.long_operation import is_thread_running
+from app.ui.long_operation import is_thread_interrupted
 from app.util.misc import print_pretty_table, counts_of_list, save_dataframe, calc_n_samples, to_idxs_of_list_str, \
     to_idxs_of_list, load_matlab
 from app.util.progress_wrapper import TqdmProgressBar
@@ -229,6 +229,8 @@ class LSMR21DataLoader(MIDataLoader):
     CONSTANTS: LSMR21Constants = LSMR21
     ds_class = LSMR21TrialsDataset
 
+    numpy_dataset_path=f"{datasets_folder}/{LSMR21.short_name}/numpy/"
+
     @classmethod
     def load_subjects_data(cls, subjects: List[int], n_class: int, ch_names: List[str] = LSMR21.CHANNELS,
                            equal_trials: bool = True, ignored_runs: List[int] = [], qthread: QThread= None):
@@ -244,7 +246,7 @@ class LSMR21DataLoader(MIDataLoader):
             subjects_data[i] = s_data
             subjects_labels[i] = s_labels
             # Check if thread was stopped
-            if is_thread_running(qthread):
+            if is_thread_interrupted(qthread):
                 return subjects_data, subjects_labels
         return subjects_data, subjects_labels
 
@@ -388,6 +390,7 @@ class LSMR21DataLoader(MIDataLoader):
         """
         sr = LSMR21DataLoader.load_subject_run(subject_idx + 1, run + 1)
         return sr.get_data_samples(n_class)
+
 
     @classmethod
     def load_subject_run(cls, subject, run, from_matlab=False) -> LSMRNumpyRun:

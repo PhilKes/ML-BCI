@@ -27,7 +27,7 @@ from app.data.datasets.TrialsDataset import TrialsDataset
 from app.data.datasets.phys.phys_dataset import PHYS, PHYSConstants
 from app.machine_learning.util import calc_slice_start_samples
 from app.paths import datasets_folder, results_folder
-from app.ui.long_operation import is_thread_running
+from app.ui.long_operation import is_thread_interrupted
 from app.util.misc import split_np_into_chunks
 from app.util.plot import matplot
 from app.util.progress_wrapper import TqdmProgressBar
@@ -109,7 +109,7 @@ class PHYSDataLoader(MIDataLoader):
             preloaded_data[i] = data
             preloaded_labels[i] = labels
             # Check if thread was stopped
-            if is_thread_running(qthread):
+            if is_thread_interrupted(qthread):
                 return preloaded_data, preloaded_labels
         # print_numpy_counts(preloaded_labels)
         return preloaded_data, preloaded_labels

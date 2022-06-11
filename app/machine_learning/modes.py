@@ -113,13 +113,13 @@ def training_cv(mi_ds: str, num_epochs: int, batch_size: int, n_classes: List[in
         preloaded_data, preloaded_labels = dataset.load_subjects_data(used_subjects + validation_subjects, n_class,
                                                                       ch_names, equal_trials, qthread=qthread)
         # Check if thread was stopped
-        if LongOperation.is_thread_running(qthread):
+        if LongOperation.is_thread_interrupted(qthread):
             return n_class_accuracy, n_class_overfitting_diff
         run_data, best_model = do_n_class_training_cv(cv, used_subjects, groups, folds, n_class, num_epochs, only_fold,
                                                       dataset, validation_subjects,
                                                       preloaded_data, preloaded_labels, batch_size, ch_names, qthread)
         # Check if thread was stopped
-        if LongOperation.is_thread_running(qthread):
+        if LongOperation.is_thread_interrupted(qthread):
             return n_class_accuracy, n_class_overfitting_diff
         n_class_accuracy[i], n_class_overfitting_diff[i] = save_n_class_results(n_class, mi_ds, run_data, folds,
                                                                                 only_fold, batch_size, excluded,
@@ -160,7 +160,7 @@ def do_n_class_training_cv(cv: GroupKFold, used_subjects: List[int], groups: np.
 
         train_results = do_train(model, loader_train, loader_test, num_epochs, CONFIG.DEVICE, early_stop, qthread)
         # Check if thread was stopped
-        if LongOperation.is_thread_running(qthread):
+        if LongOperation.is_thread_interrupted(qthread):
             return run_data, best_model
         run_data.set_train_results(fold, train_results)
         # Load best model state of this fold to Test global accuracy if using Early Stopping

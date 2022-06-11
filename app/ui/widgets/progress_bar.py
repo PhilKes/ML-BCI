@@ -21,3 +21,4 @@ class ProgressBar(QProgressBar):
         self.setMaximum(max_val)
         self.setMinimum(0)
         self.setValue(0)
+

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import List
 
 import matplotlib.pyplot as plt
-import torch.types
+import torch
 
 from app.util.dot_dict import DotDict
 from app.util.misc import calc_n_samples

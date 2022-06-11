@@ -14,9 +14,8 @@ import logging
 import os
 from typing import List
 
-import numpy as np
-import sys
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy import signal
 
 # All total trials per class per n_class-Classification
@@ -105,17 +104,16 @@ Description:
                  stored in pl_data
 '''
 
+path = f'{datasets_folder}/BCICompetition_IV-2a/'
+
+orgfiles_path = path + "Numpy_files/"  # Location of original subject-specific data files
+pl_path = path + "pl_data/"  # Location where preloaded data is stored
 
 class BCIC_IV2a_dataset:
     '''
     Constructor:
       Initializes the used data structures
     '''
-
-    path = f'{datasets_folder}/BCICompetition_IV-2a/'
-
-    orgfiles_path = path + "Numpy_files/"  # Location of original subject-specific data files
-    pl_path = path + "pl_data/"  # Location where preloaded data is stored
 
     fs = BCIC.CONFIG.SAMPLERATE  # sampling rate: 250Hz from original paper
 
@@ -441,6 +439,7 @@ class BCIC_IV2a_dataset:
         logging.info("  - Data (f, psd) saved in files: ", (fname + "xxx.npz"))
 
 
+
 ########################################################################################
 '''
 subroutine: plot_psds
@@ -544,3 +543,4 @@ def plot_psds(path=f'{datasets_folder}/BCICompetition_IV-2a/pl_data/', sampling_
     plt.show()
 
     return
+
