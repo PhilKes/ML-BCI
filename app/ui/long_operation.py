@@ -1,9 +1,5 @@
-import logging
-from contextlib import contextmanager, ExitStack
-from functools import wraps
-
 from PyQt5 import QtCore
-from PyQt5.QtCore import QEventLoop, pyqtSlot, QThread
+from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import QWidget, QApplication
 
 
