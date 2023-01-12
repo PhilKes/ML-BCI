@@ -1,6 +1,10 @@
 # ML-BCI
 This repo contains the implementation for my bachelor thesis "Deep Learning based Motor Imagery Brain Computer Interface" for the [THU Ulm](https://studium.hs-ulm.de/en)
 
+You can further read about the project's topic in the published paper 
+
+[Investigation of a Deep-Learning Based Brain–Computer Interface With Respect to a Continuous Control Application](https://ieeexplore.ieee.org/document/9978624)
+
 ## Machine Learning based Brain-Computer Interface Framework
 
 * EEGNet Implementation in PyTorch
